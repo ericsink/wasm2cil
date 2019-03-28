@@ -1,5 +1,5 @@
 
-module wasm.readargs
+module wasm.read_args
     open wasm.args
     open wasm.buffer
 

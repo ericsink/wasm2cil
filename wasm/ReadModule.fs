@@ -1,10 +1,10 @@
 
-module wasm.m
+module wasm.read
 
-    open wasm.buffer
-    open wasm.parse
     open wasm.instr
     open wasm.def
+    open wasm.buffer
+    open wasm.read_instr
 
     let read_name (br: BinaryWasmStream) =
         let len_name = br.ReadVarUInt32()
@@ -12,9 +12,11 @@ module wasm.m
         let name = System.Text.Encoding.UTF8.GetString(ba_name, 0, ba_name.Length);
         name
 
-    let read_section_custom (br: BinaryWasmStream) =
+    let read_custom_section (br: BinaryWasmStream) =
         let name = read_name br
-        Custom name
+        let len = br.Remaining()
+        let ba = br.ReadBytes(len |> uint32)
+        Custom { name = name; data = ba; }
 
     let read_valtype (br: BinaryWasmStream) =
         match br.ReadByte() with
@@ -32,10 +34,10 @@ module wasm.m
         let vec2 = read_vector br count2 read_valtype
         { parms = vec1; result = vec2 }
 
-    let read_section_type (br: BinaryWasmStream) =
+    let read_type_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_functype
-        Type a
+        Type { types = a }
 
     let read_limits (br: BinaryWasmStream) =
         match br.ReadByte() with
@@ -71,7 +73,7 @@ module wasm.m
             | 0x00uy -> false
             | 0x01uy -> true
             | _ -> failwith "mut bool"
-        { globaltype = globaltype; mut = mut; }
+        { typ = globaltype; mut = mut; }
 
     let read_importdesc (br: BinaryWasmStream) =
         let import_type = br.ReadByte()
@@ -155,54 +157,54 @@ module wasm.m
         let e = read_expr br
         { CodeItem.len = br.Length(); locals = locals; expr = e }
 
-    let read_section_code (br: BinaryWasmStream) =
+    let read_code_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_code
-        Code a
+        Code { codes = a }
 
-    let read_section_import (br: BinaryWasmStream) =
+    let read_import_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_import
-        Import a
+        Import { imports = a }
 
-    let read_section_function (br: BinaryWasmStream) =
+    let read_function_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_idx
-        Function a
+        Function { funcs = a }
 
-    let read_section_table (br: BinaryWasmStream) =
+    let read_table_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_tabletype
-        Table a
+        Table { tables = a }
 
-    let read_section_memory (br: BinaryWasmStream) =
+    let read_memory_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_memtype
-        Memory a
+        Memory { mems = a }
 
-    let read_section_export (br: BinaryWasmStream) =
+    let read_export_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_export
-        Export a
+        Export { exports = a }
 
-    let read_section_start (br: BinaryWasmStream) =
+    let read_start_section (br: BinaryWasmStream) =
         let idx = read_idx br
         Start idx
 
-    let read_section_data (br: BinaryWasmStream) =
+    let read_data_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_data
-        Data a
+        Data { datas = a }
 
-    let read_section_global (br: BinaryWasmStream) =
+    let read_global_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_global
-        Global a
+        Global { globals = a }
 
-    let read_section_element (br: BinaryWasmStream) =
+    let read_element_section (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
         let a = read_vector br count read_elem
-        Element a
+        Element { elems = a }
 
     let read_section (br: BinaryWasmStream) =
         let id = br.ReadByte()
@@ -210,19 +212,20 @@ module wasm.m
             let len = br.ReadVarUInt32()
             let ba_section = br.ReadBytes(len)
             BinaryWasmStream(ba_section)
+        printfn "read section %d with len %d" id (br_section.Length())
         match id with
-        | 0uy -> read_section_custom br_section
-        | 1uy -> read_section_type br_section
-        | 2uy -> read_section_import br_section
-        | 3uy -> read_section_function br_section
-        | 4uy -> read_section_table br_section
-        | 5uy -> read_section_memory br_section
-        | 6uy -> read_section_global br_section
-        | 7uy -> read_section_export br_section
-        | 8uy -> read_section_start br_section
-        | 9uy -> read_section_element br_section
-        | 10uy -> read_section_code br_section
-        | 11uy -> read_section_data br_section
+        | 0uy -> read_custom_section br_section
+        | 1uy -> read_type_section br_section
+        | 2uy -> read_import_section br_section
+        | 3uy -> read_function_section br_section
+        | 4uy -> read_table_section br_section
+        | 5uy -> read_memory_section br_section
+        | 6uy -> read_global_section br_section
+        | 7uy -> read_export_section br_section
+        | 8uy -> read_start_section br_section
+        | 9uy -> read_element_section br_section
+        | 10uy -> read_code_section br_section
+        | 11uy -> read_data_section br_section
         | _ -> failwith "unknown section id"
 
     let read_module (br: BinaryWasmStream) =

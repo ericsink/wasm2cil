@@ -31,7 +31,7 @@ module wasm.def
         }
 
     type GlobalType = {
-        globaltype: ValType
+        typ: ValType
         mut: bool
         }
 
@@ -77,7 +77,7 @@ module wasm.def
 
     type Local = {
         n : uint32
-        valtype : byte
+        valtype : byte // TODO ?
         }
 
     type CodeItem = {
@@ -86,19 +86,65 @@ module wasm.def
         len : int
         }
 
+    type CustomSection = {
+        name : string
+        data : byte[]
+        }
+
+    type ImportSection = {
+        imports : ImportItem list
+        }
+
+    type TypeSection = {
+        types : FuncType list
+        }
+
+    type FunctionSection = {
+        funcs : uint32 list
+        }
+
+    type TableSection = {
+        tables : TableType list
+        }
+
+    type MemorySection = {
+        mems : MemType list
+        }
+
+    type GlobalSection = {
+        globals : GlobalItem list
+        }
+
+    type ExportSection = {
+        exports : ExportItem list
+        }
+
+    type ElementSection = {
+        elems : ElementItem list
+        }
+
+    type CodeSection = {
+        codes : CodeItem list
+        }
+
+    type DataSection = {
+        datas : DataItem list
+        }
+
+    // TODO the labels below might want Section appended?
     type Section =
-        | Custom of string
-        | Type of FuncType list
-        | Import of ImportItem list
-        | Function of uint32 list
-        | Table of TableType list
-        | Memory of MemType list
-        | Global of GlobalItem list
-        | Export of ExportItem list
+        | Custom of CustomSection
+        | Type of TypeSection
+        | Import of ImportSection
+        | Function of FunctionSection
+        | Table of TableSection
+        | Memory of MemorySection
+        | Global of GlobalSection
+        | Export of ExportSection
         | Start of uint32
-        | Element of ElementItem list
-        | Code of CodeItem list
-        | Data of DataItem list
+        | Element of ElementSection
+        | Code of CodeSection
+        | Data of DataSection
 
     type Module = {
         version: uint32
