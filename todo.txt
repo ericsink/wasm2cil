@@ -1,7 +1,7 @@
 
+rm the post wasm 1.0 stuff?
+
 need better wasm sample files
 
-lots of immediates left to fix
-
-magic strings in immediate match are sad
+output s-expressions for testing
 
