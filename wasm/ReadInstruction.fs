@@ -252,8 +252,8 @@ module wasm.parse
         | 0x09uy -> Rethrow
         | 0x0auy -> BrOnExn
         | 0x0buy -> End
-        | 0x0cuy -> Br
-        | 0x0duy -> BrIf
+        | 0x0cuy -> Br (br.ReadVarUInt32())
+        | 0x0duy -> BrIf (br.ReadVarUInt32())
         | 0x0euy -> BrTable
         | 0x0fuy -> Return
         | 0x10uy -> Call (br.ReadVarUInt32())

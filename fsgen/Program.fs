@@ -16,6 +16,8 @@ let get_immediate name =
     match name with
     | "I32Const" -> I32
     | "Call" -> U32
+    | "Br" -> U32
+    | "BrIf" -> U32
     | _ -> Nothing
 
 let get_prefixes () =

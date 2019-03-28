@@ -13,8 +13,8 @@ module wasm.instr
         | Rethrow
         | BrOnExn
         | End
-        | Br
-        | BrIf
+        | Br of uint32
+        | BrIf of uint32
         | BrTable
         | Return
         | Call of uint32
