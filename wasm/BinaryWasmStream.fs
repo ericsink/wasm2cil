@@ -10,12 +10,12 @@ module wasm.buffer
             offset <- offset + 1
             b
 
-        let rec read_var_signed count (value: int32) =
+        let rec read_var_signed count (value: int64) =
             let b = read_byte ()
-            let result = value ||| (int32 (b &&& 0x7Fuy) <<< (count * 7))
+            let result = value ||| (int64 (b &&& 0x7Fuy) <<< (count * 7))
             if (b &&& 0x80uy) = 0uy then
-                let sign = -1 <<< ((count + 1) * 7)
-                if ((sign >>> 1) &&& result) <> 0 then
+                let sign = -1L <<< ((count + 1) * 7)
+                if ((sign >>> 1) &&& result) <> 0L then
                     result ||| sign
                 else
                     result
@@ -29,6 +29,12 @@ module wasm.buffer
                 result
             else
                 read_var_unsigned (count + 1) result
+
+        let read_bytes len =
+            let last = offset + len - 1
+            let ba = buf.[offset..last]
+            offset <- offset + int len
+            ba
 
         member this.ReadByte() =
             let b = buf.[offset]
@@ -54,11 +60,19 @@ module wasm.buffer
             read_var_unsigned 0 0u
 
         member this.ReadVarInt32() =
-            read_var_signed 0 0
+            read_var_signed 0 0L |> int32
+
+        member this.ReadVarInt64() =
+            read_var_signed 0 0L
+
+        member this.ReadFloat32() =
+            let ba = read_bytes 4
+            0 |> float32 // TODO
+
+        member this.ReadFloat64() =
+            let ba = read_bytes 8
+            0 |> double // TODO
 
         member this.ReadBytes(len: uint32) =
-            let last = offset + int len - 1
-            let ba = buf.[offset..last]
-            offset <- offset + int len
-            ba
+            read_bytes (int len)
 

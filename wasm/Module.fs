@@ -4,6 +4,7 @@ module wasm.m
     open wasm.buffer
     open wasm.parse
     open wasm.instr
+    open wasm.args
 
     type Limits =
         | Min of uint32
@@ -101,16 +102,6 @@ module wasm.m
         | Element of ElementItem list
         | Code of CodeItem list
         | Data of DataItem list
-
-    let read_vector (br: BinaryWasmStream) count f =
-        if count = 0 then 
-            []
-        else
-            let rec g a =
-                let it = f br
-                let b = it :: a
-                if b.Length = count then b else g b
-            g [] |> List.rev
 
     let read_name (br: BinaryWasmStream) =
         let len_name = br.ReadVarUInt32()
@@ -218,9 +209,9 @@ module wasm.m
             let b = it :: a
             let depth =
                 match it with
-                | Block -> depth + 1
-                | Loop -> depth + 1
-                | If -> depth + 1
+                | Block _ -> depth + 1
+                | Loop _ -> depth + 1
+                | If _ -> depth + 1
                 | End -> depth - 1
                 | _ -> depth
             if depth = 0 then

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Include="BinaryWasmStream.fs" />
+    <Compile Include="Args.fs" />
     <Compile Include="Instruction.fs" />
     <Compile Include="ReadInstruction.fs" />
     <Compile Include="Module.fs" />
