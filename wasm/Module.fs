@@ -340,7 +340,6 @@ module wasm.m
             let sections = System.Collections.Generic.List<Section>()
             while br.Remaining() > 0 do
                 let s = read_section br
-                printfn "%A" s
                 sections.Add(s)
             List.ofSeq sections
         
