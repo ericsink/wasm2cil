@@ -10,7 +10,7 @@
     <Compile Include="BinaryWasmStream.fs" />
     <Compile Include="ReadArgs.fs" />
     <Compile Include="ReadInstruction.fs" />
-    <Compile Include="Module.fs" />
+    <Compile Include="ReadModule.fs" />
   </ItemGroup>
 
 </Project>
