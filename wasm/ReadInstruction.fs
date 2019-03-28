@@ -2,7 +2,7 @@
 module wasm.parse
     open wasm.buffer
     open wasm.instr
-    open wasm.args
+    open wasm.readargs
     let read_instruction (br: BinaryWasmStream) =
         let b1 = br.ReadByte()
         match b1 with
