@@ -67,11 +67,15 @@ module wasm.buffer
 
         member this.ReadFloat32() =
             let ba = read_bytes 4
-            0 |> float32 // TODO
+            use ms = new System.IO.MemoryStream(ba)
+            use br = new System.IO.BinaryReader(ms)
+            br.ReadSingle()
 
         member this.ReadFloat64() =
             let ba = read_bytes 8
-            0 |> double // TODO
+            use ms = new System.IO.MemoryStream(ba)
+            use br = new System.IO.BinaryReader(ms)
+            br.ReadDouble()
 
         member this.ReadBytes(len: uint32) =
             read_bytes (int len)
