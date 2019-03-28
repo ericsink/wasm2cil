@@ -17,7 +17,7 @@ module wasm.instr
         | BrIf
         | BrTable
         | Return
-        | Call
+        | Call of uint32
         | CallIndirect
         | ReturnCall
         | ReturnCallIndirect

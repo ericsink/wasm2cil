@@ -1,5 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
-
+﻿
 open System
 open System.IO
 open System.Text
@@ -9,11 +8,14 @@ open fsgen.opcodes
 
 type Immediate =
     | I32
+    | U32
     | Nothing
 
 let get_immediate name =
+    // TODO magic strings here are sad
     match name with
     | "I32Const" -> I32
+    | "Call" -> U32
     | _ -> Nothing
 
 let get_prefixes () =
@@ -34,6 +36,7 @@ let write_type_instruction path =
     for op in opcode_infos do
         match get_immediate op.name with
         | I32 -> sprintf "        | %s of int32"  op.name |> pr
+        | U32 -> sprintf "        | %s of uint32"  op.name |> pr
         | Nothing -> sprintf "        | %s"  op.name |> pr
     "\n" |> pr
     let txt = sb.ToString()
@@ -71,6 +74,7 @@ let write_function_read_instruction path =
         | None -> 
             match get_immediate op.name with
             | I32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarInt32())" op.code op.name |> pr
+            | U32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarUInt32())" op.code op.name |> pr
             | Nothing -> sprintf "        | 0x%02xuy -> %s" op.code op.name |> pr
     sprintf "        | _      -> failwith \"todo\"" |> pr
     sprintf "" |> pr

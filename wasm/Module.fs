@@ -84,7 +84,7 @@ module wasm.m
 
     type CodeItem = {
         locals: Local list
-        //expr: Instruction list
+        expr: Instruction list
         len : int
         }
 
@@ -263,11 +263,8 @@ module wasm.m
             BinaryWasmStream(ba)
         let count = br.ReadVarUInt32() |> int
         let locals = read_vector br count read_local
-        { CodeItem.len = br.Length(); locals = locals }
-        (*
         let e = read_expr br
-        { locals = locals; expr = e; }
-        *)
+        { CodeItem.len = br.Length(); locals = locals; expr = e }
 
     let read_section_code (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int

@@ -256,7 +256,7 @@ module wasm.parse
         | 0x0duy -> BrIf
         | 0x0euy -> BrTable
         | 0x0fuy -> Return
-        | 0x10uy -> Call
+        | 0x10uy -> Call (br.ReadVarUInt32())
         | 0x11uy -> CallIndirect
         | 0x12uy -> ReturnCall
         | 0x13uy -> ReturnCallIndirect
