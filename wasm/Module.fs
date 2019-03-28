@@ -103,6 +103,11 @@ module wasm.m
         | Code of CodeItem list
         | Data of DataItem list
 
+    type Module = {
+        version: uint32
+        sections: Section list
+        }
+
     let read_name (br: BinaryWasmStream) =
         let len_name = br.ReadVarUInt32()
         let ba_name = br.ReadBytes(len_name)
@@ -321,11 +326,6 @@ module wasm.m
         | 10uy -> read_section_code br_section
         | 11uy -> read_section_data br_section
         | _ -> failwith "unknown section id"
-
-    type Module = {
-        version: uint32
-        sections: Section list
-        }
 
     let read_module (br: BinaryWasmStream) =
         let magic = br.ReadUInt32()
