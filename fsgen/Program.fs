@@ -18,6 +18,8 @@ let get_immediate name =
     | "Call" -> U32
     | "Br" -> U32
     | "BrIf" -> U32
+    | "LocalGet" -> U32
+    | "LocalSet" -> U32
     | _ -> Nothing
 
 let get_prefixes () =

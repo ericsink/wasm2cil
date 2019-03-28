@@ -23,8 +23,8 @@ module wasm.instr
         | ReturnCallIndirect
         | Drop
         | Select
-        | LocalGet
-        | LocalSet
+        | LocalGet of uint32
+        | LocalSet of uint32
         | LocalTee
         | GlobalGet
         | GlobalSet

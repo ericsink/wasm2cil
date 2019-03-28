@@ -262,8 +262,8 @@ module wasm.parse
         | 0x13uy -> ReturnCallIndirect
         | 0x1auy -> Drop
         | 0x1buy -> Select
-        | 0x20uy -> LocalGet
-        | 0x21uy -> LocalSet
+        | 0x20uy -> LocalGet (br.ReadVarUInt32())
+        | 0x21uy -> LocalSet (br.ReadVarUInt32())
         | 0x22uy -> LocalTee
         | 0x23uy -> GlobalGet
         | 0x24uy -> GlobalSet
