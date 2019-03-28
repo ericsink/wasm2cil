@@ -128,7 +128,7 @@ let write_function_read_instruction path (immediates: Dictionary<string,Immediat
     "module wasm.parse" |> pr
     "    open wasm.buffer" |> pr
     "    open wasm.instr" |> pr
-    "    open wasm.args" |> pr
+    "    open wasm.readargs" |> pr
 
     pr "    let read_instruction (br: BinaryWasmStream) ="
     pr "        let b1 = br.ReadByte()"
@@ -143,7 +143,7 @@ let write_function_read_instruction path (immediates: Dictionary<string,Immediat
                 if x = n then
                     sprintf "            | 0x%02xuy -> %s" op.code op.name |> pr
             | None -> ()
-        sprintf "            | _      -> failwith \"todo\"" |> pr
+        sprintf "            | _      -> failwith \"unknown opcode\"" |> pr
 
     for op in opcode_infos do
         match op.prefix with
@@ -160,7 +160,7 @@ let write_function_read_instruction path (immediates: Dictionary<string,Immediat
             | CallIndirect -> sprintf "        | 0x%02xuy -> %s (read_callindirect br)" op.code op.name |> pr
             | BrTable -> sprintf "        | 0x%02xuy -> %s (read_brtable br)" op.code op.name |> pr
             | Nothing -> sprintf "        | 0x%02xuy -> %s" op.code op.name |> pr
-    sprintf "        | _      -> failwith \"todo\"" |> pr
+    sprintf "        | _      -> failwith \"unknown opcode\"" |> pr
     sprintf "" |> pr
 
     let txt = sb.ToString()

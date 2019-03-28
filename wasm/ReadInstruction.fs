@@ -178,5 +178,5 @@ module wasm.parse
         | 0xbduy -> I64ReinterpretF64
         | 0xbeuy -> F32ReinterpretI32
         | 0xbfuy -> F64ReinterpretI64
-        | _      -> failwith "todo"
+        | _      -> failwith "unknown opcode"
 
