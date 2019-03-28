@@ -39,7 +39,7 @@ module wasm.m
         }
 
     type ImportDesc =
-        | TypeIdx of uint32 // TODO better type?
+        | TypeIdx of uint32
         | TableType of TableType
         | MemType of MemType
         | GlobalType of GlobalType
@@ -146,12 +146,7 @@ module wasm.m
         | _ ->
             failwith "invalid first byte for limits"
 
-    let read_typeidx (br: BinaryWasmStream) =
-        // TODO type convert?
-        br.ReadVarUInt32()
-
     let read_idx (br: BinaryWasmStream) =
-        // TODO strong type wrap?
         br.ReadVarUInt32()
 
     let read_tabletype (br: BinaryWasmStream) =
@@ -178,7 +173,7 @@ module wasm.m
     let read_importdesc (br: BinaryWasmStream) =
         let import_type = br.ReadByte()
         match import_type with
-        | 0x00uy -> read_typeidx br |> TypeIdx
+        | 0x00uy -> read_idx br |> TypeIdx
         | 0x01uy -> read_tabletype br |> TableType
         | 0x02uy -> read_memtype br |> MemType
         | 0x03uy -> read_globaltype br |> GlobalType
@@ -196,7 +191,7 @@ module wasm.m
         let m = read_name br
         let name = read_name br
         let desc = read_importdesc br
-        { m = m; ImportItem.name = name; desc = desc } // TODO m
+        { m = m; ImportItem.name = name; desc = desc }
 
     let read_export (br: BinaryWasmStream) =
         let name = read_name br
@@ -269,7 +264,7 @@ module wasm.m
 
     let read_section_function (br: BinaryWasmStream) =
         let count = br.ReadVarUInt32() |> int
-        let a = read_vector br count read_typeidx
+        let a = read_vector br count read_idx
         Function a
 
     let read_section_table (br: BinaryWasmStream) =
