@@ -83,6 +83,7 @@ module wasm.write
         match d with
         | TypeIdx i ->
             write_byte w 0x00uy
+            write_var_uint32 w i
         | TableType t ->
             write_byte w 0x01uy
             write_table_item w t
