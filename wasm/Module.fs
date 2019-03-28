@@ -4,7 +4,6 @@ module wasm.m
     open wasm.buffer
     open wasm.parse
     open wasm.instr
-    open wasm.readargs
 
     type Limits =
         | Min of uint32

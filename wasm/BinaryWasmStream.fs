@@ -80,3 +80,13 @@ module wasm.buffer
         member this.ReadBytes(len: uint32) =
             read_bytes (int len)
 
+    let read_vector (br: BinaryWasmStream) count f =
+        if count = 0 then 
+            []
+        else
+            let rec g a =
+                let it = f br
+                let b = it :: a
+                if b.Length = count then b else g b
+            g [] |> List.rev
+
