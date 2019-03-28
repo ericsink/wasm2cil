@@ -75,7 +75,7 @@ module wasm.m
     type DataItem = {
         memidx : uint32
         expr: Instruction list
-        init: byte list // TODO should be an array
+        init: byte[]
         }
 
     type Local = {
@@ -231,8 +231,8 @@ module wasm.m
     let read_data (br: BinaryWasmStream) =
         let memidx = read_idx br
         let e = read_expr br
-        let count = br.ReadVarUInt32() |> int
-        let a = read_vector br count read_byte
+        let count = br.ReadVarUInt32()
+        let a = br.ReadBytes(count)
         { memidx = memidx; expr = e; init = a }
 
     let read_elem (br: BinaryWasmStream) =
