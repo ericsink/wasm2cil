@@ -292,7 +292,7 @@ module wasm.parse
         | 0x3euy -> I64Store32
         | 0x3fuy -> MemorySize
         | 0x40uy -> MemoryGrow
-        | 0x41uy -> I32Const
+        | 0x41uy -> I32Const (br.ReadVarInt32())
         | 0x42uy -> I64Const
         | 0x43uy -> F32Const
         | 0x44uy -> F64Const

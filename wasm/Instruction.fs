@@ -53,7 +53,7 @@ module wasm.instr
         | I64Store32
         | MemorySize
         | MemoryGrow
-        | I32Const
+        | I32Const of int32
         | I64Const
         | F32Const
         | F64Const

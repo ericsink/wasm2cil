@@ -7,6 +7,15 @@ open System.Collections.Generic
 
 open fsgen.opcodes
 
+type Immediate =
+    | I32
+    | Nothing
+
+let get_immediate name =
+    match name with
+    | "I32Const" -> I32
+    | _ -> Nothing
+
 let get_prefixes () =
     let h = HashSet<int>()
     for op in opcode_infos do
@@ -23,7 +32,9 @@ let write_type_instruction path =
     "module wasm.instr" |> pr
     "    type Instruction =" |> pr
     for op in opcode_infos do
-        sprintf "        | %s"  op.name |> pr
+        match get_immediate op.name with
+        | I32 -> sprintf "        | %s of int32"  op.name |> pr
+        | Nothing -> sprintf "        | %s"  op.name |> pr
     "\n" |> pr
     let txt = sb.ToString()
     File.WriteAllText(path, txt)
@@ -57,7 +68,10 @@ let write_function_read_instruction path =
     for op in opcode_infos do
         match op.prefix with
         | Some _ -> ()
-        | None -> sprintf "        | 0x%02xuy -> %s" op.code op.name |> pr
+        | None -> 
+            match get_immediate op.name with
+            | I32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarInt32())" op.code op.name |> pr
+            | Nothing -> sprintf "        | 0x%02xuy -> %s" op.code op.name |> pr
     sprintf "        | _      -> failwith \"todo\"" |> pr
     sprintf "" |> pr
 
