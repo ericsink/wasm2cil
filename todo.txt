@@ -1,6 +1,4 @@
 
-rm the post wasm 1.0 stuff?
-
 need better wasm sample files
 
 output s-expressions for testing
