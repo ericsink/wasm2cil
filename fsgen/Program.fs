@@ -11,16 +11,25 @@ type Immediate =
     | U32
     | Nothing
 
-let get_immediate name =
-    // TODO magic strings here are sad
-    match name with
-    | "I32Const" -> I32
-    | "Call" -> U32
-    | "Br" -> U32
-    | "BrIf" -> U32
-    | "LocalGet" -> U32
-    | "LocalSet" -> U32
-    | _ -> Nothing
+let add_immediate (h: Dictionary<string,Immediate>) name im =
+    // TODO verify name exists?
+    h.Add(name, im)
+
+let build_immediate_lookup () =
+    let h = Dictionary<string,Immediate>()
+    add_immediate h "I32Const" I32
+    add_immediate h "Call" U32
+    add_immediate h "Br" U32
+    add_immediate h "BrIf" U32
+    add_immediate h "LocalGet" U32
+    add_immediate h "LocalSet" U32
+    h
+
+let get_immediate (h: Dictionary<string,Immediate>) name =
+    if (h.ContainsKey(name)) then
+        h.[name]
+    else
+        Nothing
 
 let get_prefixes () =
     let h = HashSet<int>()
@@ -30,7 +39,7 @@ let get_prefixes () =
         | None -> ()
     h
 
-let write_type_instruction path =
+let write_type_instruction path (immediates: Dictionary<string,Immediate>) =
     let sb = StringBuilder()
     let pr (s: string) =
         sb.Append(s + "\n") |> ignore
@@ -38,7 +47,7 @@ let write_type_instruction path =
     "module wasm.instr" |> pr
     "    type Instruction =" |> pr
     for op in opcode_infos do
-        match get_immediate op.name with
+        match get_immediate immediates op.name with
         | I32 -> sprintf "        | %s of int32"  op.name |> pr
         | U32 -> sprintf "        | %s of uint32"  op.name |> pr
         | Nothing -> sprintf "        | %s"  op.name |> pr
@@ -46,7 +55,7 @@ let write_type_instruction path =
     let txt = sb.ToString()
     File.WriteAllText(path, txt)
     
-let write_function_read_instruction path =
+let write_function_read_instruction path (immediates: Dictionary<string,Immediate>) =
     let prefixes = get_prefixes()
 
     let sb = StringBuilder()
@@ -76,7 +85,7 @@ let write_function_read_instruction path =
         match op.prefix with
         | Some _ -> ()
         | None -> 
-            match get_immediate op.name with
+            match get_immediate immediates op.name with
             | I32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarInt32())" op.code op.name |> pr
             | U32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarUInt32())" op.code op.name |> pr
             | Nothing -> sprintf "        | 0x%02xuy -> %s" op.code op.name |> pr
@@ -94,8 +103,9 @@ let main argv =
         // TODO or maybe walk upward until we find the right directory
 
     let dir_wasm = Path.Combine(dir_top, "wasm")
-    write_type_instruction (Path.Combine(dir_wasm, "Instruction.fs"))
-    write_function_read_instruction (Path.Combine(dir_wasm, "ReadInstruction.fs"))
+    let immediates = build_immediate_lookup ()
+    write_type_instruction (Path.Combine(dir_wasm, "Instruction.fs")) immediates
+    write_function_read_instruction (Path.Combine(dir_wasm, "ReadInstruction.fs")) immediates
 
     0 // return an integer exit code
 
