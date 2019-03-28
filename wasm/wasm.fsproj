@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="BinaryWasmStream.fs" />
+    <Compile Include="Instruction.fs" />
+    <Compile Include="ReadInstruction.fs" />
+    <Compile Include="Module.fs" />
+  </ItemGroup>
+
+</Project>
