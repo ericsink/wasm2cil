@@ -47,8 +47,7 @@ module wasm.buffer
             let b2 = this.ReadByte() |> uint32
             let b3 = this.ReadByte() |> uint32
 
-            // TODO shifting here is probably wrong
-            let v = (b0 <<< 24) ||| (b1 <<< 16) ||| (b2 <<< 8) ||| (b3 <<< 0)
+            let v = (b3 <<< 24) ||| (b2 <<< 16) ||| (b1 <<< 8) ||| (b0 <<< 0)
             v
 
         member this.ReadVarUInt32() =
