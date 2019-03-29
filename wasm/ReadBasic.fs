@@ -84,7 +84,7 @@ module wasm.read_basic
     let read_byte (br: BinaryWasmStream) =
         br.ReadByte()
 
-    let read_var_uint32 (br: BinaryWasmStream) =
+    let read_var_u32 (br: BinaryWasmStream) =
         br.ReadVarUInt32()
 
     let read_var_i32 (br: BinaryWasmStream) =
@@ -99,7 +99,7 @@ module wasm.read_basic
     let read_f64 (br: BinaryWasmStream) =
         br.ReadFloat64()
 
-    let read_uint32 (br: BinaryWasmStream) =
+    let read_u32 (br: BinaryWasmStream) =
         br.ReadUInt32()
 
     let read_bytes (br: BinaryWasmStream) (len :uint32) =

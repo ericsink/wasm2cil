@@ -13,19 +13,19 @@ module wasm.read_instr
         | 0x04uy -> If (read_byte br)
         | 0x05uy -> Else
         | 0x0buy -> End
-        | 0x0cuy -> Br (read_var_uint32 br)
-        | 0x0duy -> BrIf (read_var_uint32 br)
+        | 0x0cuy -> Br (read_var_u32 br)
+        | 0x0duy -> BrIf (read_var_u32 br)
         | 0x0euy -> BrTable (read_brtable br)
         | 0x0fuy -> Return
-        | 0x10uy -> Call (read_var_uint32 br)
+        | 0x10uy -> Call (read_var_u32 br)
         | 0x11uy -> CallIndirect (read_callindirect br)
         | 0x1auy -> Drop
         | 0x1buy -> Select
-        | 0x20uy -> LocalGet (read_var_uint32 br)
-        | 0x21uy -> LocalSet (read_var_uint32 br)
-        | 0x22uy -> LocalTee (read_var_uint32 br)
-        | 0x23uy -> GlobalGet (read_var_uint32 br)
-        | 0x24uy -> GlobalSet (read_var_uint32 br)
+        | 0x20uy -> LocalGet (read_var_u32 br)
+        | 0x21uy -> LocalSet (read_var_u32 br)
+        | 0x22uy -> LocalTee (read_var_u32 br)
+        | 0x23uy -> GlobalGet (read_var_u32 br)
+        | 0x24uy -> GlobalSet (read_var_u32 br)
         | 0x28uy -> I32Load (read_memarg br)
         | 0x29uy -> I64Load (read_memarg br)
         | 0x2auy -> F32Load (read_memarg br)

@@ -24,10 +24,10 @@ module wasm.write_instr
             write_byte w 0x0buy
         | Br i ->
             write_byte w 0x0cuy
-            write_var_uint32 w i
+            write_var_u32 w i
         | BrIf i ->
             write_byte w 0x0duy
-            write_var_uint32 w i
+            write_var_u32 w i
         | BrTable i ->
             write_byte w 0x0euy
             write_brtable w i
@@ -35,7 +35,7 @@ module wasm.write_instr
             write_byte w 0x0fuy
         | Call i ->
             write_byte w 0x10uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | CallIndirect i ->
             write_byte w 0x11uy
             write_callindirect w i
@@ -45,19 +45,19 @@ module wasm.write_instr
             write_byte w 0x1buy
         | LocalGet i ->
             write_byte w 0x20uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | LocalSet i ->
             write_byte w 0x21uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | LocalTee i ->
             write_byte w 0x22uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | GlobalGet i ->
             write_byte w 0x23uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | GlobalSet i ->
             write_byte w 0x24uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | I32Load i ->
             write_byte w 0x28uy
             write_memarg w i

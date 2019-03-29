@@ -4,7 +4,7 @@ module wasm.write_basic
     let write_byte (w : System.IO.BinaryWriter) (b : byte) =
         w.Write(b)
 
-    let write_uint32 (w : System.IO.BinaryWriter) (v : uint32) =
+    let write_u32 (w : System.IO.BinaryWriter) (v : uint32) =
         w.Write(v)
 
     let write_blob (w : System.IO.BinaryWriter) (ba : byte[]) =
@@ -16,7 +16,7 @@ module wasm.write_basic
     let write_f64 (w : System.IO.BinaryWriter) (f : double) =
         w.Write(f)
 
-    let write_var_uint32 w (n : uint32) =
+    let write_var_u32 w (n : uint32) =
         let rec g v =
             let after = v >>> 7
             let b = 
@@ -28,9 +28,10 @@ module wasm.write_basic
                 g after
         g n
 
+    // TODO oddball case
     let write_var_int w (n : int) =
         let n = uint32 n
-        write_var_uint32 w n
+        write_var_u32 w n
 
     let write_var_i64 w (n : int64) =
         let rec g v =

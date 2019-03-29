@@ -36,11 +36,11 @@ module wasm.write
         match lim with
         | Min min ->
             write_byte w 0x00uy
-            write_var_uint32 w min
+            write_var_u32 w min
         | MinMax (min,max) -> 
             write_byte w 0x01uy
-            write_var_uint32 w min
-            write_var_uint32 w max
+            write_var_u32 w min
+            write_var_u32 w max
 
     let write_functype w ft =
         write_byte w 0x60uy
@@ -83,7 +83,7 @@ module wasm.write
         match d with
         | ImportFunc (TypeIdx i) ->
             write_byte w 0x00uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | ImportTable t ->
             write_byte w 0x01uy
             write_table_item w t
@@ -100,22 +100,22 @@ module wasm.write
         write_importdesc w it.desc
 
     let write_function_item w tidx =
-        write_var_uint32 w tidx
+        write_var_u32 w tidx
 
     let write_exportdesc w d =
         match d with
         | ExportFunc (FuncIdx i) -> 
             write_byte w 0x00uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | ExportTable (TableIdx i) -> 
             write_byte w 0x01uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | ExportMem (MemIdx i) -> 
             write_byte w 0x02uy
-            write_var_uint32 w i
+            write_var_u32 w i
         | ExportGlobal (GlobalIdx i) -> 
             write_byte w 0x03uy
-            write_var_uint32 w i
+            write_var_u32 w i
 
     let write_export_item w (it : ExportItem) =
         write_name w it.name
@@ -124,15 +124,15 @@ module wasm.write
     let write_element_item w it =
         // TODO want scope block
         let (TableIdx i) = it.tableidx
-        write_var_uint32 w i
+        write_var_u32 w i
         write_expr w it.offset
         write_var_int w it.init.Length
         for x in it.init do
             let (FuncIdx i) = x
-            write_var_uint32 w i
+            write_var_u32 w i
 
     let write_local w loc =
-        write_var_uint32 w loc.n
+        write_var_u32 w loc.n
         write_valtype w loc.localtype
 
     let write_code_item w it =
@@ -144,7 +144,7 @@ module wasm.write
     let write_data_item w it =
         // TODO want scope block
         let (MemIdx i) = it.memidx
-        write_var_uint32 w i
+        write_var_u32 w i
         write_expr w it.offset
         write_blob w it.init
 
@@ -246,7 +246,7 @@ module wasm.write
 
     let write_module w m =
         write_magic w
-        write_uint32 w m.version
+        write_u32 w m.version
         for s in m.sections do
             write_section w s
 

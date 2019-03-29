@@ -3,21 +3,21 @@ module wasm.read_args
     open wasm.args
     open wasm.read_basic
 
-    let read_memarg (br: BinaryWasmStream) =
-        let a = br.ReadVarUInt32()
-        let o = br.ReadVarUInt32()
+    let read_memarg br =
+        let a = read_var_u32 br
+        let o = read_var_u32 br
         { align = a; offset = o; }
 
-    let read_callindirect (br: BinaryWasmStream) =
-        let x = br.ReadVarUInt32()
-        let o = br.ReadByte()
+    let read_callindirect br =
+        let x = read_var_u32 br
+        let o = read_byte br
         { x = x; other = o; }
 
-    let read_brtable (br: BinaryWasmStream) =
-        let read_item (br: BinaryWasmStream) =
-            br.ReadVarUInt32()
-        let count = br.ReadVarUInt32() |> int
+    let read_brtable br =
+        let read_item br =
+            read_var_u32 br
+        let count = read_var_u32 br |> int
         let a = read_vector br count read_item
-        let o = br.ReadVarUInt32()
+        let o = read_var_u32 br
         { v = a; other = o; }
 
