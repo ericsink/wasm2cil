@@ -78,7 +78,7 @@ module wasm.read
     let read_importdesc br =
         let import_type = read_byte br
         match import_type with
-        | 0x00uy -> read_idx br |> TypeIdx
+        | 0x00uy -> read_idx br |> TypeNdx |> TypeIdx
         | 0x01uy -> read_tabletype br |> TableType
         | 0x02uy -> read_memtype br |> MemType
         | 0x03uy -> read_globaltype br |> GlobalType
@@ -86,10 +86,10 @@ module wasm.read
         
     let read_exportdesc br =
         match read_byte br with
-        | 0x00uy -> read_idx br |> FuncIdx
-        | 0x01uy -> read_idx br |> TableIdx
-        | 0x02uy -> read_idx br |> MemIdx
-        | 0x03uy -> read_idx br |> GlobalIdx
+        | 0x00uy -> read_idx br |> FuncNdx |> FuncIdx
+        | 0x01uy -> read_idx br |> TableNdx |> TableIdx
+        | 0x02uy -> read_idx br |> MemNdx |> MemIdx
+        | 0x03uy -> read_idx br |> GlobalNdx |> GlobalIdx
         | _ -> failwith "invalid exportdesc byte"
         
     let read_import br =
@@ -126,17 +126,20 @@ module wasm.read
         { globaltype = gt; expr = e }
 
     let read_data br =
-        let memidx = read_idx br
+        let memidx = read_idx br |> MemNdx
         let e = read_expr br
         let count = read_var_uint32 br
         let a = read_bytes br count
         { memidx = memidx; expr = e; init = a }
 
     let read_elem br =
-        let tableidx = read_idx br
+        let tableidx = read_idx br |> TableNdx
         let e = read_expr br
         let count = read_var_uint32 br |> int
-        let a = read_vector br count read_idx
+        let f r =
+            let i = read_idx r
+            i |> FuncNdx
+        let a = read_vector br count f
         { tableidx = tableidx; expr = e; init = a }
 
     let read_local br =
@@ -166,7 +169,10 @@ module wasm.read
 
     let read_function_section br =
         let count = read_var_uint32 br |> int
-        let a = read_vector br count read_idx
+        let f r =
+            let i = read_idx r
+            i |> TypeNdx
+        let a = read_vector br count f
         Function { funcs = a }
 
     let read_table_section br =
@@ -185,7 +191,7 @@ module wasm.read
         Export { exports = a }
 
     let read_start_section br =
-        let idx = read_idx br
+        let idx = read_idx br |> FuncNdx
         Start idx
 
     let read_data_section br =

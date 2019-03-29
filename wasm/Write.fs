@@ -81,7 +81,7 @@ module wasm.write
 
     let write_importdesc w d =
         match d with
-        | TypeIdx i ->
+        | TypeIdx (TypeNdx i) ->
             write_byte w 0x00uy
             write_var_uint32 w i
         | TableType t ->
@@ -104,16 +104,16 @@ module wasm.write
 
     let write_exportdesc w d =
         match d with
-        | FuncIdx i -> 
+        | FuncIdx (FuncNdx i) -> 
             write_byte w 0x00uy
             write_var_uint32 w i
-        | TableIdx i -> 
+        | TableIdx (TableNdx i) -> 
             write_byte w 0x01uy
             write_var_uint32 w i
-        | MemIdx i -> 
+        | MemIdx (MemNdx i) -> 
             write_byte w 0x02uy
             write_var_uint32 w i
-        | GlobalIdx i -> 
+        | GlobalIdx (GlobalNdx i) -> 
             write_byte w 0x03uy
             write_var_uint32 w i
 
@@ -122,11 +122,14 @@ module wasm.write
         write_exportdesc w it.desc
 
     let write_element_item w it =
-        write_var_uint32 w it.tableidx
+        // TODO want scope block
+        let (TableNdx i) = it.tableidx
+        write_var_uint32 w i
         write_expr w it.expr
         write_var_int w it.init.Length
         for x in it.init do
-            write_var_uint32 w x
+            let (FuncNdx i) = x
+            write_var_uint32 w i
 
     let write_local w loc =
         write_var_uint32 w loc.n
@@ -139,7 +142,9 @@ module wasm.write
         write_expr w it.expr
 
     let write_data_item w it =
-        write_var_uint32 w it.memidx
+        // TODO want scope block
+        let (MemNdx i) = it.memidx
+        write_var_uint32 w i
         write_expr w it.expr
         write_blob w it.init
 
@@ -158,7 +163,8 @@ module wasm.write
     let write_function_section w s =
         write_var_int w s.funcs.Length
         for it in s.funcs do
-            write_function_item w it
+            let (TypeNdx i) = it
+            write_function_item w i
         3uy
 
     let write_table_section w s =

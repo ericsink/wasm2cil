@@ -35,17 +35,24 @@ module wasm.def
         mut: bool
         }
 
+    // TODO not sure I like the names of these
+    type TypeNdx = TypeNdx of uint32
+    type FuncNdx = FuncNdx of uint32
+    type TableNdx = TableNdx of uint32
+    type MemNdx = MemNdx of uint32
+    type GlobalNdx = GlobalNdx of uint32
+
     type ImportDesc =
-        | TypeIdx of uint32
+        | TypeIdx of TypeNdx
         | TableType of TableType
         | MemType of MemType
         | GlobalType of GlobalType
 
     type ExportDesc =
-        | FuncIdx of uint32
-        | TableIdx of uint32
-        | MemIdx of uint32
-        | GlobalIdx of uint32
+        | FuncIdx of FuncNdx
+        | TableIdx of TableNdx
+        | MemIdx of MemNdx
+        | GlobalIdx of GlobalNdx
 
     type ExportItem = {
         name : string
@@ -64,13 +71,13 @@ module wasm.def
         }
 
     type ElementItem = {
-        tableidx : uint32
+        tableidx : TableNdx
         expr: Instruction list
-        init: uint32 list
+        init: FuncNdx list
         }
 
     type DataItem = {
-        memidx : uint32
+        memidx : MemNdx
         expr: Instruction list
         init: byte[]
         }
@@ -100,7 +107,7 @@ module wasm.def
         }
 
     type FunctionSection = {
-        funcs : uint32 list
+        funcs : TypeNdx list
         }
 
     type TableSection = {
@@ -141,7 +148,7 @@ module wasm.def
         | Memory of MemorySection
         | Global of GlobalSection
         | Export of ExportSection
-        | Start of uint32
+        | Start of FuncNdx
         | Element of ElementSection
         | Code of CodeSection
         | Data of DataSection
