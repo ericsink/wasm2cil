@@ -194,6 +194,7 @@ module wasm.write
         7uy
 
     let write_start_section w s =
+        // TODO
         8uy
 
     let write_element_section w s =

@@ -21,6 +21,7 @@
 
     <Compile Include="StringifyArgs.fs" />
     <Compile Include="StringifyInstruction.fs" />
+    <Compile Include="Wat.fs" />
   </ItemGroup>
 
 </Project>
