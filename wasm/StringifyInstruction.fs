@@ -3,7 +3,7 @@ module wasm.stringify_instr
     open wasm.def_basic
     open wasm.def_instr
     open wasm.stringify_args
-    let stringify_instruction op =
+    let stringify_instruction funcs op =
         match op with
         | Unreachable -> "unreachable"
         | Nop -> "nop"
@@ -14,10 +14,10 @@ module wasm.stringify_instr
         | End -> "end"
         | Br i -> sprintf "br %u" i
         | BrIf i -> sprintf "br_if %u" i
-        | BrTable i -> sprintf "br_table %s" (stringify_brtable i)
+        | BrTable i -> sprintf "br_table %s" (funcs.stringify_brtable i)
         | Return -> "return"
-        | Call i -> sprintf "call %s" (stringify_funcidx i)
-        | CallIndirect i -> sprintf "call_indirect %s" (stringify_callindirect i)
+        | Call i -> sprintf "call %s" (funcs.stringify_funcidx i)
+        | CallIndirect i -> sprintf "call_indirect %s" (funcs.stringify_callindirect i)
         | Drop -> "drop"
         | Select -> "select"
         | LocalGet i -> sprintf "local.get %u" i
@@ -25,29 +25,29 @@ module wasm.stringify_instr
         | LocalTee i -> sprintf "local.tee %u" i
         | GlobalGet i -> sprintf "global.get %u" i
         | GlobalSet i -> sprintf "global.set %u" i
-        | I32Load i -> sprintf "i32.load %s" (stringify_memarg i)
-        | I64Load i -> sprintf "i64.load %s" (stringify_memarg i)
-        | F32Load i -> sprintf "f32.load %s" (stringify_memarg i)
-        | F64Load i -> sprintf "f64.load %s" (stringify_memarg i)
-        | I32Load8S i -> sprintf "i32.load8_s %s" (stringify_memarg i)
-        | I32Load8U i -> sprintf "i32.load8_u %s" (stringify_memarg i)
-        | I32Load16S i -> sprintf "i32.load16_s %s" (stringify_memarg i)
-        | I32Load16U i -> sprintf "i32.load16_u %s" (stringify_memarg i)
-        | I64Load8S i -> sprintf "i64.load8_s %s" (stringify_memarg i)
-        | I64Load8U i -> sprintf "i64.load8_u %s" (stringify_memarg i)
-        | I64Load16S i -> sprintf "i64.load16_s %s" (stringify_memarg i)
-        | I64Load16U i -> sprintf "i64.load16_u %s" (stringify_memarg i)
-        | I64Load32S i -> sprintf "i64.load32_s %s" (stringify_memarg i)
-        | I64Load32U i -> sprintf "i64.load32_u %s" (stringify_memarg i)
-        | I32Store i -> sprintf "i32.store %s" (stringify_memarg i)
-        | I64Store i -> sprintf "i64.store %s" (stringify_memarg i)
-        | F32Store i -> sprintf "f32.store %s" (stringify_memarg i)
-        | F64Store i -> sprintf "f64.store %s" (stringify_memarg i)
-        | I32Store8 i -> sprintf "i32.store8 %s" (stringify_memarg i)
-        | I32Store16 i -> sprintf "i32.store16 %s" (stringify_memarg i)
-        | I64Store8 i -> sprintf "i64.store8 %s" (stringify_memarg i)
-        | I64Store16 i -> sprintf "i64.store16 %s" (stringify_memarg i)
-        | I64Store32 i -> sprintf "i64.store32 %s" (stringify_memarg i)
+        | I32Load i -> sprintf "i32.load %s" (funcs.stringify_memarg i)
+        | I64Load i -> sprintf "i64.load %s" (funcs.stringify_memarg i)
+        | F32Load i -> sprintf "f32.load %s" (funcs.stringify_memarg i)
+        | F64Load i -> sprintf "f64.load %s" (funcs.stringify_memarg i)
+        | I32Load8S i -> sprintf "i32.load8_s %s" (funcs.stringify_memarg i)
+        | I32Load8U i -> sprintf "i32.load8_u %s" (funcs.stringify_memarg i)
+        | I32Load16S i -> sprintf "i32.load16_s %s" (funcs.stringify_memarg i)
+        | I32Load16U i -> sprintf "i32.load16_u %s" (funcs.stringify_memarg i)
+        | I64Load8S i -> sprintf "i64.load8_s %s" (funcs.stringify_memarg i)
+        | I64Load8U i -> sprintf "i64.load8_u %s" (funcs.stringify_memarg i)
+        | I64Load16S i -> sprintf "i64.load16_s %s" (funcs.stringify_memarg i)
+        | I64Load16U i -> sprintf "i64.load16_u %s" (funcs.stringify_memarg i)
+        | I64Load32S i -> sprintf "i64.load32_s %s" (funcs.stringify_memarg i)
+        | I64Load32U i -> sprintf "i64.load32_u %s" (funcs.stringify_memarg i)
+        | I32Store i -> sprintf "i32.store %s" (funcs.stringify_memarg i)
+        | I64Store i -> sprintf "i64.store %s" (funcs.stringify_memarg i)
+        | F32Store i -> sprintf "f32.store %s" (funcs.stringify_memarg i)
+        | F64Store i -> sprintf "f64.store %s" (funcs.stringify_memarg i)
+        | I32Store8 i -> sprintf "i32.store8 %s" (funcs.stringify_memarg i)
+        | I32Store16 i -> sprintf "i32.store16 %s" (funcs.stringify_memarg i)
+        | I64Store8 i -> sprintf "i64.store8 %s" (funcs.stringify_memarg i)
+        | I64Store16 i -> sprintf "i64.store16 %s" (funcs.stringify_memarg i)
+        | I64Store32 i -> sprintf "i64.store32 %s" (funcs.stringify_memarg i)
         | MemorySize i -> sprintf "memory.size %u" i
         | MemoryGrow i -> sprintf "memory.grow %u" i
         | I32Const i -> sprintf "i32.const %d" i

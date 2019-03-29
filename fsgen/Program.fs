@@ -226,7 +226,7 @@ let write_function_stringify_instruction path (immediates: Dictionary<string,Imm
     "    open wasm.def_instr" |> pr
     "    open wasm.stringify_args" |> pr
 
-    pr "    let stringify_instruction op ="
+    pr "    let stringify_instruction funcs op ="
     pr "        match op with"
     for op in opcode_infos do
         match op.prefix with
@@ -242,10 +242,10 @@ let write_function_stringify_instruction path (immediates: Dictionary<string,Imm
             | F64 -> sprintf "        | %s i -> sprintf \"%s %%f\" i" op.name op.text |> pr
             | U8 -> sprintf "        | %s i -> sprintf \"%s %%u\" i" op.name op.text |> pr
             | U32 -> sprintf "        | %s i -> sprintf \"%s %%u\" i" op.name op.text |> pr
-            | FuncIdx -> sprintf "        | %s i -> sprintf \"%s %%s\" (stringify_funcidx i)" op.name op.text |> pr
-            | MemArg -> sprintf "        | %s i -> sprintf \"%s %%s\" (stringify_memarg i)" op.name op.text |> pr
-            | CallIndirect -> sprintf "        | %s i -> sprintf \"%s %%s\" (stringify_callindirect i)" op.name op.text |> pr
-            | BrTable -> sprintf "        | %s i -> sprintf \"%s %%s\" (stringify_brtable i)" op.name op.text |> pr
+            | FuncIdx -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_funcidx i)" op.name op.text |> pr
+            | MemArg -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_memarg i)" op.name op.text |> pr
+            | CallIndirect -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_callindirect i)" op.name op.text |> pr
+            | BrTable -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_brtable i)" op.name op.text |> pr
 
     sprintf "" |> pr
 
