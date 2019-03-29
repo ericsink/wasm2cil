@@ -1,5 +1,10 @@
 
-fix gen read_instruction to use the funcs instead of the methods
+Args should be some other name, like basic.  it's the stuff
+that needs to be defined before the instruction stuff.
+all 3 areas have 3 sections each:
+    before instructions
+    instructions
+    after instructions (module and sections)
 
 output s-expressions for testing ?
 
