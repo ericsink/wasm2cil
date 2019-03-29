@@ -1,3 +1,13 @@
 
 output s-expressions for testing ?
 
+def and read and write could be in separate assemblies?
+
+consider single-case unions for the various idx types?
+
+review naming of def record fields
+
+tighten the binary wasm stream down to just the
+buf and the offset.  have the main api be more
+functions and fewer methods
+
