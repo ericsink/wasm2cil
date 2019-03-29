@@ -18,6 +18,9 @@
     <Compile Include="WriteArgs.fs" />
     <Compile Include="WriteInstruction.fs" />
     <Compile Include="Write.fs" />
+
+    <Compile Include="StringifyArgs.fs" />
+    <Compile Include="StringifyInstruction.fs" />
   </ItemGroup>
 
 </Project>
