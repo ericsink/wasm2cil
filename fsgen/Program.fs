@@ -187,34 +187,22 @@ let write_function_write_instruction path (immediates: Dictionary<string,Immedia
             let imm = get_immediate immediates op.name
 
             match imm with
-            | Nothing -> 
-                sprintf "        | %s ->" op.name |> pr
-            | _ ->
-                sprintf "        | %s i ->" op.name |> pr
+            | Nothing -> sprintf "        | %s ->" op.name |> pr
+            | _ -> sprintf "        | %s i ->" op.name |> pr
 
             sprintf "            write_byte w 0x%02xuy" op.code |> pr
 
             match imm with
-            | I32 -> 
-                sprintf "            write_var_i32 w i" |> pr
-            | I64 -> 
-                sprintf "            write_var_i64 w i" |> pr
-            | F32 -> 
-                sprintf "            write_f32 w i" |> pr
-            | F64 -> 
-                sprintf "            write_f64 w i" |> pr
-            | U8 -> 
-                sprintf "            write_byte w i" |> pr
-            | U32 -> 
-                sprintf "            write_var_u32 w i" |> pr
-            | MemArg -> 
-                sprintf "            write_memarg w i" |> pr
-            | CallIndirect -> 
-                sprintf "            write_callindirect w i" |> pr
-            | BrTable -> 
-                sprintf "            write_brtable w i" |> pr
-            | Nothing -> 
-                ()
+            | I32 -> sprintf "            write_var_i32 w i" |> pr
+            | I64 -> sprintf "            write_var_i64 w i" |> pr
+            | F32 -> sprintf "            write_f32 w i" |> pr
+            | F64 -> sprintf "            write_f64 w i" |> pr
+            | U8 -> sprintf "            write_byte w i" |> pr
+            | U32 -> sprintf "            write_var_u32 w i" |> pr
+            | MemArg -> sprintf "            write_memarg w i" |> pr
+            | CallIndirect -> sprintf "            write_callindirect w i" |> pr
+            | BrTable -> sprintf "            write_brtable w i" |> pr
+            | Nothing -> ()
     sprintf "" |> pr
 
     let txt = sb.ToString()
