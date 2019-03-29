@@ -78,7 +78,7 @@ module wasm.read
     let read_importdesc br =
         let import_type = read_byte br
         match import_type with
-        | 0x00uy -> read_idx br |> TypeNdx |> ImportFunc
+        | 0x00uy -> read_idx br |> TypeIdx |> ImportFunc
         | 0x01uy -> read_tabletype br |> ImportTable
         | 0x02uy -> read_memtype br |> ImportMem
         | 0x03uy -> read_globaltype br |> ImportGlobal
@@ -86,10 +86,10 @@ module wasm.read
         
     let read_exportdesc br =
         match read_byte br with
-        | 0x00uy -> read_idx br |> FuncNdx |> ExportFunc
-        | 0x01uy -> read_idx br |> TableNdx |> ExportTable
-        | 0x02uy -> read_idx br |> MemNdx |> ExportMem
-        | 0x03uy -> read_idx br |> GlobalNdx |> ExportGlobal
+        | 0x00uy -> read_idx br |> FuncIdx |> ExportFunc
+        | 0x01uy -> read_idx br |> TableIdx |> ExportTable
+        | 0x02uy -> read_idx br |> MemIdx |> ExportMem
+        | 0x03uy -> read_idx br |> GlobalIdx |> ExportGlobal
         | _ -> failwith "invalid exportdesc byte"
         
     let read_import br =
@@ -126,19 +126,19 @@ module wasm.read
         { globaltype = gt; init = e }
 
     let read_data br =
-        let memidx = read_idx br |> MemNdx
+        let memidx = read_idx br |> MemIdx
         let e = read_expr br
         let count = read_var_uint32 br
         let a = read_bytes br count
         { memidx = memidx; offset = e; init = a }
 
     let read_elem br =
-        let tableidx = read_idx br |> TableNdx
+        let tableidx = read_idx br |> TableIdx
         let e = read_expr br
         let count = read_var_uint32 br |> int
         let f r =
             let i = read_idx r
-            i |> FuncNdx
+            i |> FuncIdx
         let a = read_vector br count f
         { tableidx = tableidx; offset = e; init = a }
 
@@ -171,7 +171,7 @@ module wasm.read
         let count = read_var_uint32 br |> int
         let f r =
             let i = read_idx r
-            i |> TypeNdx
+            i |> TypeIdx
         let a = read_vector br count f
         Function { funcs = a }
 
@@ -191,7 +191,7 @@ module wasm.read
         Export { exports = a }
 
     let read_start_section br =
-        let idx = read_idx br |> FuncNdx
+        let idx = read_idx br |> FuncIdx
         Start idx
 
     let read_data_section br =

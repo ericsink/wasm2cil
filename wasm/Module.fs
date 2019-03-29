@@ -35,24 +35,23 @@ module wasm.def
         mut: bool
         }
 
-    // TODO not sure I like the names of these
-    type TypeNdx = TypeNdx of uint32
-    type FuncNdx = FuncNdx of uint32
-    type TableNdx = TableNdx of uint32
-    type MemNdx = MemNdx of uint32
-    type GlobalNdx = GlobalNdx of uint32
+    type TypeIdx = TypeIdx of uint32
+    type FuncIdx = FuncIdx of uint32
+    type TableIdx = TableIdx of uint32
+    type MemIdx = MemIdx of uint32
+    type GlobalIdx = GlobalIdx of uint32
 
     type ImportDesc =
-        | ImportFunc of TypeNdx
+        | ImportFunc of TypeIdx
         | ImportTable of TableType
         | ImportMem of MemType
         | ImportGlobal of GlobalType
 
     type ExportDesc =
-        | ExportFunc of FuncNdx
-        | ExportTable of TableNdx
-        | ExportMem of MemNdx
-        | ExportGlobal of GlobalNdx
+        | ExportFunc of FuncIdx
+        | ExportTable of TableIdx
+        | ExportMem of MemIdx
+        | ExportGlobal of GlobalIdx
 
     type ExportItem = {
         name : string
@@ -71,13 +70,13 @@ module wasm.def
         }
 
     type ElementItem = {
-        tableidx : TableNdx
+        tableidx : TableIdx
         offset: Instruction list
-        init: FuncNdx list
+        init: FuncIdx list
         }
 
     type DataItem = {
-        memidx : MemNdx
+        memidx : MemIdx
         offset: Instruction list
         init: byte[]
         }
@@ -106,7 +105,7 @@ module wasm.def
         }
 
     type FunctionSection = {
-        funcs : TypeNdx list
+        funcs : TypeIdx list
         }
 
     type TableSection = {
@@ -147,13 +146,17 @@ module wasm.def
         | Memory of MemorySection
         | Global of GlobalSection
         | Export of ExportSection
-        | Start of FuncNdx
+        | Start of FuncIdx
         | Element of ElementSection
         | Code of CodeSection
         | Data of DataSection
 
     type Module = {
         version: uint32
+        sections: Section list
+        }
+
+nt32
         sections: Section list
         }
 
