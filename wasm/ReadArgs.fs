@@ -16,7 +16,7 @@ module wasm.read_args
     let read_brtable br =
         let read_item br =
             read_var_u32 br
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_item
         let o = read_var_u32 br
         { v = a; other = o; }

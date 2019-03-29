@@ -28,14 +28,14 @@ module wasm.read
 
     let read_functype br =
         let b = read_byte br // 0x60
-        let count1 = read_var_u32 br |> int
+        let count1 = read_var_u32 br
         let vec1 = read_vector br count1 read_valtype
-        let count2 = read_var_u32 br |> int
+        let count2 = read_var_u32 br
         let vec2 = read_vector br count2 read_valtype
         { parms = vec1; result = vec2 }
 
     let read_type_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_functype
         Type { types = a }
 
@@ -135,7 +135,7 @@ module wasm.read
     let read_elem br =
         let tableidx = read_idx br |> TableIdx
         let e = read_expr br
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let f r =
             let i = read_idx r
             i |> FuncIdx
@@ -152,23 +152,23 @@ module wasm.read
         let br = 
             let ba = read_bytes br len
             BinaryWasmStream(ba)
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let locals = read_vector br count read_local
         let e = read_expr br
         { locals = locals; expr = e }
 
     let read_code_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_code
         Code { codes = a }
 
     let read_import_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_import
         Import { imports = a }
 
     let read_function_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let f r =
             let i = read_idx r
             i |> TypeIdx
@@ -176,17 +176,17 @@ module wasm.read
         Function { funcs = a }
 
     let read_table_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_tabletype
         Table { tables = a }
 
     let read_memory_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_memtype
         Memory { mems = a }
 
     let read_export_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_export
         Export { exports = a }
 
@@ -195,17 +195,17 @@ module wasm.read
         Start idx
 
     let read_data_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_data
         Data { datas = a }
 
     let read_global_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_global
         Global { globals = a }
 
     let read_element_section br =
-        let count = read_var_u32 br |> int
+        let count = read_var_u32 br
         let a = read_vector br count read_elem
         Element { elems = a }
 
