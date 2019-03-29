@@ -47,6 +47,7 @@ module wasm.buffer
         member this.Length() =
             buf.Length
 
+        // TODO mv out
         member this.ReadUInt32() =
             let b0 = this.ReadByte() |> uint32
             let b1 = this.ReadByte() |> uint32
@@ -79,6 +80,21 @@ module wasm.buffer
 
         member this.ReadBytes(len: uint32) =
             read_bytes (int len)
+
+    let read_byte (br: BinaryWasmStream) =
+        br.ReadByte()
+
+    let read_var_uint32 (br: BinaryWasmStream) =
+        br.ReadVarUInt32()
+
+    let read_uint32 (br: BinaryWasmStream) =
+        br.ReadUInt32()
+
+    let read_bytes (br: BinaryWasmStream) (len :uint32) =
+        br.ReadBytes(len)
+
+    let remaining (br: BinaryWasmStream) =
+        br.Remaining()
 
     let read_vector (br: BinaryWasmStream) count f =
         if count = 0 then 

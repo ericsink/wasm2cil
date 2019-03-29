@@ -1,4 +1,6 @@
 
+fix gen read_instruction to use the funcs instead of the methods
+
 output s-expressions for testing ?
 
 def and read and write could be in separate assemblies?

@@ -83,7 +83,7 @@ module wasm.def
     type CodeItem = {
         locals: Local list
         expr: Instruction list
-        len : int
+        len : uint32 // TODO not sure we should save this
         }
 
     type CustomSection = {
