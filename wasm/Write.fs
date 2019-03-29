@@ -9,7 +9,8 @@ module wasm.write
         let len = System.Text.Encoding.UTF8.GetByteCount(s)
         let ba = Array.zeroCreate len
         let len2 = System.Text.Encoding.UTF8.GetBytes(s, 0, s.Length, ba, 0)
-        write_var_int w len
+        // TODO assert len = len2 ?
+        write_var_u32 w (uint32 len)
         write_blob w ba
     
     let write_magic w =
@@ -44,10 +45,10 @@ module wasm.write
 
     let write_functype w ft =
         write_byte w 0x60uy
-        write_var_int w ft.parms.Length
+        write_var_u32 w (uint32 ft.parms.Length)
         for t in ft.parms do
             write_valtype w t
-        write_var_int w ft.result.Length
+        write_var_u32 w (uint32 ft.result.Length)
         for t in ft.result do
             write_valtype w t
 
@@ -126,7 +127,7 @@ module wasm.write
         let (TableIdx i) = it.tableidx
         write_var_u32 w i
         write_expr w it.offset
-        write_var_int w it.init.Length
+        write_var_u32 w (uint32 it.init.Length)
         for x in it.init do
             let (FuncIdx i) = x
             write_var_u32 w i
@@ -136,7 +137,7 @@ module wasm.write
         write_valtype w loc.localtype
 
     let write_code_item w it =
-        write_var_int w it.locals.Length
+        write_var_u32 w (uint32 it.locals.Length)
         for loc in it.locals do
             write_local w loc
         write_expr w it.expr
@@ -149,44 +150,44 @@ module wasm.write
         write_blob w it.init
 
     let write_type_section w s =
-        write_var_int w s.types.Length
+        write_var_u32 w (uint32 s.types.Length)
         for it in s.types do
             write_functype w it
         1uy
 
     let write_import_section w s =
-        write_var_int w s.imports.Length
+        write_var_u32 w (uint32 s.imports.Length)
         for it in s.imports do
             write_import_item w it
         2uy
 
     let write_function_section w s =
-        write_var_int w s.funcs.Length
+        write_var_u32 w (uint32 s.funcs.Length)
         for it in s.funcs do
             let (TypeIdx i) = it
             write_function_item w i
         3uy
 
     let write_table_section w s =
-        write_var_int w s.tables.Length
+        write_var_u32 w (uint32 s.tables.Length)
         for it in s.tables do
             write_table_item w it
         4uy
 
     let write_memory_section w s =
-        write_var_int w s.mems.Length
+        write_var_u32 w (uint32 s.mems.Length)
         for it in s.mems do
             write_memory_item w it
         5uy
 
     let write_global_section w s =
-        write_var_int w s.globals.Length
+        write_var_u32 w (uint32 s.globals.Length)
         for it in s.globals do
             write_global_item w it
         6uy
 
     let write_export_section w s =
-        write_var_int w s.exports.Length
+        write_var_u32 w (uint32 s.exports.Length)
         for it in s.exports do
             write_export_item w it
         7uy
@@ -195,24 +196,24 @@ module wasm.write
         8uy
 
     let write_element_section w s =
-        write_var_int w s.elems.Length
+        write_var_u32 w (uint32 s.elems.Length)
         for it in s.elems do
             write_element_item w it
         9uy
 
     let write_code_section w s =
-        write_var_int w s.codes.Length
+        write_var_u32 w (uint32 s.codes.Length)
         for it in s.codes do
             use ms = new System.IO.MemoryStream()
             use sub = new System.IO.BinaryWriter(ms)
             write_code_item sub it
             let ba = ms.ToArray()
-            write_var_int w ba.Length
+            write_var_u32 w (uint32 ba.Length)
             write_blob w ba
         10uy
 
     let write_data_section w s =
-        write_var_int w s.datas.Length
+        write_var_u32 w (uint32 s.datas.Length)
         for it in s.datas do
             write_data_item w it
         11uy
@@ -241,7 +242,7 @@ module wasm.write
         let (id, ba) = create_section_contents s
         printfn "write section %d with len %d" id ba.Length
         write_byte w id
-        write_var_int w ba.Length
+        write_var_u32 w (uint32 ba.Length)
         write_blob w ba
 
     let write_module w m =

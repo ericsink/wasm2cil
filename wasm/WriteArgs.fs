@@ -4,7 +4,7 @@ module wasm.write_args
     open wasm.args
 
     let write_brtable w t =
-        write_var_int w t.v.Length
+        write_var_u32 w (uint32 t.v.Length)
         for it in t.v do
             write_var_u32 w it
         write_var_u32 w t.other

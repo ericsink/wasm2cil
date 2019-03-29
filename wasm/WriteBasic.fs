@@ -28,11 +28,6 @@ module wasm.write_basic
                 g after
         g n
 
-    // TODO oddball case
-    let write_var_int w (n : int) =
-        let n = uint32 n
-        write_var_u32 w n
-
     let write_var_i64 w (n : int64) =
         let rec g v =
             let after = v >>> 7
