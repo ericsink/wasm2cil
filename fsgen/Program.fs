@@ -130,12 +130,12 @@ let write_function_read_instruction path (immediates: Dictionary<string,Immediat
     "    open wasm.instr" |> pr
     "    open wasm.read_args" |> pr
 
-    pr "    let read_instruction (br: BinaryWasmStream) ="
-    pr "        let b1 = br.ReadByte()"
+    pr "    let read_instruction br ="
+    pr "        let b1 = read_byte br"
     pr "        match b1 with"
     for n in prefixes do
         sprintf "        | 0x%02xuy ->" n |> pr
-        sprintf "            let b2 = br.ReadByte()" |> pr
+        sprintf "            let b2 = read_byte br" |> pr
         sprintf "            match b2 with" |> pr
         for op in opcode_infos do
             match op.prefix with
@@ -150,12 +150,12 @@ let write_function_read_instruction path (immediates: Dictionary<string,Immediat
         | Some _ -> ()
         | None -> 
             match get_immediate immediates op.name with
-            | I32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarInt32())" op.code op.name |> pr
-            | I64 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarInt64())" op.code op.name |> pr
-            | F32 -> sprintf "        | 0x%02xuy -> %s (br.ReadFloat32())" op.code op.name |> pr
-            | F64 -> sprintf "        | 0x%02xuy -> %s (br.ReadFloat64())" op.code op.name |> pr
-            | U8 -> sprintf "        | 0x%02xuy -> %s (br.ReadByte())" op.code op.name |> pr
-            | U32 -> sprintf "        | 0x%02xuy -> %s (br.ReadVarUInt32())" op.code op.name |> pr
+            | I32 -> sprintf "        | 0x%02xuy -> %s (read_var_i32 br)" op.code op.name |> pr
+            | I64 -> sprintf "        | 0x%02xuy -> %s (read_var_i64 br)" op.code op.name |> pr
+            | F32 -> sprintf "        | 0x%02xuy -> %s (read_f32 br)" op.code op.name |> pr
+            | F64 -> sprintf "        | 0x%02xuy -> %s (read_f64 br)" op.code op.name |> pr
+            | U8 -> sprintf "        | 0x%02xuy -> %s (read_byte br)" op.code op.name |> pr
+            | U32 -> sprintf "        | 0x%02xuy -> %s (read_var_uint32 br)" op.code op.name |> pr
             | MemArg -> sprintf "        | 0x%02xuy -> %s (read_memarg br)" op.code op.name |> pr
             | CallIndirect -> sprintf "        | 0x%02xuy -> %s (read_callindirect br)" op.code op.name |> pr
             | BrTable -> sprintf "        | 0x%02xuy -> %s (read_brtable br)" op.code op.name |> pr

@@ -3,29 +3,29 @@ module wasm.read_instr
     open wasm.buffer
     open wasm.instr
     open wasm.read_args
-    let read_instruction (br: BinaryWasmStream) =
-        let b1 = br.ReadByte()
+    let read_instruction br =
+        let b1 = read_byte br
         match b1 with
         | 0x00uy -> Unreachable
         | 0x01uy -> Nop
-        | 0x02uy -> Block (br.ReadByte())
-        | 0x03uy -> Loop (br.ReadByte())
-        | 0x04uy -> If (br.ReadByte())
+        | 0x02uy -> Block (read_byte br)
+        | 0x03uy -> Loop (read_byte br)
+        | 0x04uy -> If (read_byte br)
         | 0x05uy -> Else
         | 0x0buy -> End
-        | 0x0cuy -> Br (br.ReadVarUInt32())
-        | 0x0duy -> BrIf (br.ReadVarUInt32())
+        | 0x0cuy -> Br (read_var_uint32 br)
+        | 0x0duy -> BrIf (read_var_uint32 br)
         | 0x0euy -> BrTable (read_brtable br)
         | 0x0fuy -> Return
-        | 0x10uy -> Call (br.ReadVarUInt32())
+        | 0x10uy -> Call (read_var_uint32 br)
         | 0x11uy -> CallIndirect (read_callindirect br)
         | 0x1auy -> Drop
         | 0x1buy -> Select
-        | 0x20uy -> LocalGet (br.ReadVarUInt32())
-        | 0x21uy -> LocalSet (br.ReadVarUInt32())
-        | 0x22uy -> LocalTee (br.ReadVarUInt32())
-        | 0x23uy -> GlobalGet (br.ReadVarUInt32())
-        | 0x24uy -> GlobalSet (br.ReadVarUInt32())
+        | 0x20uy -> LocalGet (read_var_uint32 br)
+        | 0x21uy -> LocalSet (read_var_uint32 br)
+        | 0x22uy -> LocalTee (read_var_uint32 br)
+        | 0x23uy -> GlobalGet (read_var_uint32 br)
+        | 0x24uy -> GlobalSet (read_var_uint32 br)
         | 0x28uy -> I32Load (read_memarg br)
         | 0x29uy -> I64Load (read_memarg br)
         | 0x2auy -> F32Load (read_memarg br)
@@ -49,12 +49,12 @@ module wasm.read_instr
         | 0x3cuy -> I64Store8 (read_memarg br)
         | 0x3duy -> I64Store16 (read_memarg br)
         | 0x3euy -> I64Store32 (read_memarg br)
-        | 0x3fuy -> MemorySize (br.ReadByte())
-        | 0x40uy -> MemoryGrow (br.ReadByte())
-        | 0x41uy -> I32Const (br.ReadVarInt32())
-        | 0x42uy -> I64Const (br.ReadVarInt64())
-        | 0x43uy -> F32Const (br.ReadFloat32())
-        | 0x44uy -> F64Const (br.ReadFloat64())
+        | 0x3fuy -> MemorySize (read_byte br)
+        | 0x40uy -> MemoryGrow (read_byte br)
+        | 0x41uy -> I32Const (read_var_i32 br)
+        | 0x42uy -> I64Const (read_var_i64 br)
+        | 0x43uy -> F32Const (read_f32 br)
+        | 0x44uy -> F64Const (read_f64 br)
         | 0x45uy -> I32Eqz
         | 0x46uy -> I32Eq
         | 0x47uy -> I32Ne

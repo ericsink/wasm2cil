@@ -87,6 +87,18 @@ module wasm.buffer
     let read_var_uint32 (br: BinaryWasmStream) =
         br.ReadVarUInt32()
 
+    let read_var_i32 (br: BinaryWasmStream) =
+        br.ReadVarInt32()
+
+    let read_var_i64 (br: BinaryWasmStream) =
+        br.ReadVarInt64()
+
+    let read_f32 (br: BinaryWasmStream) =
+        br.ReadFloat32()
+
+    let read_f64 (br: BinaryWasmStream) =
+        br.ReadFloat64()
+
     let read_uint32 (br: BinaryWasmStream) =
         br.ReadUInt32()
 
