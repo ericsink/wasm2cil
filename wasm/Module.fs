@@ -77,7 +77,7 @@ module wasm.def
 
     type Local = {
         n : uint32
-        valtype : byte // TODO ?
+        valtype : ValType
         }
 
     type CodeItem = {

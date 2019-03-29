@@ -144,7 +144,7 @@ module wasm.read
 
     let read_local (br: BinaryWasmStream) =
         let n = br.ReadVarUInt32()
-        let valtype = br.ReadByte()
+        let valtype = read_valtype br
         { n = n; valtype = valtype }
 
     let read_code (br: BinaryWasmStream) =

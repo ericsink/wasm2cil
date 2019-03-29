@@ -130,7 +130,7 @@ module wasm.write
 
     let write_local w loc =
         write_var_uint32 w loc.n
-        write_byte w loc.valtype // TODO ?
+        write_valtype w loc.valtype
 
     let write_code_item w it =
         write_var_int w it.locals.Length
