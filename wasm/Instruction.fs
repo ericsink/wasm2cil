@@ -13,7 +13,7 @@ module wasm.def_instr
         | BrIf of uint32
         | BrTable of BrTableArg
         | Return
-        | Call of uint32
+        | Call of FuncIdx
         | CallIndirect of CallIndirectArg
         | Drop
         | Select
