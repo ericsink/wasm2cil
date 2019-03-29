@@ -16,7 +16,8 @@ module wasm.wat
         printfn "%s" s
         
     let cb = {
-        stringify_funcidx = fun x -> sprintf "%A" x
+        // TODO could lookup the func idx and give a name
+        stringify_funcidx = fun x -> let (FuncIdx i) = x in sprintf "%d" i
         stringify_brtable = fun x -> "TODO"
         stringify_memarg = fun x -> sprintf "(align=%d offset=%d)" x.align x.offset
         stringify_callindirect = fun x -> "TODO"
@@ -30,10 +31,10 @@ module wasm.wat
 
     let wat_valtype vt =
         match vt with
-        | I32 -> "I32"
-        | I64 -> "I64"
-        | F32 -> "F32"
-        | F64 -> "F64"
+        | I32 -> "i32"
+        | I64 -> "i64"
+        | F32 -> "f32"
+        | F64 -> "f64"
 
     let wat_limits depth lim =
         match lim with
@@ -44,12 +45,14 @@ module wasm.wat
 
     let wat_functype depth ft =
         prn 1 "(type"
+        prn 2 "(func"
         for t in ft.parms do
             let s = wat_valtype t
-            prn 2 (sprintf "(param %s)" s)
+            prn 3 (sprintf "(param %s)" s)
         for t in ft.result do
             let s = wat_valtype t
-            prn 2 (sprintf "(result %s)" s)
+            prn 3 (sprintf "(result %s)" s)
+        prn 3 ")"
         prn 2 ")"
 
     let wat_instruction depth op =
@@ -84,25 +87,10 @@ module wasm.wat
         wat_expr 2 g.init
         prn 2 ")"
 
-    let wat_typeidx depth i =
-        sprintf "%A" i |> prn depth
-
-    let wat_funcidx depth i =
-        sprintf "%A" i |> prn depth
-
-    let wat_tableidx depth i =
-        sprintf "%A" i |> prn depth
-
-    let wat_memidx depth i =
-        sprintf "%A" i |> prn depth
-
-    let wat_globalidx depth i =
-        sprintf "%A" i |> prn depth
-
     let wat_importdesc depth d =
         match d with
-        | ImportFunc i ->
-            wat_typeidx depth i
+        | ImportFunc (TypeIdx i) ->
+            sprintf "(func %d)" i |> prn depth
         | ImportTable t ->
             wat_table_item depth t
         | ImportMem t ->
@@ -119,38 +107,45 @@ module wasm.wat
 
     let wat_function_item tidx =
         prn 1 "(func"
-        wat_typeidx 2 tidx
+        let (TypeIdx i) = tidx
+        sprintf "(type %d)" i |> prn 2
+        // TODO find the code and put it in here
         prn 2 ")"
 
     let wat_exportdesc depth d =
         match d with
-        | ExportFunc i -> 
-            wat_funcidx depth i
-        | ExportTable i -> 
-            wat_tableidx depth i
-        | ExportMem i -> 
-            wat_memidx depth i
-        | ExportGlobal i -> 
-            wat_globalidx depth i
+        | ExportFunc (FuncIdx i) -> 
+            sprintf "(func %d)" i |> prn depth
+        | ExportTable (TableIdx i) -> 
+            sprintf "(table %d)" i |> prn depth
+        | ExportMem (MemIdx i) -> 
+            sprintf "(memory %d)" i |> prn depth
+        | ExportGlobal (GlobalIdx i) -> 
+            sprintf "(global %d)" i |> prn depth
 
     let wat_export_item (it : ExportItem) =
-        prn 1 "(element"
-        prn 2 it.name
+        prn 1 "(export"
+        prn 2 ("\"" + it.name + "\"")
         wat_exportdesc 2 it.desc
         prn 2 ")"
 
     let wat_element_item it =
         prn 1 "(element"
-        wat_tableidx 2 it.tableidx
-        wat_expr 2 it.offset
+        let (TableIdx i) = it.tableidx
+        sprintf "%d" i |> prn 2
+        prn 2 "(offset"
+        wat_expr 3 it.offset
+        prn 3 ")"
         for x in it.init do
-            wat_funcidx 2 it
+            let (FuncIdx i) = x
+            sprintf "%d" i |> prn 2
         prn 2 ")"
 
     let wat_local depth loc =
         sprintf "(local %d %s)" loc.n (wat_valtype loc.localtype) |> prn depth
 
     let wat_code_item it =
+        // TODO can't do this here.
         prn 1 "(code"
         for loc in it.locals do
             wat_local 2 loc
@@ -159,9 +154,12 @@ module wasm.wat
 
     let wat_data_item it =
         prn 1 "(data"
-        wat_memidx 2 it.memidx
-        wat_expr 2 it.offset
-        // TODO wat_blob it.init
+        let (MemIdx i) = it.memidx
+        sprintf "%d" i |> prn 2
+        prn 2 "(offset"
+        wat_expr 3 it.offset
+        prn 3 ")"
+        prn 2 "TODO data string it.init"
         prn 2 ")"
 
     let wat_type_section s =

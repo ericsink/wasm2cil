@@ -242,7 +242,7 @@ module wasm.write
 
     let write_section w s =
         let (id, ba) = create_section_contents s
-        printfn "write section %d with len %d" id ba.Length
+        //printfn "write section %d with len %d" id ba.Length
         write_byte w id
         write_var_u32 w (uint32 ba.Length)
         write_blob w ba

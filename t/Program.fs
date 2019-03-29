@@ -1,5 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
-
+﻿
 open System
 
 open wasm.read_basic
@@ -13,7 +12,7 @@ let main argv =
     let timer = System.Diagnostics.Stopwatch.StartNew()
     let m = read_module br
     timer.Stop()
-    printfn "%A milliseconds" timer.ElapsedMilliseconds
+    //printfn "%A milliseconds" timer.ElapsedMilliseconds
 
     //printfn "%A" m
     wat_module m

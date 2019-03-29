@@ -216,7 +216,7 @@ module wasm.read
             let len = read_var_u32 br
             let ba_section = read_bytes br len
             BinaryWasmStream(ba_section)
-        printfn "read section %d with len %d" id (br_section.Length())
+        //printfn "read section %d with len %d" id (br_section.Length())
         match id with
         | 0uy -> read_custom_section br_section
         | 1uy -> read_type_section br_section

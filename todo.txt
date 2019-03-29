@@ -1,4 +1,7 @@
 
+since everything uses indexes, consider def using
+arrays instead of lists
+
 consider using checked int operations in leb128 code
 
 best practice for formatting fs, type annotations, colon
