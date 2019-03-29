@@ -12,7 +12,7 @@
     <Compile Include="BinaryWasmStream.fs" />
     <Compile Include="ReadArgs.fs" />
     <Compile Include="ReadInstruction.fs" />
-    <Compile Include="ReadModule.fs" />
+    <Compile Include="Read.fs" />
 
     <Compile Include="WriteArgs.fs" />
     <Compile Include="WriteInstruction.fs" />
