@@ -9,11 +9,12 @@
     <Compile Include="Instruction.fs" />
     <Compile Include="Module.fs" />
 
-    <Compile Include="BinaryWasmStream.fs" />
+    <Compile Include="ReadBasic.fs" />
     <Compile Include="ReadArgs.fs" />
     <Compile Include="ReadInstruction.fs" />
     <Compile Include="Read.fs" />
 
+    <Compile Include="WriteBasic.fs" />
     <Compile Include="WriteArgs.fs" />
     <Compile Include="WriteInstruction.fs" />
     <Compile Include="Write.fs" />

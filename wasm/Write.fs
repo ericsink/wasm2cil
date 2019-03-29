@@ -2,7 +2,7 @@
 module wasm.write
 
     open wasm.def
-    open wasm.write_args
+    open wasm.write_basic
     open wasm.write_instr
 
     let write_name w (s : string) =

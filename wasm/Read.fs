@@ -3,7 +3,7 @@ module wasm.read
 
     open wasm.instr
     open wasm.def
-    open wasm.buffer
+    open wasm.read_basic
     open wasm.read_instr
 
     let read_name br =

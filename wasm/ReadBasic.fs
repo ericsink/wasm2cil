@@ -1,5 +1,5 @@
 
-module wasm.buffer
+module wasm.read_basic
 
     type BinaryWasmStream(ba: byte[]) =
         let buf = ba

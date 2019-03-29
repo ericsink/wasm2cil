@@ -2,7 +2,7 @@
 
 open System
 
-open wasm.buffer
+open wasm.read_basic
 open wasm.read
 open wasm.write
 
