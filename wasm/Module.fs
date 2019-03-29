@@ -156,7 +156,3 @@ module wasm.def
         sections: Section list
         }
 
-nt32
-        sections: Section list
-        }
-
