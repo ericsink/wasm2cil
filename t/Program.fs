@@ -13,7 +13,7 @@ let main argv =
     let m = read_module br
     timer.Stop()
     printfn "%A milliseconds" timer.ElapsedMilliseconds
-    //printfn "%A" m
+    printfn "%A" m
     use ms = new System.IO.MemoryStream()
     use w = new System.IO.BinaryWriter(ms)
     write_module w m

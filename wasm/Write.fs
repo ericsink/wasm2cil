@@ -77,20 +77,20 @@ module wasm.write
         
     let write_global_item w g =
         write_globaltype w g.globaltype
-        write_expr w g.expr
+        write_expr w g.init
 
     let write_importdesc w d =
         match d with
-        | TypeIdx (TypeNdx i) ->
+        | ImportFunc (TypeNdx i) ->
             write_byte w 0x00uy
             write_var_uint32 w i
-        | TableType t ->
+        | ImportTable t ->
             write_byte w 0x01uy
             write_table_item w t
-        | MemType t ->
+        | ImportMem t ->
             write_byte w 0x02uy
             write_memory_item w t
-        | GlobalType t ->
+        | ImportGlobal t ->
             write_byte w 0x03uy
             write_globaltype w t
 
@@ -104,16 +104,16 @@ module wasm.write
 
     let write_exportdesc w d =
         match d with
-        | FuncIdx (FuncNdx i) -> 
+        | ExportFunc (FuncNdx i) -> 
             write_byte w 0x00uy
             write_var_uint32 w i
-        | TableIdx (TableNdx i) -> 
+        | ExportTable (TableNdx i) -> 
             write_byte w 0x01uy
             write_var_uint32 w i
-        | MemIdx (MemNdx i) -> 
+        | ExportMem (MemNdx i) -> 
             write_byte w 0x02uy
             write_var_uint32 w i
-        | GlobalIdx (GlobalNdx i) -> 
+        | ExportGlobal (GlobalNdx i) -> 
             write_byte w 0x03uy
             write_var_uint32 w i
 
@@ -125,7 +125,7 @@ module wasm.write
         // TODO want scope block
         let (TableNdx i) = it.tableidx
         write_var_uint32 w i
-        write_expr w it.expr
+        write_expr w it.offset
         write_var_int w it.init.Length
         for x in it.init do
             let (FuncNdx i) = x
@@ -133,7 +133,7 @@ module wasm.write
 
     let write_local w loc =
         write_var_uint32 w loc.n
-        write_valtype w loc.valtype
+        write_valtype w loc.localtype
 
     let write_code_item w it =
         write_var_int w it.locals.Length
@@ -145,7 +145,7 @@ module wasm.write
         // TODO want scope block
         let (MemNdx i) = it.memidx
         write_var_uint32 w i
-        write_expr w it.expr
+        write_expr w it.offset
         write_blob w it.init
 
     let write_type_section w s =

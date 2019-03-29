@@ -78,18 +78,18 @@ module wasm.read
     let read_importdesc br =
         let import_type = read_byte br
         match import_type with
-        | 0x00uy -> read_idx br |> TypeNdx |> TypeIdx
-        | 0x01uy -> read_tabletype br |> TableType
-        | 0x02uy -> read_memtype br |> MemType
-        | 0x03uy -> read_globaltype br |> GlobalType
+        | 0x00uy -> read_idx br |> TypeNdx |> ImportFunc
+        | 0x01uy -> read_tabletype br |> ImportTable
+        | 0x02uy -> read_memtype br |> ImportMem
+        | 0x03uy -> read_globaltype br |> ImportGlobal
         | _ -> failwith "invalid importdesc byte"
         
     let read_exportdesc br =
         match read_byte br with
-        | 0x00uy -> read_idx br |> FuncNdx |> FuncIdx
-        | 0x01uy -> read_idx br |> TableNdx |> TableIdx
-        | 0x02uy -> read_idx br |> MemNdx |> MemIdx
-        | 0x03uy -> read_idx br |> GlobalNdx |> GlobalIdx
+        | 0x00uy -> read_idx br |> FuncNdx |> ExportFunc
+        | 0x01uy -> read_idx br |> TableNdx |> ExportTable
+        | 0x02uy -> read_idx br |> MemNdx |> ExportMem
+        | 0x03uy -> read_idx br |> GlobalNdx |> ExportGlobal
         | _ -> failwith "invalid exportdesc byte"
         
     let read_import br =
@@ -123,14 +123,14 @@ module wasm.read
     let read_global br =
         let gt = read_globaltype br
         let e = read_expr br
-        { globaltype = gt; expr = e }
+        { globaltype = gt; init = e }
 
     let read_data br =
         let memidx = read_idx br |> MemNdx
         let e = read_expr br
         let count = read_var_uint32 br
         let a = read_bytes br count
-        { memidx = memidx; expr = e; init = a }
+        { memidx = memidx; offset = e; init = a }
 
     let read_elem br =
         let tableidx = read_idx br |> TableNdx
@@ -140,12 +140,12 @@ module wasm.read
             let i = read_idx r
             i |> FuncNdx
         let a = read_vector br count f
-        { tableidx = tableidx; expr = e; init = a }
+        { tableidx = tableidx; offset = e; init = a }
 
     let read_local br =
         let n = read_var_uint32 br
         let valtype = read_valtype br
-        { n = n; valtype = valtype }
+        { n = n; localtype = valtype }
 
     let read_code br =
         let len = read_var_uint32 br
@@ -155,7 +155,7 @@ module wasm.read
         let count = read_var_uint32 br |> int
         let locals = read_vector br count read_local
         let e = read_expr br
-        { CodeItem.len = len; locals = locals; expr = e }
+        { locals = locals; expr = e }
 
     let read_code_section br =
         let count = read_var_uint32 br |> int

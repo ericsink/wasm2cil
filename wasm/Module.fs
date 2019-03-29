@@ -43,16 +43,16 @@ module wasm.def
     type GlobalNdx = GlobalNdx of uint32
 
     type ImportDesc =
-        | TypeIdx of TypeNdx
-        | TableType of TableType
-        | MemType of MemType
-        | GlobalType of GlobalType
+        | ImportFunc of TypeNdx
+        | ImportTable of TableType
+        | ImportMem of MemType
+        | ImportGlobal of GlobalType
 
     type ExportDesc =
-        | FuncIdx of FuncNdx
-        | TableIdx of TableNdx
-        | MemIdx of MemNdx
-        | GlobalIdx of GlobalNdx
+        | ExportFunc of FuncNdx
+        | ExportTable of TableNdx
+        | ExportMem of MemNdx
+        | ExportGlobal of GlobalNdx
 
     type ExportItem = {
         name : string
@@ -67,30 +67,29 @@ module wasm.def
 
     type GlobalItem = {
         globaltype: GlobalType
-        expr: Instruction list
+        init: Instruction list
         }
 
     type ElementItem = {
         tableidx : TableNdx
-        expr: Instruction list
+        offset: Instruction list
         init: FuncNdx list
         }
 
     type DataItem = {
         memidx : MemNdx
-        expr: Instruction list
+        offset: Instruction list
         init: byte[]
         }
 
     type Local = {
         n : uint32
-        valtype : ValType
+        localtype : ValType
         }
 
     type CodeItem = {
         locals: Local list
         expr: Instruction list
-        len : uint32 // TODO not sure we should save this
         }
 
     type CustomSection = {
