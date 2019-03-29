@@ -30,12 +30,6 @@ module wasm.read_basic
             else
                 read_var_unsigned (count + 1) result
 
-        let read_bytes len =
-            let last = offset + len - 1
-            let ba = buf.[offset..last]
-            offset <- offset + int len
-            ba
-
         member this.ReadByte() =
             let b = buf.[offset]
             offset <- offset + 1
@@ -47,16 +41,6 @@ module wasm.read_basic
         member this.Length() =
             buf.Length
 
-        // TODO mv out
-        member this.ReadUInt32() =
-            let b0 = this.ReadByte() |> uint32
-            let b1 = this.ReadByte() |> uint32
-            let b2 = this.ReadByte() |> uint32
-            let b3 = this.ReadByte() |> uint32
-
-            let v = (b3 <<< 24) ||| (b2 <<< 16) ||| (b1 <<< 8) ||| (b0 <<< 0)
-            v
-
         member this.ReadVarUInt32() =
             read_var_unsigned 0 0u
 
@@ -66,23 +50,17 @@ module wasm.read_basic
         member this.ReadVarInt64() =
             read_var_signed 0 0L
 
-        member this.ReadFloat32() =
-            let ba = read_bytes 4
-            use ms = new System.IO.MemoryStream(ba)
-            use br = new System.IO.BinaryReader(ms)
-            br.ReadSingle()
-
-        member this.ReadFloat64() =
-            let ba = read_bytes 8
-            use ms = new System.IO.MemoryStream(ba)
-            use br = new System.IO.BinaryReader(ms)
-            br.ReadDouble()
-
         member this.ReadBytes(len: uint32) =
-            read_bytes (int len)
+            let last = offset + (int len) - 1
+            let ba = buf.[offset..last]
+            offset <- offset + int len
+            ba
 
     let read_byte (br: BinaryWasmStream) =
         br.ReadByte()
+
+    let read_bytes (br: BinaryWasmStream) (len :uint32) =
+        br.ReadBytes(len)
 
     let read_var_u32 (br: BinaryWasmStream) =
         br.ReadVarUInt32()
@@ -94,16 +72,25 @@ module wasm.read_basic
         br.ReadVarInt64()
 
     let read_f32 (br: BinaryWasmStream) =
-        br.ReadFloat32()
+        let ba = read_bytes br 4u
+        use ms = new System.IO.MemoryStream(ba)
+        use br = new System.IO.BinaryReader(ms)
+        br.ReadSingle()
 
     let read_f64 (br: BinaryWasmStream) =
-        br.ReadFloat64()
+        let ba = read_bytes br 8u
+        use ms = new System.IO.MemoryStream(ba)
+        use br = new System.IO.BinaryReader(ms)
+        br.ReadDouble()
 
-    let read_u32 (br: BinaryWasmStream) =
-        br.ReadUInt32()
+    let read_u32 br =
+        let b0 = read_byte br |> uint32
+        let b1 = read_byte br |> uint32
+        let b2 = read_byte br |> uint32
+        let b3 = read_byte br |> uint32
 
-    let read_bytes (br: BinaryWasmStream) (len :uint32) =
-        br.ReadBytes(len)
+        let v = (b3 <<< 24) ||| (b2 <<< 16) ||| (b1 <<< 8) ||| (b0 <<< 0)
+        v
 
     let remaining (br: BinaryWasmStream) =
         br.Remaining()
