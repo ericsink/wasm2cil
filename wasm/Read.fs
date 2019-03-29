@@ -1,7 +1,8 @@
 
 module wasm.read
 
-    open wasm.instr
+    open wasm.def_instr
+    open wasm.def_basic
     open wasm.def
     open wasm.read_basic
     open wasm.read_instr

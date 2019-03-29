@@ -1,7 +1,7 @@
 
 module wasm.write_args
     open wasm.write_basic
-    open wasm.args
+    open wasm.def_basic
 
     let write_brtable w t =
         write_var_u32 w (uint32 t.v.Length)

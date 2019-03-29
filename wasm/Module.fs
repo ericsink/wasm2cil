@@ -1,17 +1,12 @@
 
 module wasm.def
 
-    open wasm.instr
+    open wasm.def_basic
+    open wasm.def_instr
 
     type Limits =
         | Min of uint32
         | MinMax of uint32 * uint32
-
-    type ValType =
-        | I32
-        | I64
-        | F32
-        | F64
 
     type FuncType = {
         parms: ValType list
@@ -34,12 +29,6 @@ module wasm.def
         typ: ValType
         mut: bool
         }
-
-    type TypeIdx = TypeIdx of uint32
-    type FuncIdx = FuncIdx of uint32
-    type TableIdx = TableIdx of uint32
-    type MemIdx = MemIdx of uint32
-    type GlobalIdx = GlobalIdx of uint32
 
     type ImportDesc =
         | ImportFunc of TypeIdx

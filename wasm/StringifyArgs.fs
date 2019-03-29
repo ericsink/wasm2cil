@@ -1,6 +1,6 @@
 
 module wasm.stringify_args
-    open wasm.args
+    open wasm.def_basic
 
     let stringify_brtable t =
         sprintf "v: %A  other: %A" t.v t.other

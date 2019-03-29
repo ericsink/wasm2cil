@@ -1,6 +1,7 @@
 
 module wasm.write
 
+    open wasm.def_basic
     open wasm.def
     open wasm.write_basic
     open wasm.write_instr

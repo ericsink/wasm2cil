@@ -1,6 +1,6 @@
 
 module wasm.read_args
-    open wasm.args
+    open wasm.def_basic
     open wasm.read_basic
 
     let read_memarg br =
