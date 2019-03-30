@@ -17,11 +17,11 @@ module wasm.def_instr
         | CallIndirect of CallIndirectArg
         | Drop
         | Select
-        | LocalGet of uint32
-        | LocalSet of uint32
-        | LocalTee of uint32
-        | GlobalGet of uint32
-        | GlobalSet of uint32
+        | LocalGet of LocalIdx
+        | LocalSet of LocalIdx
+        | LocalTee of LocalIdx
+        | GlobalGet of GlobalIdx
+        | GlobalSet of GlobalIdx
         | I32Load of MemArg
         | I64Load of MemArg
         | F32Load of MemArg

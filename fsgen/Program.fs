@@ -8,6 +8,8 @@ open fsgen.opcodes
 
 type Immediate =
     | FuncIdx
+    | LocalIdx
+    | GlobalIdx
     | I32
     | I64
     | F32
@@ -41,11 +43,11 @@ let build_immediate_lookup () =
     add_immediate d "Call" FuncIdx
     add_immediate d "Br" U32
     add_immediate d "BrIf" U32
-    add_immediate d "LocalGet" U32
-    add_immediate d "LocalSet" U32
-    add_immediate d "LocalTee" U32
-    add_immediate d "GlobalGet" U32
-    add_immediate d "GlobalSet" U32
+    add_immediate d "LocalGet" LocalIdx
+    add_immediate d "LocalSet" LocalIdx
+    add_immediate d "LocalTee" LocalIdx
+    add_immediate d "GlobalGet" GlobalIdx
+    add_immediate d "GlobalSet" GlobalIdx
     add_immediate d "Block" U8
     add_immediate d "Loop" U8
     add_immediate d "If" U8
@@ -106,6 +108,8 @@ let write_type_instruction path (immediates: Dictionary<string,Immediate>) =
     for op in opcode_infos do
         match get_immediate immediates op.name with
         | FuncIdx -> sprintf "        | %s of FuncIdx"  op.name |> pr
+        | LocalIdx -> sprintf "        | %s of LocalIdx"  op.name |> pr
+        | GlobalIdx -> sprintf "        | %s of GlobalIdx"  op.name |> pr
         | I32 -> sprintf "        | %s of int32"  op.name |> pr
         | I64 -> sprintf "        | %s of int64"  op.name |> pr
         | F32 -> sprintf "        | %s of float32"  op.name |> pr
@@ -154,6 +158,8 @@ let write_function_read_instruction path (immediates: Dictionary<string,Immediat
         | None -> 
             match get_immediate immediates op.name with
             | FuncIdx -> sprintf "        | 0x%02xuy -> %s (read_var_u32 br |> FuncIdx)" op.code op.name |> pr
+            | LocalIdx -> sprintf "        | 0x%02xuy -> %s (read_var_u32 br |> LocalIdx)" op.code op.name |> pr
+            | GlobalIdx -> sprintf "        | 0x%02xuy -> %s (read_var_u32 br |> GlobalIdx)" op.code op.name |> pr
             | I32 -> sprintf "        | 0x%02xuy -> %s (read_var_i32 br)" op.code op.name |> pr
             | I64 -> sprintf "        | 0x%02xuy -> %s (read_var_i64 br)" op.code op.name |> pr
             | F32 -> sprintf "        | 0x%02xuy -> %s (read_f32 br)" op.code op.name |> pr
@@ -199,6 +205,8 @@ let write_function_write_instruction path (immediates: Dictionary<string,Immedia
 
             match imm with
             | FuncIdx -> sprintf "            let (FuncIdx i) = i in write_var_u32 w i" |> pr
+            | LocalIdx -> sprintf "            let (LocalIdx i) = i in write_var_u32 w i" |> pr
+            | GlobalIdx -> sprintf "            let (GlobalIdx i) = i in write_var_u32 w i" |> pr
             | I32 -> sprintf "            write_var_i32 w i" |> pr
             | I64 -> sprintf "            write_var_i64 w i" |> pr
             | F32 -> sprintf "            write_f32 w i" |> pr
@@ -243,6 +251,8 @@ let write_function_stringify_instruction path (immediates: Dictionary<string,Imm
             | U8 -> sprintf "        | %s i -> sprintf \"%s %%u\" i" op.name op.text |> pr
             | U32 -> sprintf "        | %s i -> sprintf \"%s %%u\" i" op.name op.text |> pr
             | FuncIdx -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_funcidx i)" op.name op.text |> pr
+            | LocalIdx -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_localidx i)" op.name op.text |> pr
+            | GlobalIdx -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_globalidx i)" op.name op.text |> pr
             | MemArg -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_memarg i)" op.name op.text |> pr
             | CallIndirect -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_callindirect i)" op.name op.text |> pr
             | BrTable -> sprintf "        | %s i -> sprintf \"%s %%s\" (funcs.stringify_brtable i)" op.name op.text |> pr

@@ -22,11 +22,11 @@ module wasm.read_instr
         | 0x11uy -> CallIndirect (read_callindirect br)
         | 0x1auy -> Drop
         | 0x1buy -> Select
-        | 0x20uy -> LocalGet (read_var_u32 br)
-        | 0x21uy -> LocalSet (read_var_u32 br)
-        | 0x22uy -> LocalTee (read_var_u32 br)
-        | 0x23uy -> GlobalGet (read_var_u32 br)
-        | 0x24uy -> GlobalSet (read_var_u32 br)
+        | 0x20uy -> LocalGet (read_var_u32 br |> LocalIdx)
+        | 0x21uy -> LocalSet (read_var_u32 br |> LocalIdx)
+        | 0x22uy -> LocalTee (read_var_u32 br |> LocalIdx)
+        | 0x23uy -> GlobalGet (read_var_u32 br |> GlobalIdx)
+        | 0x24uy -> GlobalSet (read_var_u32 br |> GlobalIdx)
         | 0x28uy -> I32Load (read_memarg br)
         | 0x29uy -> I64Load (read_memarg br)
         | 0x2auy -> F32Load (read_memarg br)

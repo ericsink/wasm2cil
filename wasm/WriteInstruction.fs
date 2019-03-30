@@ -46,19 +46,19 @@ module wasm.write_instr
             write_byte w 0x1buy
         | LocalGet i ->
             write_byte w 0x20uy
-            write_var_u32 w i
+            let (LocalIdx i) = i in write_var_u32 w i
         | LocalSet i ->
             write_byte w 0x21uy
-            write_var_u32 w i
+            let (LocalIdx i) = i in write_var_u32 w i
         | LocalTee i ->
             write_byte w 0x22uy
-            write_var_u32 w i
+            let (LocalIdx i) = i in write_var_u32 w i
         | GlobalGet i ->
             write_byte w 0x23uy
-            write_var_u32 w i
+            let (GlobalIdx i) = i in write_var_u32 w i
         | GlobalSet i ->
             write_byte w 0x24uy
-            write_var_u32 w i
+            let (GlobalIdx i) = i in write_var_u32 w i
         | I32Load i ->
             write_byte w 0x28uy
             write_memarg w i

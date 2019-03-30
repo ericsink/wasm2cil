@@ -11,6 +11,8 @@ module wasm.def_basic
     type TableIdx = TableIdx of uint32
     type MemIdx = MemIdx of uint32
     type GlobalIdx = GlobalIdx of uint32
+    type LocalIdx = LocalIdx of uint32
+    type LabelIdx = LabelIdx of uint32
 
     type MemArg = {
         align : uint32

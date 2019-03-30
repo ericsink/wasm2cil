@@ -20,11 +20,11 @@ module wasm.stringify_instr
         | CallIndirect i -> sprintf "call_indirect %s" (funcs.stringify_callindirect i)
         | Drop -> "drop"
         | Select -> "select"
-        | LocalGet i -> sprintf "local.get %u" i
-        | LocalSet i -> sprintf "local.set %u" i
-        | LocalTee i -> sprintf "local.tee %u" i
-        | GlobalGet i -> sprintf "global.get %u" i
-        | GlobalSet i -> sprintf "global.set %u" i
+        | LocalGet i -> sprintf "local.get %s" (funcs.stringify_localidx i)
+        | LocalSet i -> sprintf "local.set %s" (funcs.stringify_localidx i)
+        | LocalTee i -> sprintf "local.tee %s" (funcs.stringify_localidx i)
+        | GlobalGet i -> sprintf "global.get %s" (funcs.stringify_globalidx i)
+        | GlobalSet i -> sprintf "global.set %s" (funcs.stringify_globalidx i)
         | I32Load i -> sprintf "i32.load %s" (funcs.stringify_memarg i)
         | I64Load i -> sprintf "i64.load %s" (funcs.stringify_memarg i)
         | F32Load i -> sprintf "f32.load %s" (funcs.stringify_memarg i)
