@@ -66,10 +66,12 @@ module wasm.cs
                 idepth <- next_idepth
 
     let cs_function_item ndx i tidx cit =
+        let is_exported = is_function_exported ndx (FuncIdx i)
+
         let name = 
             match get_function_name ndx (FuncIdx i) with
             | Some s -> s
-            | None -> "unknown"
+            | None -> sprintf "func_%d" i
 
         // TODO need to cleanse the name to be C#-compliant
 
@@ -98,8 +100,8 @@ module wasm.cs
 
         let str_parms = System.String.Join(", ", a_parm_decls)
 
-        // TODO public or private
-        prn 1 (sprintf "%s %s(%s)" return_type name str_parms)
+        let access = if is_exported then "public" else "private"
+        prn 1 (sprintf "%s static %s %s(%s)" access return_type name str_parms)
         prn 1 "{"
 
         let a_local_names = 
@@ -122,6 +124,7 @@ module wasm.cs
             cs_function_item ndx (uint32 i) (sf.funcs.[i]) (sc.codes.[i])
 
     let cs_module m =
+        // TODO name of the static class
         prn 0 "public static class foo"
         prn 0 "{"
 

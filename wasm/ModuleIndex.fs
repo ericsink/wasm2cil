@@ -44,6 +44,16 @@ module wasm.module_index
         | Some s -> Array.tryPick fmatch s.exports
         | None -> None
 
+    let is_function_exported ndx i =
+        let fmatch (x : ExportItem) =
+            match x.desc with
+            | ExportFunc n when n = i -> Some x.name
+            | _ -> None
+
+        match ndx.Export with
+        | Some s -> match Array.tryPick fmatch s.exports with | Some _ -> true | None -> false
+        | None -> false
+
     let get_function_type ndx typeidx =
         let (TypeIdx i) = typeidx
         match ndx.Type with

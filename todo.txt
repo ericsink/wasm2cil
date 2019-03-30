@@ -1,4 +1,7 @@
 
+in CS, add a match for instruction, and have it
+default to output a comment with stringify
+
 in stringify for wat, omit memarg if defaults
 
 consider using checked int operations in leb128 code
