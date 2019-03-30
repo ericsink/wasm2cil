@@ -5,6 +5,7 @@ module wasm.wat
     open wasm.def
     open wasm.stringify_args
     open wasm.stringify_instr
+    open wasm.def_instr
 
     let prn depth s =
         let rec f i =
@@ -60,9 +61,20 @@ module wasm.wat
         prn depth s
 
     let wat_expr depth e =
+        let mutable idepth = 1
         for op in e do
-            // TODO keep track of depth changes for block and if etc
-            wat_instruction depth op
+            let next_idepth =
+                match op with
+                | Block _ -> idepth + 1
+                | Loop _ -> idepth + 1
+                | If _ -> idepth + 1
+                | End -> idepth - 1
+                | _ -> idepth
+            if next_idepth = 0 then
+                ()
+            else
+                wat_instruction (depth + idepth - 1) op
+                idepth <- next_idepth
 
     let wat_elemtype depth t =
         match t with
@@ -105,11 +117,16 @@ module wasm.wat
         wat_importdesc 2 it.desc
         prn 2 ")"
 
-    let wat_function_item tidx =
+    let wat_local depth loc =
+        sprintf "(local %d %s)" loc.n (wat_valtype loc.localtype) |> prn depth
+
+    let wat_function_item ndx i tidx cit =
         prn 1 "(func"
         let (TypeIdx i) = tidx
         sprintf "(type %d)" i |> prn 2
-        // TODO find the code and put it in here
+        for loc in cit.locals do
+            wat_local 2 loc
+        wat_expr 2 cit.expr
         prn 2 ")"
 
     let wat_exportdesc depth d =
@@ -141,17 +158,6 @@ module wasm.wat
             sprintf "%d" i |> prn 2
         prn 2 ")"
 
-    let wat_local depth loc =
-        sprintf "(local %d %s)" loc.n (wat_valtype loc.localtype) |> prn depth
-
-    let wat_code_item it =
-        // TODO can't do this here.
-        prn 1 "(code"
-        for loc in it.locals do
-            wat_local 2 loc
-        wat_expr 2 it.expr
-        prn 2 ")"
-
     let wat_data_item it =
         prn 1 "(data"
         let (MemIdx i) = it.memidx
@@ -170,9 +176,10 @@ module wasm.wat
         for it in s.imports do
             wat_import_item it
 
-    let wat_function_section s =
-        for it in s.funcs do
-            wat_function_item it
+    let wat_function_section ndx sf sc =
+        let count = sf.funcs.Length
+        for i = 0 to (count - 1) do
+            wat_function_item ndx i (sf.funcs.[i]) (sc.codes.[i])
 
     let wat_table_section s =
         for it in s.tables do
@@ -197,32 +204,31 @@ module wasm.wat
         for it in s.elems do
             wat_element_item it
 
-    let wat_code_section s =
-        for it in s.codes do
-            wat_code_item it
-
     let wat_data_section s =
         for it in s.datas do
             wat_data_item it
 
-    let wat_section s =
-        match s with
-        | Custom s -> wat_custom_section s
-        | Type s -> wat_type_section s
-        | Import s -> wat_import_section s
-        | Function s -> wat_function_section s
-        | Table s -> wat_table_section s
-        | Memory s -> wat_memory_section s
-        | Global s -> wat_global_section s
-        | Export s -> wat_export_section s
-        | Start s -> wat_start_section s
-        | Element s -> wat_element_section s
-        | Code s -> wat_code_section s
-        | Data s -> wat_data_section s
-
     let wat_module m =
         prn 0 "(module"
-        for s in m.sections do
-            wat_section s
+
+        let ndx = get_module_index m
+
+        match ndx.Type with | Some s -> wat_type_section s | None -> ()
+        match ndx.Import with | Some s -> wat_import_section s | None -> ()
+        match ndx.Memory with | Some s -> wat_memory_section s | None -> ()
+        match ndx.Global with | Some s -> wat_global_section s | None -> ()
+        match ndx.Export with | Some s -> wat_export_section s | None -> ()
+
+        match ndx.Data with | Some s -> wat_data_section s | None -> ()
+
+        match ndx.Table with | Some s -> wat_table_section s | None -> ()
+        match ndx.Element with | Some s -> wat_element_section s | None -> ()
+
+        match (ndx.Function, ndx.Code) with 
+        | (Some sf, Some sc) -> wat_function_section ndx sf sc 
+        | _ -> () // TODO error if one but not the other?
+
+        match ndx.Start with | Some s -> wat_start_section s | None -> ()
+
         prn 1 ")"
 
