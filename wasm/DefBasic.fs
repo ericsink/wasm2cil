@@ -23,7 +23,7 @@ module wasm.def_basic
         }
 
     type BrTableArg = {
-        v: uint32 list
+        v: uint32[]
         other: uint32
         }
 

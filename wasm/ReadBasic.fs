@@ -83,11 +83,11 @@ module wasm.read_basic
 
     let read_vector (br: BinaryWasmStream) count f =
         if count = 0u then 
-            []
+            Array.empty
         else
             let rec g a =
                 let it = f br
                 let b = it :: a
                 if (uint32 b.Length) = count then b else g b
-            g [] |> List.rev
+            g [] |> List.rev |> Array.ofList
 

@@ -119,7 +119,7 @@ module wasm.read
                 b
             else
                 g depth b
-        g 1 [] |> List.rev
+        g 1 [] |> List.rev |> Array.ofList
 
     let read_global br =
         let gt = read_globaltype br
@@ -241,7 +241,7 @@ module wasm.read
             while remaining br > 0 do
                 let s = read_section br
                 sections.Add(s)
-            List.ofSeq sections
+            Array.ofSeq sections
         
         {
             version = ver;

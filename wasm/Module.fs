@@ -9,8 +9,8 @@ module wasm.def
         | MinMax of uint32 * uint32
 
     type FuncType = {
-        parms: ValType list
-        result: ValType list
+        parms: ValType[]
+        result: ValType[]
         }
 
     type ElemType =
@@ -55,18 +55,18 @@ module wasm.def
 
     type GlobalItem = {
         globaltype: GlobalType
-        init: Instruction list
+        init: Instruction[]
         }
 
     type ElementItem = {
         tableidx : TableIdx
-        offset: Instruction list
-        init: FuncIdx list
+        offset: Instruction[]
+        init: FuncIdx[]
         }
 
     type DataItem = {
         memidx : MemIdx
-        offset: Instruction list
+        offset: Instruction[]
         init: byte[]
         }
 
@@ -76,8 +76,8 @@ module wasm.def
         }
 
     type CodeItem = {
-        locals: Local list
-        expr: Instruction list
+        locals: Local[]
+        expr: Instruction[]
         }
 
     type CustomSection = {
@@ -86,43 +86,43 @@ module wasm.def
         }
 
     type ImportSection = {
-        imports : ImportItem list
+        imports : ImportItem[]
         }
 
     type TypeSection = {
-        types : FuncType list
+        types : FuncType[]
         }
 
     type FunctionSection = {
-        funcs : TypeIdx list
+        funcs : TypeIdx[]
         }
 
     type TableSection = {
-        tables : TableType list
+        tables : TableType[]
         }
 
     type MemorySection = {
-        mems : MemType list
+        mems : MemType[]
         }
 
     type GlobalSection = {
-        globals : GlobalItem list
+        globals : GlobalItem[]
         }
 
     type ExportSection = {
-        exports : ExportItem list
+        exports : ExportItem[]
         }
 
     type ElementSection = {
-        elems : ElementItem list
+        elems : ElementItem[]
         }
 
     type CodeSection = {
-        codes : CodeItem list
+        codes : CodeItem[]
         }
 
     type DataSection = {
-        datas : DataItem list
+        datas : DataItem[]
         }
 
     // TODO the labels below might want Section appended?
@@ -142,6 +142,6 @@ module wasm.def
 
     type Module = {
         version: uint32
-        sections: Section list
+        sections: Section[]
         }
 
