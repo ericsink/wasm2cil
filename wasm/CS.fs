@@ -66,6 +66,7 @@ module wasm.cs
                 idepth <- next_idepth
 
     let cs_function_item ndx i tidx cit =
+        prn 1 (sprintf "// func %d" i)
         let is_exported = is_function_exported ndx (FuncIdx i)
 
         let name = 
@@ -119,9 +120,13 @@ module wasm.cs
         prn 1 "}"
 
     let cs_function_section ndx sf sc =
-        let count = sf.funcs.Length
-        for i = 0 to (count - 1) do
-            cs_function_item ndx (uint32 i) (sf.funcs.[i]) (sc.codes.[i])
+        let count_imports =
+            match ndx.Import with
+            | Some s -> s.imports.Length
+            | None -> 0
+
+        for i = 0 to (sf.funcs.Length - 1) do
+            cs_function_item ndx (uint32 (i + count_imports)) (sf.funcs.[i]) (sc.codes.[i])
 
     let cs_module m =
         // TODO name of the static class

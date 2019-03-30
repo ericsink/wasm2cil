@@ -1,4 +1,8 @@
 
+count locals of the same val type
+
+lookup func idx needs to include the imports
+
 in CS, add a match for instruction, and have it
 default to output a comment with stringify
 
