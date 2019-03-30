@@ -145,34 +145,3 @@ module wasm.def
         sections: Section[]
         }
 
-    type ModuleIndex = {
-        Type : TypeSection option
-        Import : ImportSection option
-        Function : FunctionSection option
-        Table : TableSection option
-        Memory : MemorySection option
-        Global : GlobalSection option
-        Export : ExportSection option
-        Start : FuncIdx option
-        Element : ElementSection option
-        Code : CodeSection option
-        Data : DataSection option
-        // TODO list of custom sections?
-        }
-
-    let get_module_index m =
-        {
-            Type = Array.tryPick (fun x -> match x with | Type i -> Some i | _ -> None) m.sections
-            Import = Array.tryPick (fun x -> match x with | Import i -> Some i | _ -> None) m.sections
-            Function = Array.tryPick (fun x -> match x with | Function i -> Some i | _ -> None) m.sections
-            Table = Array.tryPick (fun x -> match x with | Table i -> Some i | _ -> None) m.sections
-            Memory = Array.tryPick (fun x -> match x with | Memory i -> Some i | _ -> None) m.sections
-            Global = Array.tryPick (fun x -> match x with | Global i -> Some i | _ -> None) m.sections
-            Export = Array.tryPick (fun x -> match x with | Export i -> Some i | _ -> None) m.sections
-            Start = Array.tryPick (fun x -> match x with | Start i -> Some i | _ -> None) m.sections
-            Element = Array.tryPick (fun x -> match x with | Element i -> Some i | _ -> None) m.sections
-            Code = Array.tryPick (fun x -> match x with | Code i -> Some i | _ -> None) m.sections
-            Data = Array.tryPick (fun x -> match x with | Data i -> Some i | _ -> None) m.sections
-        }
-
-

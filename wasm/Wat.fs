@@ -6,6 +6,7 @@ module wasm.wat
     open wasm.stringify_args
     open wasm.stringify_instr
     open wasm.def_instr
+    open wasm.module_index
 
     let prn depth s =
         let rec f i =
