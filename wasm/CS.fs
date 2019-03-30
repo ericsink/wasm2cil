@@ -98,6 +98,18 @@ module wasm.cs
         // TODO public or private
         prn 1 (sprintf "%s %s(%s)" return_type name str_parms)
         prn 1 "{"
+
+        let a_local_names = 
+            cit.locals
+            |> Array.mapi (fun i x -> sprintf "p%d" (i + ftype.parms.Length))
+
+        for i = 0 to (cit.locals.Length - 1) do
+            let loc = cit.locals.[i]
+            let name = a_local_names.[i]
+            // TODO what is loc.n ?
+            let typ = cs_valtype loc.localtype
+            // TODO how are locals initialized?
+            prn 2 (sprintf "%s %s;" typ name)
         wat_expr 2 cit.expr
         prn 1 "}"
 
