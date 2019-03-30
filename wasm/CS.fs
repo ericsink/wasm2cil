@@ -109,13 +109,15 @@ module wasm.cs
             cit.locals
             |> Array.mapi (fun i x -> sprintf "p%d" (i + ftype.parms.Length))
 
-        for i = 0 to (cit.locals.Length - 1) do
-            let loc = cit.locals.[i]
-            let name = a_local_names.[i]
-            // TODO what is loc.n ?
+        let mutable cur_local_num = ftype.parms.Length
+        for loc in cit.locals do
+            // TODO assert count > 0 ?
             let typ = cs_valtype loc.localtype
-            // TODO how are locals initialized?
-            prn 2 (sprintf "%s %s;" typ name)
+            for x = 1 to (int loc.count) do
+                let name = sprintf "p%d" cur_local_num
+                cur_local_num <- cur_local_num + 1
+                // TODO how are locals initialized?
+                prn 2 (sprintf "%s %s;" typ name)
         cs_expr 2 cit.expr
         prn 1 "}"
 

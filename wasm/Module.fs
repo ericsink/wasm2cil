@@ -71,7 +71,7 @@ module wasm.def
         }
 
     type Local = {
-        n : uint32
+        count : uint32
         localtype : ValType
         }
 

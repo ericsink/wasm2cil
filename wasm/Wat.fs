@@ -131,7 +131,7 @@ module wasm.wat
         prn 2 ")"
 
     let wat_local depth loc =
-        sprintf "(local %d %s)" loc.n (wat_valtype loc.localtype) |> prn depth
+        sprintf "(local %d %s)" loc.count (wat_valtype loc.localtype) |> prn depth
 
     let wat_function_item ndx i tidx cit =
         prn 1 "(func"

@@ -134,7 +134,7 @@ module wasm.write
             write_var_u32 w i
 
     let write_local w loc =
-        write_var_u32 w loc.n
+        write_var_u32 w loc.count
         write_valtype w loc.localtype
 
     let write_code_item w it =

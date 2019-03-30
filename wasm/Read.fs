@@ -141,7 +141,7 @@ module wasm.read
     let read_local br =
         let n = read_var_u32 br
         let valtype = read_valtype br
-        { n = n; localtype = valtype }
+        { count = n; localtype = valtype }
 
     let read_code br =
         let len = read_var_u32 br
