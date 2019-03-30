@@ -49,9 +49,9 @@ let build_immediate_lookup () =
     add_immediate d "LocalTee" LocalIdx
     add_immediate d "GlobalGet" GlobalIdx
     add_immediate d "GlobalSet" GlobalIdx
-    add_immediate d "Block" U8
-    add_immediate d "Loop" U8
-    add_immediate d "If" U8
+    add_immediate d "Block" U8 // TODO result type
+    add_immediate d "Loop" U8 // TODO result type
+    add_immediate d "If" U8 // TODO result type
     add_immediate d "I32Load" MemArg
     add_immediate d "I64Load" MemArg
     add_immediate d "F32Load" MemArg
@@ -75,8 +75,8 @@ let build_immediate_lookup () =
     add_immediate d "I64Store8" MemArg
     add_immediate d "I64Store16" MemArg
     add_immediate d "I64Store32" MemArg
-    add_immediate d "MemorySize" U8
-    add_immediate d "MemoryGrow" U8
+    add_immediate d "MemorySize" U8 // TODO what is this arg?
+    add_immediate d "MemoryGrow" U8 // TODO what is this arg?
     add_immediate d "CallIndirect" CallIndirect
     add_immediate d "BrTable" BrTable
 
