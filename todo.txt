@@ -5,12 +5,7 @@ consider using checked int operations in leb128 code
 
 best practice for formatting fs, type annotations, colon
 
-other places where an immediate should be an Idx
-instead of u32.  get local.
-
-output s-expressions for testing ?
-
-def and read and write could be in separate assemblies?
+def and read and write and wat and cs could be in separate assemblies?
 
 review naming of def record fields.  compare to spec.
 and conventions, lower case, etc.
