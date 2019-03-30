@@ -25,10 +25,10 @@ module wasm.cs
         | F64 -> "double"
 
     let cb = {
-        // TODO could lookup the func idx and give a name
+        // TODO could lookup the func idx and give a name, but
+        // we would need the ModuleIndex here
         stringify_funcidx = fun x -> let (FuncIdx i) = x in sprintf "%d" i
 
-        // TODO give this a name
         stringify_localidx = fun x -> let (LocalIdx i) = x in sprintf "p%d" i
 
         // TODO give this a name
@@ -44,24 +44,25 @@ module wasm.cs
         stringify_callindirect = fun x -> "TODO"
         }
 
-    let wat_instruction depth op =
+    let cs_instruction depth op =
         let s = stringify_instruction cb op
         prn depth s
 
-    let wat_expr depth e =
+    let cs_expr depth e =
         let mutable idepth = 1
         for op in e do
-            let next_idepth =
+            let (cur_depth,next_idepth) =
                 match op with
-                | Block _ -> idepth + 1
-                | Loop _ -> idepth + 1
-                | If _ -> idepth + 1
-                | End -> idepth - 1
-                | _ -> idepth
+                | Block _ -> (depth,idepth + 1)
+                | Loop _ -> (depth,idepth + 1)
+                | If _ -> (depth,idepth + 1)
+                | End -> (depth - 1, idepth - 1)
+                | Else -> (depth - 1, idepth)
+                | _ -> (depth,idepth)
             if next_idepth = 0 then
                 ()
             else
-                wat_instruction (depth + idepth - 1) op
+                cs_instruction (cur_depth + idepth - 1) op
                 idepth <- next_idepth
 
     let cs_function_item ndx i tidx cit =
@@ -112,7 +113,7 @@ module wasm.cs
             let typ = cs_valtype loc.localtype
             // TODO how are locals initialized?
             prn 2 (sprintf "%s %s;" typ name)
-        wat_expr 2 cit.expr
+        cs_expr 2 cit.expr
         prn 1 "}"
 
     let cs_function_section ndx sf sc =
