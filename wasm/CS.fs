@@ -27,6 +27,9 @@ module wasm.cs
         // TODO give this a name
         stringify_globalidx = fun x -> let (GlobalIdx i) = x in sprintf "%d" i
 
+        // TODO give this a name
+        stringify_labelidx = fun x -> let (LabelIdx i) = x in sprintf "%d" i
+
         stringify_brtable = fun x -> "TODO"
         stringify_memarg = fun x -> sprintf "(align=%d offset=%d)" x.align x.offset
         stringify_callindirect = fun x -> "TODO"

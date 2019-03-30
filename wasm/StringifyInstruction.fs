@@ -12,8 +12,8 @@ module wasm.stringify_instr
         | If i -> sprintf "if %u" i
         | Else -> "else"
         | End -> "end"
-        | Br i -> sprintf "br %u" i
-        | BrIf i -> sprintf "br_if %u" i
+        | Br i -> sprintf "br %s" (funcs.stringify_labelidx i)
+        | BrIf i -> sprintf "br_if %s" (funcs.stringify_labelidx i)
         | BrTable i -> sprintf "br_table %s" (funcs.stringify_brtable i)
         | Return -> "return"
         | Call i -> sprintf "call %s" (funcs.stringify_funcidx i)

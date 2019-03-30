@@ -25,10 +25,10 @@ module wasm.write_instr
             write_byte w 0x0buy
         | Br i ->
             write_byte w 0x0cuy
-            write_var_u32 w i
+            let (LabelIdx i) = i in write_var_u32 w i
         | BrIf i ->
             write_byte w 0x0duy
-            write_var_u32 w i
+            let (LabelIdx i) = i in write_var_u32 w i
         | BrTable i ->
             write_byte w 0x0euy
             write_brtable w i

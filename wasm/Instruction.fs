@@ -9,8 +9,8 @@ module wasm.def_instr
         | If of byte
         | Else
         | End
-        | Br of uint32
-        | BrIf of uint32
+        | Br of LabelIdx
+        | BrIf of LabelIdx
         | BrTable of BrTableArg
         | Return
         | Call of FuncIdx

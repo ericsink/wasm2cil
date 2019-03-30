@@ -14,8 +14,8 @@ module wasm.read_instr
         | 0x04uy -> If (read_byte br)
         | 0x05uy -> Else
         | 0x0buy -> End
-        | 0x0cuy -> Br (read_var_u32 br)
-        | 0x0duy -> BrIf (read_var_u32 br)
+        | 0x0cuy -> Br (read_var_u32 br |> LabelIdx)
+        | 0x0duy -> BrIf (read_var_u32 br |> LabelIdx)
         | 0x0euy -> BrTable (read_brtable br)
         | 0x0fuy -> Return
         | 0x10uy -> Call (read_var_u32 br |> FuncIdx)

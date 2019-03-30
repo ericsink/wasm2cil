@@ -20,10 +20,11 @@ module wasm.def_basic
         }
 
     type CallIndirectArg = {
-        x: uint32
+        x: uint32 // TODO what is this? typeidx ?
         other: byte
         }
 
+    // TODO LabelIdx below
     type BrTableArg = {
         v: uint32[]
         other: uint32
