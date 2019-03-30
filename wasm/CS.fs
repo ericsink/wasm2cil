@@ -17,6 +17,13 @@ module wasm.cs
         f depth
         printfn "%s" s
         
+    let cs_valtype vt =
+        match vt with
+        | I32 -> "int32"
+        | I64 -> "int64"
+        | F32 -> "float"
+        | F64 -> "double"
+
     let cb = {
         // TODO could lookup the func idx and give a name
         stringify_funcidx = fun x -> let (FuncIdx i) = x in sprintf "%d" i
@@ -30,17 +37,12 @@ module wasm.cs
         // TODO give this a name
         stringify_labelidx = fun x -> let (LabelIdx i) = x in sprintf "%d" i
 
+        stringify_resulttype = fun x -> match x with | Some vt -> cs_valtype vt | None -> "void"
+
         stringify_brtable = fun x -> "TODO"
         stringify_memarg = fun x -> sprintf "(align=%d offset=%d)" x.align x.offset
         stringify_callindirect = fun x -> "TODO"
         }
-
-    let cs_valtype vt =
-        match vt with
-        | I32 -> "int32"
-        | I64 -> "int64"
-        | F32 -> "float"
-        | F64 -> "double"
 
     let wat_instruction depth op =
         let s = stringify_instruction cb op

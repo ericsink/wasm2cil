@@ -9,9 +9,9 @@ module wasm.read_instr
         match b1 with
         | 0x00uy -> Unreachable
         | 0x01uy -> Nop
-        | 0x02uy -> Block (read_byte br)
-        | 0x03uy -> Loop (read_byte br)
-        | 0x04uy -> If (read_byte br)
+        | 0x02uy -> Block (match read_byte br with | 0x40uy -> None | x -> x |> make_valtype |> Some)
+        | 0x03uy -> Loop (match read_byte br with | 0x40uy -> None | x -> x |> make_valtype |> Some)
+        | 0x04uy -> If (match read_byte br with | 0x40uy -> None | x -> x |> make_valtype |> Some)
         | 0x05uy -> Else
         | 0x0buy -> End
         | 0x0cuy -> Br (read_var_u32 br |> LabelIdx)

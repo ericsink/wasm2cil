@@ -7,9 +7,9 @@ module wasm.stringify_instr
         match op with
         | Unreachable -> "unreachable"
         | Nop -> "nop"
-        | Block i -> sprintf "block %u" i
-        | Loop i -> sprintf "loop %u" i
-        | If i -> sprintf "if %u" i
+        | Block i -> sprintf "block %s" (funcs.stringify_resulttype i)
+        | Loop i -> sprintf "loop %s" (funcs.stringify_resulttype i)
+        | If i -> sprintf "if %s" (funcs.stringify_resulttype i)
         | Else -> "else"
         | End -> "end"
         | Br i -> sprintf "br %s" (funcs.stringify_labelidx i)

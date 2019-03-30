@@ -3,6 +3,7 @@ module wasm.stringify_args
     open wasm.def_basic
 
     type StringifyArgs = {
+        stringify_resulttype : ValType option -> string
         stringify_funcidx : FuncIdx -> string
         stringify_localidx : LocalIdx -> string
         stringify_globalidx : GlobalIdx -> string

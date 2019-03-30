@@ -17,6 +17,13 @@ module wasm.wat
         f depth
         printfn "%s" s
         
+    let wat_valtype vt =
+        match vt with
+        | I32 -> "i32"
+        | I64 -> "i64"
+        | F32 -> "f32"
+        | F64 -> "f64"
+
     let cb = {
         // TODO could lookup the func idx and give a name
         stringify_funcidx = fun x -> let (FuncIdx i) = x in sprintf "%d" i
@@ -30,6 +37,8 @@ module wasm.wat
         // TODO give this a name
         stringify_labelidx = fun x -> let (LabelIdx i) = x in sprintf "%d" i
 
+        stringify_resulttype = fun x -> match x with | Some vt -> wat_valtype vt | None -> "TODO"
+
         stringify_brtable = fun x -> "TODO"
         stringify_memarg = fun x -> sprintf "(align=%d offset=%d)" x.align x.offset
         stringify_callindirect = fun x -> "TODO"
@@ -40,13 +49,6 @@ module wasm.wat
         prn 2 s.name
         prn 2 (sprintf "(%d bytes)" s.data.Length)
         prn 2 ")"
-
-    let wat_valtype vt =
-        match vt with
-        | I32 -> "i32"
-        | I64 -> "i64"
-        | F32 -> "f32"
-        | F64 -> "f64"
 
     let wat_limits depth lim =
         match lim with

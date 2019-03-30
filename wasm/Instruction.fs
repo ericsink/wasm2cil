@@ -4,9 +4,9 @@ module wasm.def_instr
     type Instruction =
         | Unreachable
         | Nop
-        | Block of byte
-        | Loop of byte
-        | If of byte
+        | Block of ValType option
+        | Loop of ValType option
+        | If of ValType option
         | Else
         | End
         | Br of LabelIdx

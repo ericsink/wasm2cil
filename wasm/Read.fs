@@ -20,12 +20,7 @@ module wasm.read
         Custom { name = name; data = ba; }
 
     let read_valtype br =
-        match read_byte br with
-        | 0x7Fuy -> I32
-        | 0x7Euy -> I64
-        | 0x7Duy -> F32
-        | 0x7Cuy -> F64
-        | _ -> failwith "unknown valtype"
+        read_byte br |> make_valtype
 
     let read_functype br =
         let b = read_byte br // 0x60

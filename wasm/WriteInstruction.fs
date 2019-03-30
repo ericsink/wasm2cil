@@ -12,13 +12,13 @@ module wasm.write_instr
             write_byte w 0x01uy
         | Block i ->
             write_byte w 0x02uy
-            write_byte w i
+            match i with | Some vt -> write_byte w (encode_valtype vt) | None -> write_byte w 0x40uy
         | Loop i ->
             write_byte w 0x03uy
-            write_byte w i
+            match i with | Some vt -> write_byte w (encode_valtype vt) | None -> write_byte w 0x40uy
         | If i ->
             write_byte w 0x04uy
-            write_byte w i
+            match i with | Some vt -> write_byte w (encode_valtype vt) | None -> write_byte w 0x40uy
         | Else ->
             write_byte w 0x05uy
         | End ->
