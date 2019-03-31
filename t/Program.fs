@@ -15,7 +15,7 @@ let main argv =
     timer.Stop()
     //printfn "%A milliseconds" timer.ElapsedMilliseconds
 
-    //printfn "%A" m
+    printfn "%A" m
     //wat_module m
     cs_module m
 

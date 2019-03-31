@@ -11,7 +11,7 @@ module wasm.cs
     let prn depth s =
         let rec f i =
             if i > 0 then
-                printf "  "
+                printf "    "
                 f (i - 1)
                 
         f depth
@@ -44,11 +44,20 @@ module wasm.cs
         stringify_callindirect = fun x -> "TODO"
         }
 
-    let cs_instruction depth op =
-        let s = stringify_instruction cb op
-        prn depth s
+    type LocalNameAndType = {
+        name : string;
+        typ : ValType;
+        }
 
-    let cs_expr depth e =
+    let get_function_name fidx f =
+        match f with
+        | Imported i -> i.f_name // TODO need module/namespace/whatever too
+        | Internal i -> 
+            match i.if_name with
+            | Some s -> s
+            | None -> sprintf "func_%d" fidx
+
+    let cs_expr depth ndx (a_locals : LocalNameAndType[]) e =
         let mutable idepth = 1
         for op in e do
             let (cur_depth,next_idepth) =
@@ -62,22 +71,59 @@ module wasm.cs
             if next_idepth = 0 then
                 ()
             else
-                cs_instruction (cur_depth + idepth - 1) op
+                let depth = cur_depth + idepth - 1
+                //prn depth (sprintf "// %s" (stringify_instruction cb op))
+                match op with
+                | Call (FuncIdx fidx) ->
+                    let found = lookup_function ndx (int fidx)
+                    let name = get_function_name fidx found
+                    let typeidx =
+                        match found with
+                        | Imported i -> i.f_typ
+                        | Internal i -> i.if_typ
+                    let ft = 
+                        match get_function_type_by_typeidx ndx typeidx with
+                        | Some q -> q
+                        | None -> failwith "unknown func type"
+                    let args =
+                        let a = 
+                            ft.parms
+                            |> Array.map (fun vt -> sprintf "stack.pop_%s()" (cs_valtype vt))
+                        System.String.Join(", ", a)
+                    let s = sprintf "%s(%s)" name args
+                    let s =
+                        if ft.result.Length = 0 then
+                            s
+                        else
+                            sprintf "stack.push_%s(%s)" (cs_valtype (ft.result.[0])) s
+                    let s = s + ";"
+                    prn depth s
+                | LocalGet (LocalIdx i) -> 
+                    let loc = a_locals.[int i]
+                    let typ = cs_valtype loc.typ
+                    prn depth (sprintf "stack.push_%s(%s)" typ loc.name)
+                | I32Add -> prn depth "stack.push_i32(stack.pop_i32(), stack.pop_i32())"
+                | F64Add -> prn depth "stack.push_f64(stack.pop_f64(), stack.pop_f64())"
+                | Block t -> prn depth "{"
+                | End -> prn depth "}"
+                | Drop -> prn depth "stack.pop();"
+                | I32Const i -> prn depth (sprintf "stack.push_i32(%d);" i)
+                | F32Const f -> prn depth (sprintf "stack.push_f32(%f);" f)
+                | F64Const f -> prn depth (sprintf "stack.push_f64(%f);" f)
+                | _ -> prn depth (sprintf "// TODO %s" (stringify_instruction cb op))
                 idepth <- next_idepth
 
-    let cs_function_item ndx i tidx cit =
-        prn 1 (sprintf "// func %d" i)
-        let is_exported = is_function_exported ndx (FuncIdx i)
+    let cs_function_item ndx fidx tidx cit =
+        prn 1 (sprintf "// func %d" fidx)
+        let is_exported = is_function_exported ndx (FuncIdx fidx)
 
-        let name = 
-            match get_function_name ndx (FuncIdx i) with
-            | Some s -> s
-            | None -> sprintf "func_%d" i
+        let found = lookup_function ndx (int fidx)
+        let name = get_function_name fidx found
 
         // TODO need to cleanse the name to be C#-compliant
 
         let ftype = 
-            match get_function_type ndx tidx with
+            match get_function_type_by_typeidx ndx tidx with
             | Some ft -> ft
             | _ -> failwith "unknown function type"
 
@@ -87,38 +133,36 @@ module wasm.cs
             else
                 cs_valtype ftype.result.[0]
 
-        let a_parm_types = 
-            ftype.parms
-            |> Array.map cs_valtype
-
-        let a_parm_names = 
-            ftype.parms
-            |> Array.mapi (fun i x -> sprintf "p%d" i)
-
-        let a_parm_decls =
-            Array.zip a_parm_types a_parm_names
-            |> Array.map (fun (typ,name) -> sprintf "%s %s" typ name)
-
-        let str_parms = System.String.Join(", ", a_parm_decls)
+        let a_locals =
+            let a = System.Collections.Generic.List<LocalNameAndType>()
+            let get_name () =
+                sprintf "p%d" (a.Count)
+            for x in ftype.parms do
+                a.Add({ name = get_name(); typ = x})
+            for loc in cit.locals do
+                // TODO assert count > 0 ?
+                for x = 1 to (int loc.count) do
+                    a.Add({ name = get_name(); typ = loc.localtype})
+            Array.ofSeq a
+            
+        let str_parms = 
+            if a_locals.Length > 0 then
+                let a_parm_decls =
+                    a_locals.[0..(ftype.parms.Length-1)]
+                    |> Array.map (fun pair -> sprintf "%s %s" (cs_valtype pair.typ) pair.name)
+                System.String.Join(", ", a_parm_decls)
+            else
+                ""
 
         let access = if is_exported then "public" else "private"
         prn 1 (sprintf "%s static %s %s(%s)" access return_type name str_parms)
         prn 1 "{"
 
-        let a_local_names = 
-            cit.locals
-            |> Array.mapi (fun i x -> sprintf "p%d" (i + ftype.parms.Length))
-
-        let mutable cur_local_num = ftype.parms.Length
-        for loc in cit.locals do
-            // TODO assert count > 0 ?
-            let typ = cs_valtype loc.localtype
-            for x = 1 to (int loc.count) do
-                let name = sprintf "p%d" cur_local_num
-                cur_local_num <- cur_local_num + 1
-                // TODO how are locals initialized?
-                prn 2 (sprintf "%s %s;" typ name)
-        cs_expr 2 cit.expr
+        if a_locals.Length > ftype.parms.Length then
+            for loc in a_locals.[ftype.parms.Length..] do
+                let typ = cs_valtype loc.typ
+                prn 2 (sprintf "%s %s = default(%s);" typ loc.name typ)
+        cs_expr 2 ndx a_locals cit.expr
         prn 1 "}"
 
     let cs_function_section ndx sf sc =
