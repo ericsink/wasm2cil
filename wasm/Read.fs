@@ -15,7 +15,7 @@ module wasm.read
 
     let read_custom_section br =
         let name = read_name br
-        let len = remaining br
+        let len = get_remaining br
         let ba = read_bytes br (len |> uint32)
         Custom { name = name; data = ba; }
 
@@ -207,11 +207,12 @@ module wasm.read
 
     let read_section br =
         let id = read_byte br
+        let offset = get_read_offset br
         let br_section = 
             let len = read_var_u32 br
             let ba_section = read_bytes br len
             BinaryWasmStream(ba_section)
-        //printfn "read section %d with len %d" id (br_section.Length())
+        //printfn "read section %d at %d with len %d" id offset (br_section.Length())
         match id with
         | 0uy -> read_custom_section br_section
         | 1uy -> read_type_section br_section
@@ -233,7 +234,7 @@ module wasm.read
 
         let a =
             let sections = System.Collections.Generic.List<Section>()
-            while remaining br > 0 do
+            while get_remaining br > 0 do
                 let s = read_section br
                 sections.Add(s)
             Array.ofSeq sections

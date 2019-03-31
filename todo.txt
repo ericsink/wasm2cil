@@ -1,4 +1,7 @@
 
+still some problems in roundtripping binary format that
+might be important, not sure
+
 the idea here is to get a CS (or fs) generator working
 so that the layer below it is more proven.  that
 layer includes stuff like looking up attributes by

@@ -78,7 +78,10 @@ module wasm.read_basic
         let v = (b3 <<< 24) ||| (b2 <<< 16) ||| (b1 <<< 8) ||| (b0 <<< 0)
         v
 
-    let remaining (br: BinaryWasmStream) =
+    let get_read_offset (br: BinaryWasmStream) =
+        br.Offset()
+
+    let get_remaining (br: BinaryWasmStream) =
         br.Length() - br.Offset()
 
     let read_vector (br: BinaryWasmStream) count f =

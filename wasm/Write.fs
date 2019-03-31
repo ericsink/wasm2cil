@@ -149,6 +149,7 @@ module wasm.write
         let (MemIdx i) = it.memidx
         write_var_u32 w i
         write_expr w it.offset
+        write_var_u32 w (uint32 it.init.Length)
         write_blob w it.init
 
     let write_type_section w s =
