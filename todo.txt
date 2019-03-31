@@ -19,8 +19,6 @@ a uint32 is used, because that's just how .NET
 does things, with array indexes and such being
 int instead of unsigned
 
-do binding?  want an explicit scope block.
-
 might want to abstract creation and lookup of
 names for locals instead of just pN
 

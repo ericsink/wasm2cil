@@ -124,9 +124,10 @@ module wasm.write
         write_exportdesc w it.desc
 
     let write_element_item w it =
-        // TODO want scope block
-        let (TableIdx i) = it.tableidx
-        write_var_u32 w i
+        begin
+            let (TableIdx i) = it.tableidx
+            write_var_u32 w i
+            end
         write_expr w it.offset
         write_var_u32 w (uint32 it.init.Length)
         for x in it.init do
