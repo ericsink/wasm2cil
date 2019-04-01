@@ -1,7 +1,7 @@
 
 in CS gen, br needs to do stack cleanup
 
-why doens't clang mark exports
+why doesn't clang mark exports
 
 return value from blocks ?
 
@@ -14,8 +14,6 @@ layer includes stuff like looking up attributes by
 funcidx, etc.  that layer should be roughly the same
 one we need to gen CIL.
 
-gen fs instead of cs?  but fs lacks goto.
-
 need consistency about whether to pass around
 wrapped indexes or just the ints
 
@@ -23,9 +21,6 @@ consider possibility of just using int everywhere
 a uint32 is used, because that's just how .NET
 does things, with array indexes and such being
 int instead of unsigned
-
-might want to abstract creation and lookup of
-names for locals instead of just pN
 
 in stringify for wat, omit memarg if defaults
 

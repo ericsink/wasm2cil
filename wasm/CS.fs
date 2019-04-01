@@ -25,16 +25,12 @@ module wasm.cs
         | F64 -> "f64"
 
     let cb = {
-        // TODO could lookup the func idx and give a name, but
-        // we would need the ModuleIndex here
         stringify_funcidx = fun x -> let (FuncIdx i) = x in sprintf "%d" i
 
-        stringify_localidx = fun x -> let (LocalIdx i) = x in sprintf "p%d" i
+        stringify_localidx = fun x -> let (LocalIdx i) = x in sprintf "%d" i
 
-        // TODO give this a name
         stringify_globalidx = fun x -> let (GlobalIdx i) = x in sprintf "%d" i
 
-        // TODO give this a name
         stringify_labelidx = fun x -> let (LabelIdx i) = x in sprintf "%d" i
 
         stringify_resulttype = fun x -> match x with | Some vt -> cs_valtype vt | None -> "void"
@@ -171,6 +167,7 @@ module wasm.cs
                     prn depth "{"
                     let args =
                         let names = Array.map (fun t -> get_tmp t) ft.parms
+                        // need to pop arguments in reverse order
                         for i = (names.Length - 1) downto 0 do
                             prn (depth + 1) (sprintf "var %s = stack.pop_%s();" (names.[i]) (cs_valtype (ft.parms.[i])) )
                         System.String.Join(", ", names)
