@@ -194,6 +194,8 @@ module wasm.cecil
             | I32Add | I64Add | F32Add | F64Add -> il.Append(il.Create(OpCodes.Add))
             | I32Mul | I64Mul | F32Mul | F64Mul -> il.Append(il.Create(OpCodes.Mul))
             | I32Sub | I64Sub | F32Sub | F64Sub -> il.Append(il.Create(OpCodes.Sub))
+            | I32DivS | I64DivS | F32Div | F64Div -> il.Append(il.Create(OpCodes.Div))
+            | I32DivU | I64DivU -> il.Append(il.Create(OpCodes.Div_Un))
 
             | I32Eqz ->
                 il.Append(il.Create(OpCodes.Ldc_I4_0))
