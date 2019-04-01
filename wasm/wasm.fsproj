@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="mono.cecil" Version="0.10.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="DefBasic.fs" />
     <Compile Include="Instruction.fs" />
     <Compile Include="Module.fs" />
@@ -24,6 +28,7 @@
     <Compile Include="ModuleIndex.fs" />
     <Compile Include="Wat.fs" />
     <Compile Include="CS.fs" />
+    <Compile Include="Cecil.fs" />
   </ItemGroup>
 
 </Project>

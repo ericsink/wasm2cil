@@ -6,6 +6,7 @@ open wasm.read
 open wasm.write
 open wasm.wat
 open wasm.cs
+open wasm.cecil
 
 [<EntryPoint>]
 let main argv =
@@ -17,7 +18,8 @@ let main argv =
 
     //printfn "%A" m
     //wat_module m
-    cs_module m
+    //cs_module m
+    cecil_module m
 
     if argv.Length > 1 then
         use ms = new System.IO.MemoryStream()
