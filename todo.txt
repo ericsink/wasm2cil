@@ -1,4 +1,10 @@
 
+globals:
+    can be import or internal
+
+how to implement data initialization for an imported
+memory
+
 in CS gen, br needs to do stack cleanup
 
 why doesn't clang mark exports

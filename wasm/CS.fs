@@ -47,8 +47,8 @@ module wasm.cs
 
     let get_function_name fidx f =
         match f with
-        | Imported i -> sprintf "%s.%s" i.f_m i.f_name
-        | Internal i -> 
+        | F_Imported i -> sprintf "%s.%s" i.f_m i.f_name
+        | F_Internal i -> 
             match i.if_name with
             | Some s -> s
             | None -> sprintf "func_%d" fidx
@@ -143,8 +143,8 @@ module wasm.cs
                 let name = get_function_name fidx found
                 let typeidx =
                     match found with
-                    | Imported i -> i.f_typ
-                    | Internal i -> i.if_typ
+                    | F_Imported i -> i.f_typ
+                    | F_Internal i -> i.if_typ
                 let ft = 
                     match get_function_type_by_typeidx ndx typeidx with
                     | Some q -> q
