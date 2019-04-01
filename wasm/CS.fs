@@ -19,10 +19,10 @@ module wasm.cs
         
     let cs_valtype vt =
         match vt with
-        | I32 -> "int32"
-        | I64 -> "int64"
-        | F32 -> "float"
-        | F64 -> "double"
+        | I32 -> "i32"
+        | I64 -> "i64"
+        | F32 -> "f32"
+        | F64 -> "f64"
 
     let cb = {
         // TODO could lookup the func idx and give a name, but
@@ -51,70 +51,167 @@ module wasm.cs
 
     let get_function_name fidx f =
         match f with
-        | Imported i -> i.f_name // TODO need module/namespace/whatever too
+        | Imported i -> sprintf "%s.%s" i.f_m i.f_name
         | Internal i -> 
             match i.if_name with
             | Some s -> s
             | None -> sprintf "func_%d" fidx
 
+    type CodeBlock =
+        | CB_Block of string
+        | CB_Loop of string
+        | CB_If of string
+        | CB_Else of string
+
     let cs_expr depth ndx (a_locals : LocalNameAndType[]) e =
-        let mutable idepth = 1
+        let mutable next_lab = 0
+        let get_label kind =
+            let t = sprintf "%s_%d" kind next_lab
+            next_lab <- next_lab + 1
+            t
+        let mutable next_tmp = 0
+        let get_tmp vt =
+            let t = sprintf "tmp_%s_%d" (cs_valtype vt) next_tmp
+            next_tmp <- next_tmp + 1
+            t
+        let blocks = System.Collections.Generic.Stack<CodeBlock>()
         for op in e do
-            let (cur_depth,next_idepth) =
-                match op with
-                | Block _ -> (depth,idepth + 1)
-                | Loop _ -> (depth,idepth + 1)
-                | If _ -> (depth,idepth + 1)
-                | End -> (depth - 1, idepth - 1)
-                | Else -> (depth - 1, idepth)
-                | _ -> (depth,idepth)
-            if next_idepth = 0 then
-                ()
-            else
-                let depth = cur_depth + idepth - 1
-                //prn depth (sprintf "// %s" (stringify_instruction cb op))
-                match op with
-                | Call (FuncIdx fidx) ->
-                    let found = lookup_function ndx (int fidx)
-                    let name = get_function_name fidx found
-                    let typeidx =
-                        match found with
-                        | Imported i -> i.f_typ
-                        | Internal i -> i.if_typ
-                    let ft = 
-                        match get_function_type_by_typeidx ndx typeidx with
-                        | Some q -> q
-                        | None -> failwith "unknown func type"
-                    let args =
-                        let a = 
-                            ft.parms
-                            |> Array.map (fun vt -> sprintf "stack.pop_%s()" (cs_valtype vt))
-                        System.String.Join(", ", a)
-                    let s = sprintf "%s(%s)" name args
-                    let s =
-                        if ft.result.Length = 0 then
-                            s
-                        else
-                            sprintf "stack.push_%s(%s)" (cs_valtype (ft.result.[0])) s
-                    let s = s + ";"
+            let depth = depth + blocks.Count
+            //prn depth (sprintf "// %s" (stringify_instruction cb op))
+            match op with
+            | Block t -> 
+                let lab = get_label "block"
+                let blk = CB_Block lab
+                blocks.Push(blk)
+                prn depth "{"
+            | Loop t -> 
+                let lab = get_label "loop"
+                let blk = CB_Loop lab
+                blocks.Push(blk)
+                prn depth "{"
+                prn (depth + 1) (sprintf "%s:" lab)
+            | If t -> 
+                let lab = get_label "if"
+                let blk = CB_If lab
+                blocks.Push(blk)
+                prn depth "{"
+            | Else -> 
+                // first, end the if block
+                let blk_if = blocks.Pop()
+                let lab_if =
+                    match blk_if with
+                    | CB_If s -> s
+                    | _ -> failwith "bad nest"
+                prn depth (sprintf "%s: ;" lab_if)
+                prn (depth - 1) "}"
+
+                let lab = get_label "else"
+                let blk = CB_Else lab
+                blocks.Push(blk)
+                prn (depth - 1) "{"
+            | End -> 
+                if blocks.Count = 0 then
+                    prn depth "end: ;"
+                else
+                    let blk = blocks.Pop()
+                    match blk with
+                    | CB_Block s -> prn depth (sprintf "%s: ;" s)
+                    | CB_Loop s -> () // loop label was at the top
+                    | CB_If s -> prn depth (sprintf "%s: ;" s)
+                    | CB_Else s -> prn depth (sprintf "%s: ;" s)
+                    prn (depth - 1) "}"
+            | Return ->
+                prn depth "goto end;"
+            | Br (LabelIdx i) ->
+                let a = blocks.ToArray()
+                let blk = a.[int i]
+                let lab =
+                    match blk with
+                    | CB_Block s -> s
+                    | CB_Loop s -> s
+                    | CB_If s -> s
+                    | CB_Else s -> s
+                prn depth (sprintf "goto %s;" lab)
+            | BrIf (LabelIdx i) ->
+                let a = blocks.ToArray()
+                let blk = a.[int i]
+                let lab =
+                    match blk with
+                    | CB_Block s -> s
+                    | CB_Loop s -> s
+                    | CB_If s -> s
+                    | CB_Else s -> s
+                prn depth (sprintf "if (0 != stack.pop_i32()) goto %s;" lab)
+            | Call (FuncIdx fidx) ->
+                let found = lookup_function ndx (int fidx)
+                let name = get_function_name fidx found
+                let typeidx =
+                    match found with
+                    | Imported i -> i.f_typ
+                    | Internal i -> i.if_typ
+                let ft = 
+                    match get_function_type_by_typeidx ndx typeidx with
+                    | Some q -> q
+                    | None -> failwith "unknown func type"
+                let fix_return call =
+                    match ft.result.Length with
+                    | 0 -> call + ";"
+                    | 1 -> sprintf "stack.push_%s(%s);" (cs_valtype (ft.result.[0])) call
+                    | _ -> failwith "not implemented"
+                match ft.parms.Length with
+                | 0 -> 
+                    let call = sprintf "%s()" name
+                    let s = fix_return call
                     prn depth s
-                | LocalGet (LocalIdx i) -> 
-                    let loc = a_locals.[int i]
-                    let typ = cs_valtype loc.typ
-                    prn depth (sprintf "stack.push_%s(%s)" typ loc.name)
-                | I32Add -> prn depth "stack.push_i32(stack.pop_i32() + stack.pop_i32())"
-                | I32Mul -> prn depth "stack.push_i32(stack.pop_i32() * stack.pop_i32())"
-                | F64Add -> prn depth "stack.push_f64(stack.pop_f64() + stack.pop_f64())"
-                | F64Mul -> prn depth "stack.push_f64(stack.pop_f64() * stack.pop_f64())"
-                | Block t -> prn depth "{"
-                | End -> prn depth "}"
-                | Drop -> prn depth "stack.pop();"
-                | I32Const i -> prn depth (sprintf "stack.push_i32(%d);" i)
-                | I64Const i -> prn depth (sprintf "stack.push_i64(%d);" i)
-                | F32Const f -> prn depth (sprintf "stack.push_f32(%f);" f)
-                | F64Const f -> prn depth (sprintf "stack.push_f64(%f);" f)
-                | _ -> prn depth (sprintf "// TODO %s" (stringify_instruction cb op))
-                idepth <- next_idepth
+                | 1 -> 
+                    let call = sprintf "%s(stack.pop_%s())" name (cs_valtype (ft.parms.[0]))
+                    let s = fix_return call
+                    prn depth s
+                | _ ->
+                    prn depth "{"
+                    let args =
+                        let names = Array.map (fun t -> get_tmp t) ft.parms
+                        for i = (names.Length - 1) downto 0 do
+                            prn (depth + 1) (sprintf "var %s = stack.pop_%s();" (names.[i]) (cs_valtype (ft.parms.[i])) )
+                        System.String.Join(", ", names)
+                    let call = sprintf "%s(%s)" name args
+                    let s = fix_return call
+                    prn (depth + 1) s
+                    prn depth "}"
+            | LocalGet (LocalIdx i) -> 
+                let loc = a_locals.[int i]
+                let typ = cs_valtype loc.typ
+                prn depth (sprintf "stack.push_%s(%s);" typ loc.name)
+            | LocalSet (LocalIdx i) -> 
+                let loc = a_locals.[int i]
+                let typ = cs_valtype loc.typ
+                prn depth (sprintf "%s = stack.pop_%s();" loc.name typ)
+            | LocalTee (LocalIdx i) -> 
+                let loc = a_locals.[int i]
+                let typ = cs_valtype loc.typ
+                prn depth (sprintf "%s = stack.peek_%s();" loc.name typ)
+            | I32Sub -> 
+                prn depth "{"
+                prn (depth + 1) "var t = stack.pop_i32();"
+                prn (depth + 1) "stack.push_i32(stack.pop_i32() - t);"
+                prn depth "}"
+            | I32LtS -> 
+                prn depth "{"
+                prn (depth + 1) "var t = stack.pop_i32();"
+                prn (depth + 1) "stack.push_i32_bool(stack.pop_i32() < t);"
+                prn depth "}"
+            | I32Add -> prn depth "stack.push_i32(stack.pop_i32() + stack.pop_i32());"
+            | I32Mul -> prn depth "stack.push_i32(stack.pop_i32() * stack.pop_i32());"
+            | I32Eq -> prn depth "stack.push_i32_bool(stack.pop_i32() == stack.pop_i32());"
+            | I32Ne -> prn depth "stack.push_i32_bool(stack.pop_i32() != stack.pop_i32());"
+            | F64Add -> prn depth "stack.push_f64(stack.pop_f64() + stack.pop_f64());"
+            | F64Mul -> prn depth "stack.push_f64(stack.pop_f64() * stack.pop_f64());"
+            | I32Const i -> prn depth (sprintf "stack.push_i32(%d);" i)
+            | I64Const i -> prn depth (sprintf "stack.push_i64(%d);" i)
+            | F32Const f -> prn depth (sprintf "stack.push_f32(%f);" f)
+            | F64Const f -> prn depth (sprintf "stack.push_f64(%f);" f)
+            | Drop -> prn depth "stack.pop();"
+            | _ -> prn depth (sprintf "// TODO %s" (stringify_instruction cb op))
 
     let cs_function_item ndx fidx tidx cit =
         prn 1 (sprintf "// func %d" fidx)
@@ -131,10 +228,10 @@ module wasm.cs
             | _ -> failwith "unknown function type"
 
         let return_type =
-            if ftype.result.Length = 0 then
-                "void"
-            else
-                cs_valtype ftype.result.[0]
+            match ftype.result.Length with
+            | 0 -> "void"
+            | 1 -> cs_valtype ftype.result.[0]
+            | _ -> failwith "not implemented"
 
         let a_locals =
             let a = System.Collections.Generic.List<LocalNameAndType>()
@@ -160,12 +257,19 @@ module wasm.cs
         let access = if is_exported then "public" else "private"
         prn 1 (sprintf "%s static %s %s(%s)" access return_type name str_parms)
         prn 1 "{"
+        prn 2 "var stack = new WasmStack();"
 
         if a_locals.Length > ftype.parms.Length then
             for loc in a_locals.[ftype.parms.Length..] do
                 let typ = cs_valtype loc.typ
                 prn 2 (sprintf "%s %s = default(%s);" typ loc.name typ)
         cs_expr 2 ndx a_locals cit.expr
+        match ftype.result.Length with
+        | 0 -> ()
+        | 1 -> 
+            let vt = cs_valtype (ftype.result.[0])
+            prn 2 (sprintf "return stack.pop_%s();" vt)
+        | _ -> failwith "not implemented"
         prn 1 "}"
 
     let cs_function_section ndx sf sc =
@@ -175,6 +279,11 @@ module wasm.cs
             cs_function_item ndx (uint32 (i + count_imports)) (sf.funcs.[i]) (sc.codes.[i])
 
     let cs_module m =
+        prn 0 "using i32 = System.Int32;"
+        prn 0 "using i64 = System.Int64;"
+        prn 0 "using f32 = System.Single;"
+        prn 0 "using f64 = System.Double;"
+
         // TODO name of the static class
         prn 0 "public static class foo"
         prn 0 "{"

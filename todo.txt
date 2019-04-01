@@ -1,9 +1,9 @@
 
+in CS gen, br needs to do stack cleanup
+
 why doens't clang mark exports
 
-arg order is same as RPN?
-
-return value, from function, but also from blocks
+return value from blocks ?
 
 still some problems in roundtripping binary format that
 might be important, not sure
@@ -14,12 +14,7 @@ layer includes stuff like looking up attributes by
 funcidx, etc.  that layer should be roughly the same
 one we need to gen CIL.
 
-need to actually implement the stack class
-
-gen fs instead of cs?  but does fs have goto?  will we
-need it for br stuff?
-
-for Call, are the args getting popped in the right order?
+gen fs instead of cs?  but fs lacks goto.
 
 need consistency about whether to pass around
 wrapped indexes or just the ints
