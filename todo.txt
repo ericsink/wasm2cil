@@ -1,4 +1,10 @@
 
+why doens't clang mark exports
+
+arg order is same as RPN?
+
+return value, from function, but also from blocks
+
 still some problems in roundtripping binary format that
 might be important, not sure
 

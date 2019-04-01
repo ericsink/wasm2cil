@@ -17,7 +17,7 @@ let main argv =
 
     //printfn "%A" m
     //wat_module m
-    //cs_module m
+    cs_module m
 
     if argv.Length > 1 then
         use ms = new System.IO.MemoryStream()

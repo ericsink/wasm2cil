@@ -102,12 +102,15 @@ module wasm.cs
                     let loc = a_locals.[int i]
                     let typ = cs_valtype loc.typ
                     prn depth (sprintf "stack.push_%s(%s)" typ loc.name)
-                | I32Add -> prn depth "stack.push_i32(stack.pop_i32(), stack.pop_i32())"
-                | F64Add -> prn depth "stack.push_f64(stack.pop_f64(), stack.pop_f64())"
+                | I32Add -> prn depth "stack.push_i32(stack.pop_i32() + stack.pop_i32())"
+                | I32Mul -> prn depth "stack.push_i32(stack.pop_i32() * stack.pop_i32())"
+                | F64Add -> prn depth "stack.push_f64(stack.pop_f64() + stack.pop_f64())"
+                | F64Mul -> prn depth "stack.push_f64(stack.pop_f64() * stack.pop_f64())"
                 | Block t -> prn depth "{"
                 | End -> prn depth "}"
                 | Drop -> prn depth "stack.pop();"
                 | I32Const i -> prn depth (sprintf "stack.push_i32(%d);" i)
+                | I64Const i -> prn depth (sprintf "stack.push_i64(%d);" i)
                 | F32Const f -> prn depth (sprintf "stack.push_f32(%f);" f)
                 | F64Const f -> prn depth (sprintf "stack.push_f64(%f);" f)
                 | _ -> prn depth (sprintf "// TODO %s" (stringify_instruction cb op))
@@ -166,10 +169,7 @@ module wasm.cs
         prn 1 "}"
 
     let cs_function_section ndx sf sc =
-        let count_imports =
-            match ndx.Import with
-            | Some s -> s.imports.Length
-            | None -> 0
+        let count_imports = count_function_imports ndx
 
         for i = 0 to (sf.funcs.Length - 1) do
             cs_function_item ndx (uint32 (i + count_imports)) (sf.funcs.[i]) (sc.codes.[i])

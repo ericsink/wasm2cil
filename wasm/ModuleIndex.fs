@@ -36,6 +36,13 @@ module wasm.module_index
         FuncLookup : FuncLookupItem[]
         }
 
+    let count_function_imports ndx =
+        match ndx.Import with
+        | Some si ->
+            let a = Array.choose (fun i -> match i.desc with | ImportFunc typeidx -> Some 1 | _ -> None) si.imports
+            a.Length
+        | None -> 0
+
     let get_module_index m =
         let s_import = Array.tryPick (fun x -> match x with | Import i -> Some i | _ -> None) m.sections
         let s_function = Array.tryPick (fun x -> match x with | Function i -> Some i | _ -> None) m.sections
