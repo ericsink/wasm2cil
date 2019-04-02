@@ -230,6 +230,7 @@ let write_function_write_instruction path (immediates: Dictionary<string,Immedia
     let txt = sb.ToString()
     File.WriteAllText(path, txt)
     
+(*
 let write_function_stringify_instruction path (immediates: Dictionary<string,Immediate>) =
     let prefixes = get_prefixes()
 
@@ -271,6 +272,7 @@ let write_function_stringify_instruction path (immediates: Dictionary<string,Imm
 
     let txt = sb.ToString()
     File.WriteAllText(path, txt)
+*)
     
 [<EntryPoint>]
 let main argv =
@@ -284,7 +286,7 @@ let main argv =
     write_type_instruction (Path.Combine(dir_wasm, "Instruction.fs")) immediates
     write_function_read_instruction (Path.Combine(dir_wasm, "ReadInstruction.fs")) immediates
     write_function_write_instruction (Path.Combine(dir_wasm, "WriteInstruction.fs")) immediates
-    write_function_stringify_instruction (Path.Combine(dir_wasm, "StringifyInstruction.fs")) immediates
+    //write_function_stringify_instruction (Path.Combine(dir_wasm, "StringifyInstruction.fs")) immediates
 
     0 // return an integer exit code
 
