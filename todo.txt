@@ -1,4 +1,7 @@
 
+the number of arguments to some functions (like
+cecil_expr) is getting out of control
+
 how to deal with non-mut globals?
 
 consider an F# wrapper around cecil
