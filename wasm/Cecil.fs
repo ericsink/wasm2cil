@@ -130,7 +130,7 @@ module wasm.cecil
                 let fn = a_methods.[int fidx]
                 match fn with
                 | M_Imported mf ->
-                    () // TODO
+                    printfn "TODO: Call %A" mf
                 | M_Internal mf ->
                     il.Append(il.Create(OpCodes.Call, mf.method))
             | LocalTee (LocalIdx i) -> 
@@ -211,7 +211,7 @@ module wasm.cecil
             | 1 -> cecil_valtype bt (fi.if_typ.result.[0])
             | _ -> failwith "not implemented"
 
-        let access = MethodAttributes.Public // TODO fix
+        let access = if fi.exported then MethodAttributes.Public else MethodAttributes.Private
 
         let method = 
             new MethodDefinition(

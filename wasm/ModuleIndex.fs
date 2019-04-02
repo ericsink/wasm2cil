@@ -14,6 +14,7 @@ module wasm.module_index
         if_name : string option;
         if_typ : FuncType;
         code : CodeItem
+        exported : bool
         }
 
     type FuncLookupItem =
@@ -85,15 +86,19 @@ module wasm.module_index
                     | _ -> None
                 Array.choose f s.exports
 
-        let get_func_internals sf st sc num_imports =
+        let get_func_internals sf st sc num_func_imports =
             let find_exported_func_name fidx =
                 Array.tryPick (fun (idx,name) -> if fidx = idx then Some name else None) exported_func_names
 
             let f i t =
-                let fidx = i + num_imports
+                let fidx = i + num_func_imports
                 let name = find_exported_func_name (FuncIdx (uint32 fidx))
                 let (TypeIdx i_type) = t
-                F_Internal { if_name = name; if_typ = st.types.[int i_type]; code = sc.codes.[i] }
+                let exported =
+                    match name with
+                    | Some _ -> true
+                    | None -> false
+                F_Internal { if_name = name; if_typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported }
                 
             Array.mapi f sf.funcs
 
@@ -127,12 +132,12 @@ module wasm.module_index
                     | _ -> None
                 Array.choose f s.exports
 
-        let get_global_internals sf num_imports =
+        let get_global_internals sf num_global_imports =
             let find_exported_global_name fidx =
                 Array.tryPick (fun (idx,name) -> if fidx = idx then Some name else None) exported_global_names
 
             let f i t =
-                let fidx = i + num_imports
+                let fidx = i + num_global_imports
                 let name = find_exported_global_name (GlobalIdx (uint32 fidx))
                 G_Internal { ig_name = name; ig_typ = t.globaltype }
                 
