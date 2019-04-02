@@ -224,6 +224,9 @@ module wasm.cecil
             | I32DivS | I64DivS | F32Div | F64Div -> il.Append(il.Create(OpCodes.Div))
             | I32DivU | I64DivU -> il.Append(il.Create(OpCodes.Div_Un))
 
+            | F64Abs ->
+                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<double> |] ))
+                il.Append(il.Create(OpCodes.Call, ext))
             | F64Sqrt ->
                 let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
@@ -246,6 +249,9 @@ module wasm.cecil
                 let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<double>; typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
 
+            | F32Abs ->
+                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<float32> |] ))
+                il.Append(il.Create(OpCodes.Call, ext))
             | F32Sqrt ->
                 let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
