@@ -7,12 +7,13 @@ module wasm.module_index
     type ImportedFunc = {
         f_m : string
         f_name : string
-        f_typ : TypeIdx
+        f_typ : FuncType
         }
 
     type InternalFunc = {
         if_name : string option;
-        if_typ : TypeIdx;
+        if_typ : FuncType;
+        code : CodeItem
         }
 
     type FuncLookupItem =
@@ -71,6 +72,8 @@ module wasm.module_index
         let s_function = Array.tryPick (fun x -> match x with | Function i -> Some i | _ -> None) m.sections
         let s_export = Array.tryPick (fun x -> match x with | Export i -> Some i | _ -> None) m.sections
         let s_global = Array.tryPick (fun x -> match x with | Global i -> Some i | _ -> None) m.sections
+        let s_code = Array.tryPick (fun x -> match x with | Code i -> Some i | _ -> None) m.sections
+        let s_type = Array.tryPick (fun x -> match x with | Type i -> Some i | _ -> None) m.sections
 
         let exported_func_names = 
             match s_export with
@@ -82,31 +85,36 @@ module wasm.module_index
                     | _ -> None
                 Array.choose f s.exports
 
-        let get_func_internals sf num_imports =
+        let get_func_internals sf st sc num_imports =
             let find_exported_func_name fidx =
                 Array.tryPick (fun (idx,name) -> if fidx = idx then Some name else None) exported_func_names
 
             let f i t =
                 let fidx = i + num_imports
                 let name = find_exported_func_name (FuncIdx (uint32 fidx))
-                F_Internal { if_name = name; if_typ = t }
+                let (TypeIdx i_type) = t
+                F_Internal { if_name = name; if_typ = st.types.[int i_type]; code = sc.codes.[i] }
                 
             Array.mapi f sf.funcs
 
-        let get_func_imports si =
-            (Array.choose (fun i -> match i.desc with | ImportFunc typeidx -> Some (F_Imported {f_m = i.m; f_name = i.name; f_typ = typeidx;}) | _ -> None) si.imports)
+        let get_func_imports si st =
+            (Array.choose (fun i -> match i.desc with | ImportFunc (TypeIdx i_type) -> Some (F_Imported {f_m = i.m; f_name = i.name; f_typ = st.types.[int i_type];}) | _ -> None) si.imports)
 
+        // TODO problem with the match cases below.  the issue
+        // is that the spec says all sections are optional, but
+        // in some cases, if a certain section is present, then
+        // another section is now required.
         let flookup =
-            match (s_import, s_function) with
-            | (Some simp, Some sint) ->
-                let ia = get_func_imports simp
-                let fa = get_func_internals sint ia.Length
+            match (s_type, s_import, s_function, s_code) with
+            | (Some st, Some simp, Some sint, Some sc) ->
+                let ia = get_func_imports simp st
+                let fa = get_func_internals sint st sc ia.Length
                 Array.append ia fa
-            | (Some simp, None) ->
-                get_func_imports simp
-            | (None, Some sint) ->
-                get_func_internals sint 0
-            | (None, None) ->
+            | (Some st, Some simp, None, None) ->
+                get_func_imports simp st
+            | (Some st, None, Some sint, Some sc) ->
+                get_func_internals sint st sc 0
+            | (None, None, None, None) ->
                 Array.empty
 
         let exported_global_names = 
@@ -151,12 +159,12 @@ module wasm.module_index
             Function = s_function
             Export = s_export
             Global = s_global
-            Type = Array.tryPick (fun x -> match x with | Type i -> Some i | _ -> None) m.sections
+            Code = s_code
+            Type = s_type
             Table = Array.tryPick (fun x -> match x with | Table i -> Some i | _ -> None) m.sections
             Memory = Array.tryPick (fun x -> match x with | Memory i -> Some i | _ -> None) m.sections
             Start = Array.tryPick (fun x -> match x with | Start i -> Some i | _ -> None) m.sections
             Element = Array.tryPick (fun x -> match x with | Element i -> Some i | _ -> None) m.sections
-            Code = Array.tryPick (fun x -> match x with | Code i -> Some i | _ -> None) m.sections
             Data = Array.tryPick (fun x -> match x with | Data i -> Some i | _ -> None) m.sections
             FuncLookup = flookup
             GlobalLookup = glookup

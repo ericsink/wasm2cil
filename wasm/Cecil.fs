@@ -38,6 +38,20 @@ module wasm.cecil
         | PV_Param of ParamInfo
         | PV_Var of LocalInfo
 
+    type MethodRefImported = {
+        func : ImportedFunc
+        // TODO need a call object
+        }
+
+    type MethodRefInternal = {
+        func : InternalFunc
+        method : MethodDefinition
+        }
+
+    type MethodStuff = 
+        | M_Imported of MethodRefImported
+        | M_Internal of MethodRefInternal
+
     let get_function_name fidx f =
         match f with
         | F_Imported i -> sprintf "%s.%s" i.f_m i.f_name
@@ -52,7 +66,7 @@ module wasm.cecil
         | CB_If of Mono.Cecil.Cil.Instruction
         | CB_Else of Mono.Cecil.Cil.Instruction
 
-    let cecil_expr (il : ILProcessor) bt ndx (a_locals : ParamOrVar[]) e =
+    let cecil_expr (il : ILProcessor) bt (a_methods : MethodStuff[]) (a_locals : ParamOrVar[]) e =
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let lab_end = il.Create(OpCodes.Nop)
         for op in e do
@@ -113,60 +127,12 @@ module wasm.cecil
                     | CB_Else s -> s
                 il.Append(il.Create(OpCodes.Brtrue, lab))
             | Call (FuncIdx fidx) ->
-                let found = lookup_function ndx (int fidx)
-                let name = get_function_name fidx found
-                let typeidx =
-                    match found with
-                    | F_Imported i -> i.f_typ
-                    | F_Internal i -> i.if_typ
-                let ft = 
-                    match get_function_type_by_typeidx ndx typeidx with
-                    | Some q -> q
-                    | None -> failwith "unknown func type"
-                match (ft.parms.Length, ft.result.Length) with
-                | (0, 0) -> 
-                    printfn "TODO call void %s()" name
-                | (0, 1) -> 
-                    let rt = cecil_valtype bt (ft.result.[0])
-                    printfn "TODO call %A %s()" rt name
-                | (0, _) -> 
-                    failwith "not implemented"
-
-                | (1, 0) -> 
-                    let pt = cecil_valtype bt (ft.parms.[0])
-                    printfn "TODO call void %s(%A)" name pt
-                | (1, 1) -> 
-                    let pt = cecil_valtype bt (ft.parms.[0])
-                    let rt = cecil_valtype bt (ft.result.[0])
-                    printfn "TODO call %A %s(%A)" rt name pt
-                | (1, _) -> 
-                    failwith "not implemented"
-
-                | (_, 0) -> 
-                    printfn "TODO call void %s(multi)" name
-                | (_, 1) -> 
-                    let rt = cecil_valtype bt (ft.result.[0])
-                    printfn "TODO call %A %s(multi)" rt name
-                | (_, _) -> 
-                    failwith "not implemented"
-(*
-                | 1 -> 
-                    let call = sprintf "%s(stack.pop_%s())" name (cecil_valtype (ft.parms.[0]))
-                    let s = fix_return call
-                    prn depth s
-                | _ ->
-                    prn depth "{"
-                    let args =
-                        let names = Array.map (fun t -> get_tmp t) ft.parms
-                        // need to pop arguments in reverse order
-                        for i = (names.Length - 1) downto 0 do
-                            prn (depth + 1) (sprintf "var %s = stack.pop_%s();" (names.[i]) (cs_valtype (ft.parms.[i])) )
-                        System.String.Join(", ", names)
-                    let call = sprintf "%s(%s)" name args
-                    let s = fix_return call
-                    prn (depth + 1) s
-                    prn depth "}"
-*)
+                let fn = a_methods.[int fidx]
+                match fn with
+                | M_Imported mf ->
+                    () // TODO
+                | M_Internal mf ->
+                    il.Append(il.Create(OpCodes.Call, mf.method))
             | LocalTee (LocalIdx i) -> 
                 il.Append(il.Create(OpCodes.Dup))
                 let loc = a_locals.[int i]
@@ -233,35 +199,40 @@ module wasm.cecil
             // TODO when all the cases are done, the following line will be removed
             | _ -> printfn "TODO: %A" op
 
-    let cecil_function_item ndx fidx tidx cit (container : TypeDefinition) bt =
-        let is_exported = is_function_exported ndx (FuncIdx fidx)
-
-        let found = lookup_function ndx (int fidx)
-        let name = get_function_name fidx found
-
-        // TODO need to cleanse the name to be C#-compliant
-
-        let ftype = 
-            match get_function_type_by_typeidx ndx tidx with
-            | Some ft -> ft
-            | _ -> failwith "unknown function type"
+    let create_method fi fidx bt =
+        let name = 
+            match fi.if_name with
+            | Some s -> s
+            | None -> sprintf "func_%d" fidx
 
         let return_type =
-            match ftype.result.Length with
+            match fi.if_typ.result.Length with
             | 0 -> bt.typ_void
-            | 1 -> cecil_valtype bt (ftype.result.[0])
+            | 1 -> cecil_valtype bt (fi.if_typ.result.[0])
             | _ -> failwith "not implemented"
 
+        let access = MethodAttributes.Public // TODO fix
+
+        let method = 
+            new MethodDefinition(
+                name,
+                access ||| Mono.Cecil.MethodAttributes.Static, 
+                return_type
+                )
+
+        method
+
+    let gen_function_code a_methods (mi : MethodRefInternal) bt =
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
             let get_name () =
                 sprintf "p%d" (a.Count)
-            for x in ftype.parms do
+            for x in mi.func.if_typ.parms do
                 let typ = cecil_valtype bt x
                 let name = get_name()
                 let def = new ParameterDefinition(name, ParameterAttributes.None, typ)
                 a.Add(PV_Param { P_def = def; P_typ = x; })
-            for loc in cit.locals do
+            for loc in mi.func.code.locals do
                 // TODO assert count > 0 ?
                 for x = 1 to (int loc.count) do
                     let typ = cecil_valtype bt loc.localtype
@@ -269,32 +240,35 @@ module wasm.cecil
                     a.Add(PV_Var { L_def = def; L_typ = loc.localtype })
             Array.ofSeq a
             
-        let access = if is_exported then MethodAttributes.Public else MethodAttributes.Private
-
-        let method = 
-            new MethodDefinition(
-                name,
-                Mono.Cecil.MethodAttributes.Public ||| Mono.Cecil.MethodAttributes.Static, 
-                return_type
-                )
-
-        container.Methods.Add(method)
-
-        method.Body.InitLocals <- true
+        mi.method.Body.InitLocals <- true
         for pair in a_locals do
             match pair with
-            | PV_Param { P_def = def } -> method.Parameters.Add(def)
-            | PV_Var { L_def = def } -> method.Body.Variables.Add(def)
+            | PV_Param { P_def = def } -> mi.method.Parameters.Add(def)
+            | PV_Var { L_def = def } -> mi.method.Body.Variables.Add(def)
 
-        let il = method.Body.GetILProcessor()
-        cecil_expr il bt ndx a_locals cit.expr
+        let il = mi.method.Body.GetILProcessor()
+        cecil_expr il bt a_methods a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
-    let cecil_function_section ndx sf sc container bt =
+    let cecil_function_section ndx sf sc (container : TypeDefinition) bt =
         let count_imports = count_function_imports ndx
 
-        for i = 0 to (sf.funcs.Length - 1) do
-            cecil_function_item ndx (uint32 (i + count_imports)) (sf.funcs.[i]) (sc.codes.[i]) container bt
+        let prep_func i fi =
+            match fi with
+            | F_Imported s ->
+                // TODO
+                M_Imported { MethodRefImported.func = s }
+            | F_Internal q ->
+                let method = create_method q (count_imports + i) bt
+                container.Methods.Add(method)
+                M_Internal { func = q; method = method; }
+
+        let a_methods = Array.mapi prep_func ndx.FuncLookup
+
+        for m in a_methods do
+            match m with
+            | M_Internal mi -> gen_function_code a_methods mi bt
+            | M_Imported _ -> ()
 
     let cecil_module m =
         let assembly = 
