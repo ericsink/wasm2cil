@@ -1,6 +1,8 @@
 
+consider an F# wrapper around cecil
+
 how to implement data initialization for an imported
-memory
+memory.  static constructor?
 
 does br need to do stack cleanup ?
 

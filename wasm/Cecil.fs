@@ -38,6 +38,20 @@ module wasm.cecil
         | PV_Param of ParamInfo
         | PV_Var of LocalInfo
 
+    type GlobalRefImported = {
+        glob : ImportedGlobal
+        // TODO need something here
+        }
+
+    type GlobalRefInternal = {
+        glob : InternalGlobal
+        field : FieldDefinition
+        }
+
+    type GlobalStuff = 
+        | GS_Imported of GlobalRefImported
+        | GS_Internal of GlobalRefInternal
+
     type MethodRefImported = {
         func : ImportedFunc
         // TODO need a call object
@@ -66,7 +80,7 @@ module wasm.cecil
         | CB_If of Mono.Cecil.Cil.Instruction
         | CB_Else of Mono.Cecil.Cil.Instruction
 
-    let cecil_expr (method : MethodDefinition) bt (a_methods : MethodStuff[]) (a_locals : ParamOrVar[]) e =
+    let cecil_expr (method : MethodDefinition) bt (a_globals : GlobalStuff[]) (a_methods : MethodStuff[]) (a_locals : ParamOrVar[]) e =
         let il = method.Body.GetILProcessor()
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let lab_end = il.Create(OpCodes.Nop)
@@ -128,6 +142,7 @@ module wasm.cecil
                     | CB_If s -> s
                     | CB_Else s -> s
                 il.Append(il.Create(OpCodes.Brtrue, lab))
+
             | Call (FuncIdx fidx) ->
                 let fn = a_methods.[int fidx]
                 match fn with
@@ -135,6 +150,23 @@ module wasm.cecil
                     printfn "TODO: Call %A" mf
                 | M_Internal mf ->
                     il.Append(il.Create(OpCodes.Call, mf.method))
+
+            | GlobalGet (GlobalIdx idx) ->
+                let g = a_globals.[int idx]
+                match g with
+                | GS_Imported mf ->
+                    printfn "TODO: get global %A" mf
+                | GS_Internal mf ->
+                    il.Append(il.Create(OpCodes.Ldfld, mf.field))
+
+            | GlobalSet (GlobalIdx idx) ->
+                let g = a_globals.[int idx]
+                match g with
+                | GS_Imported mf ->
+                    printfn "TODO: set global %A" mf
+                | GS_Internal mf ->
+                    il.Append(il.Create(OpCodes.Stfld, mf.field))
+
             | LocalTee (LocalIdx i) -> 
                 il.Append(il.Create(OpCodes.Dup))
                 let loc = a_locals.[int i]
@@ -245,6 +277,25 @@ module wasm.cecil
             // TODO when all the cases are done, the following line will be removed
             | _ -> printfn "TODO: %A" op
 
+    let create_global gi idx bt =
+        let name = 
+            match gi.ig_name with
+            | Some s -> s
+            | None -> sprintf "global_%d" idx
+
+        let typ = cecil_valtype bt gi.ig_typ.typ
+
+        let access = if gi.exported then FieldAttributes.Public else FieldAttributes.Private
+
+        let method = 
+            new FieldDefinition(
+                name,
+                access ||| Mono.Cecil.FieldAttributes.Static, 
+                typ
+                )
+
+        method
+
     let create_method fi fidx bt =
         let name = 
             match fi.if_name with
@@ -268,7 +319,7 @@ module wasm.cecil
 
         method
 
-    let gen_function_code a_methods (mi : MethodRefInternal) bt =
+    let gen_function_code a_globals a_methods (mi : MethodRefInternal) bt =
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
             let get_name () =
@@ -292,9 +343,9 @@ module wasm.cecil
             | PV_Param { P_def = def } -> mi.method.Parameters.Add(def)
             | PV_Var { L_def = def } -> mi.method.Body.Variables.Add(def)
 
-        cecil_expr mi.method bt a_methods a_locals mi.func.code.expr
+        cecil_expr mi.method bt a_globals a_methods a_locals mi.func.code.expr
 
-    let cecil_function_section ndx sf sc (container : TypeDefinition) bt =
+    let cecil_function_section ndx a_globals sf sc (container : TypeDefinition) bt =
         let count_imports = count_function_imports ndx
 
         let prep_func i fi =
@@ -311,8 +362,32 @@ module wasm.cecil
 
         for m in a_methods do
             match m with
+            | M_Internal mi -> gen_function_code a_globals a_methods mi bt
+            | M_Imported _ -> ()
+
+    let cecil_function_global ndx sg (container : TypeDefinition) bt =
+        let count_imports = count_global_imports ndx
+
+        let prep i gi =
+            match gi with
+            | G_Imported s ->
+                // TODO
+                GS_Imported { GlobalRefImported.glob = s }
+            | G_Internal q ->
+                let field = create_global q (count_imports + i) bt
+                container.Fields.Add(field)
+                GS_Internal { glob = q; field = field; }
+
+        let a_globals = Array.mapi prep ndx.GlobalLookup
+
+(*
+        // TODO init of globals, static constructor probably
+        for m in a_methods do
+            match m with
             | M_Internal mi -> gen_function_code a_methods mi bt
             | M_Imported _ -> ()
+*)
+        a_globals
 
     let cecil_module m =
         let assembly = 
@@ -348,8 +423,13 @@ module wasm.cecil
 
         let ndx = get_module_index m
 
+        let a_globals =
+            match ndx.Global with
+            | Some sg -> cecil_function_global ndx sg container bt
+            | None -> [| |]
+
         match (ndx.Function, ndx.Code) with 
-        | (Some sf, Some sc) -> cecil_function_section ndx sf sc container bt
+        | (Some sf, Some sc) -> cecil_function_section ndx a_globals sf sc container bt
         | _ -> () // TODO error if one but not the other?
 
         assembly.Write("hello.dll");

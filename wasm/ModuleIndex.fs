@@ -30,6 +30,7 @@ module wasm.module_index
     type InternalGlobal = {
         ig_name : string option;
         ig_typ : GlobalType;
+        exported : bool
         }
 
     type GlobalLookupItem =
@@ -110,6 +111,12 @@ module wasm.module_index
         // in some cases, if a certain section is present, then
         // another section is now required.
         let flookup =
+(*
+            printfn "type %A" s_type
+            printfn "import %A" s_import
+            printfn "function %A" s_function
+            printfn "code %A" s_code
+*)
             match (s_type, s_import, s_function, s_code) with
             | (Some st, Some simp, Some sint, Some sc) ->
                 let ia = get_func_imports simp st
@@ -119,6 +126,8 @@ module wasm.module_index
                 get_func_imports simp st
             | (Some st, None, Some sint, Some sc) ->
                 get_func_internals sint st sc 0
+            | (None, Some si, None, None) ->
+                Array.empty
             | (None, None, None, None) ->
                 Array.empty
 
@@ -139,7 +148,11 @@ module wasm.module_index
             let f i t =
                 let fidx = i + num_global_imports
                 let name = find_exported_global_name (GlobalIdx (uint32 fidx))
-                G_Internal { ig_name = name; ig_typ = t.globaltype }
+                let exported =
+                    match name with
+                    | Some _ -> true
+                    | None -> false
+                G_Internal { ig_name = name; ig_typ = t.globaltype; exported = exported }
                 
             Array.mapi f sf.globals
 
