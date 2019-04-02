@@ -29,7 +29,7 @@ module wasm.module_index
 
     type InternalGlobal = {
         ig_name : string option;
-        ig_typ : GlobalType;
+        item : GlobalItem;
         exported : bool
         }
 
@@ -152,7 +152,7 @@ module wasm.module_index
                     match name with
                     | Some _ -> true
                     | None -> false
-                G_Internal { ig_name = name; ig_typ = t.globaltype; exported = exported }
+                G_Internal { ig_name = name; item = t; exported = exported }
                 
             Array.mapi f sf.globals
 

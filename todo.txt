@@ -1,4 +1,6 @@
 
+how to deal with non-mut globals?
+
 consider an F# wrapper around cecil
 
 how to implement data initialization for an imported

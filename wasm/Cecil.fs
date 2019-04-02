@@ -80,8 +80,7 @@ module wasm.cecil
         | CB_If of Mono.Cecil.Cil.Instruction
         | CB_Else of Mono.Cecil.Cil.Instruction
 
-    let cecil_expr (method : MethodDefinition) bt (a_globals : GlobalStuff[]) (a_methods : MethodStuff[]) (a_locals : ParamOrVar[]) e =
-        let il = method.Body.GetILProcessor()
+    let cecil_expr (il: ILProcessor) (md : ModuleDefinition) bt (a_globals : GlobalStuff[]) (a_methods : MethodStuff[]) (a_locals : ParamOrVar[]) e =
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let lab_end = il.Create(OpCodes.Nop)
         for op in e do
@@ -112,7 +111,6 @@ module wasm.cecil
             | End -> 
                 if blocks.Count = 0 then
                     il.Append(lab_end)
-                    il.Append(il.Create(OpCodes.Ret))
                 else
                     let blk = blocks.Pop()
                     match blk with
@@ -198,47 +196,47 @@ module wasm.cecil
             | I32DivU | I64DivU -> il.Append(il.Create(OpCodes.Div_Un))
 
             | F64Sqrt ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F64Ceil ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F64Floor ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F64Trunc ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F64Nearest ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F64Min ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<double>; typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<double>; typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F64Max ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<double>; typeof<double> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<double>; typeof<double> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
 
             | F32Sqrt ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F32Ceil ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F32Floor ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F32Trunc ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F32Nearest ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F32Min ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<float32>; typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<float32>; typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
             | F32Max ->
-                let ext = method.Module.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<float32>; typeof<float32> |] ))
+                let ext = md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<float32>; typeof<float32> |] ))
                 il.Append(il.Create(OpCodes.Call, ext))
 
             | I32Eqz ->
@@ -283,7 +281,7 @@ module wasm.cecil
             | Some s -> s
             | None -> sprintf "global_%d" idx
 
-        let typ = cecil_valtype bt gi.ig_typ.typ
+        let typ = cecil_valtype bt gi.item.globaltype.typ
 
         let access = if gi.exported then FieldAttributes.Public else FieldAttributes.Private
 
@@ -343,7 +341,9 @@ module wasm.cecil
             | PV_Param { P_def = def } -> mi.method.Parameters.Add(def)
             | PV_Var { L_def = def } -> mi.method.Body.Variables.Add(def)
 
-        cecil_expr mi.method bt a_globals a_methods a_locals mi.func.code.expr
+        let il = mi.method.Body.GetILProcessor()
+        cecil_expr il mi.method.Module bt a_globals a_methods a_locals mi.func.code.expr
+        il.Append(il.Create(OpCodes.Ret))
 
     let cecil_function_section ndx a_globals sf sc (container : TypeDefinition) bt =
         let count_imports = count_function_imports ndx
@@ -380,14 +380,23 @@ module wasm.cecil
 
         let a_globals = Array.mapi prep ndx.GlobalLookup
 
-(*
-        // TODO init of globals, static constructor probably
-        for m in a_methods do
-            match m with
-            | M_Internal mi -> gen_function_code a_methods mi bt
-            | M_Imported _ -> ()
-*)
         a_globals
+
+    let gen_cctor (a_globals : GlobalStuff[]) bt =
+        let method = 
+            new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Private ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
+                bt.typ_void
+                )
+        let il = method.Body.GetILProcessor()
+        for g in a_globals do
+            match g with
+            | GS_Internal gi -> 
+                cecil_expr il method.Module bt a_globals Array.empty Array.empty gi.glob.item.init
+                il.Append(il.Create(OpCodes.Stfld, gi.field))
+            | GS_Imported _ -> ()
+        method
 
     let cecil_module m =
         let assembly = 
@@ -431,6 +440,9 @@ module wasm.cecil
         match (ndx.Function, ndx.Code) with 
         | (Some sf, Some sc) -> cecil_function_section ndx a_globals sf sc container bt
         | _ -> () // TODO error if one but not the other?
+
+        let cctor = gen_cctor a_globals bt
+        container.Methods.Add(cctor)
 
         assembly.Write("hello.dll");
 
