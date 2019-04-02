@@ -26,7 +26,6 @@
     <Compile Include="StringifyArgs.fs" />
     <Compile Include="StringifyInstruction.fs" />
     <Compile Include="ModuleIndex.fs" />
-    <Compile Include="Wat.fs" />
     <Compile Include="Cecil.fs" />
   </ItemGroup>
 

@@ -4,7 +4,6 @@ open System
 open wasm.read_basic
 open wasm.read
 open wasm.write
-open wasm.wat
 open wasm.cecil
 
 [<EntryPoint>]
@@ -16,7 +15,6 @@ let main argv =
     //printfn "%A milliseconds" timer.ElapsedMilliseconds
 
     //printfn "%A" m
-    //wat_module m
     cecil_module m
 
     if argv.Length > 1 then
