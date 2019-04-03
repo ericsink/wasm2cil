@@ -201,19 +201,12 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Ldind_I4))
 
             | I32Store m -> 
-                // TODO
-                // pop the v and keep it
-                // need extra locals for stuff like this
-                // pop the address
-                // add the address to the pointer of mem
-                // put v back
-                // Stind_I4
                 // TODO what about m ?
-                il.Append(il.Create(OpCodes.Stloc, tmp_i32))
+                il.Append(il.Create(OpCodes.Stloc, tmp_i32)) // pop v into tmp
                 il.Append(il.Create(OpCodes.Ldfld, ctx.mem))
-                il.Append(il.Create(OpCodes.Add))
-                il.Append(il.Create(OpCodes.Ldloc, tmp_i32))
-                il.Append(il.Create(OpCodes.Ldind_I4))
+                il.Append(il.Create(OpCodes.Add)) // fix address for mem
+                il.Append(il.Create(OpCodes.Ldloc, tmp_i32)) // put v back
+                il.Append(il.Create(OpCodes.Stind_I4))
 
             | I32Const i -> il.Append(il.Create(OpCodes.Ldc_I4, i))
             | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
