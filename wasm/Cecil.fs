@@ -287,10 +287,34 @@ module wasm.cecil
             | I32LtS | I64LtS | F32Lt | F64Lt -> il.Append(il.Create(OpCodes.Clt))
             | I32LtU | I64LtU -> il.Append(il.Create(OpCodes.Clt_Un))
 
+            | I32GtS | I64GtS | F32Gt | F64Gt -> il.Append(il.Create(OpCodes.Cgt))
+            | I32GtU | I64GtU -> il.Append(il.Create(OpCodes.Cgt_Un))
+
             | F32Neg -> il.Append(il.Create(OpCodes.Neg))
             | F64Neg -> il.Append(il.Create(OpCodes.Neg))
 
             | I32Eq | I64Eq | F32Eq | F64Eq -> il.Append(il.Create(OpCodes.Ceq))
+
+            | I32And | I64And -> il.Append(il.Create(OpCodes.And))
+            | I32Or | I64Or -> il.Append(il.Create(OpCodes.Or))
+            | I32Xor | I64Xor -> il.Append(il.Create(OpCodes.Xor))
+
+            | I32Shl | I64Shl -> il.Append(il.Create(OpCodes.Shl))
+            | I32ShrS | I64ShrS -> il.Append(il.Create(OpCodes.Shr))
+            | I32ShrU | I64ShrU -> il.Append(il.Create(OpCodes.Shr_Un))
+            | I32RemS | I64RemS -> il.Append(il.Create(OpCodes.Rem))
+            | I32RemU | I64RemU -> il.Append(il.Create(OpCodes.Rem_Un))
+
+            | F32ConvertI32S | F32ConvertI64S | F32DemoteF64 -> il.Append(il.Create(OpCodes.Conv_R4))
+            | F64ConvertI32S | F64ConvertI64S | F64PromoteF32 -> il.Append(il.Create(OpCodes.Conv_R8))
+
+            | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4))
+            | I64ExtendI32S | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8))
+
+            | I32TruncF32S | I32TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I4))
+            | I64TruncF32S | I64TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I8))
+            | I32TruncF32U | I32TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I4_Un))
+            | I64TruncF32U | I64TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I8_Un))
 
             | I32Ne | I64Ne | F32Ne | F64Ne -> 
                 il.Append(il.Create(OpCodes.Ceq))
@@ -302,8 +326,28 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Ldc_I4_0))
                 il.Append(il.Create(OpCodes.Ceq))
 
+            | I32GeS | I64GeS ->
+                il.Append(il.Create(OpCodes.Clt))
+                il.Append(il.Create(OpCodes.Ldc_I4_0))
+                il.Append(il.Create(OpCodes.Ceq))
+
+            | I32LeU | I64LeU ->
+                il.Append(il.Create(OpCodes.Cgt_Un))
+                il.Append(il.Create(OpCodes.Ldc_I4_0))
+                il.Append(il.Create(OpCodes.Ceq))
+
+            | I32GeU | I64GeU ->
+                il.Append(il.Create(OpCodes.Clt_Un))
+                il.Append(il.Create(OpCodes.Ldc_I4_0))
+                il.Append(il.Create(OpCodes.Ceq))
+
             | F32Le | F64Le ->
                 il.Append(il.Create(OpCodes.Cgt_Un))
+                il.Append(il.Create(OpCodes.Ldc_I4_0))
+                il.Append(il.Create(OpCodes.Ceq))
+
+            | F32Ge | F64Ge ->
+                il.Append(il.Create(OpCodes.Clt_Un))
                 il.Append(il.Create(OpCodes.Ldc_I4_0))
                 il.Append(il.Create(OpCodes.Ceq))
 
@@ -336,69 +380,22 @@ module wasm.cecil
             | I64Store32 m -> todo op
             | MemorySize _ -> todo op
             | MemoryGrow _ -> todo op
-            | I32GtS -> todo op
-            | I32GtU -> todo op
-            | I32LeU -> todo op
-            | I32GeS -> todo op
-            | I32GeU -> todo op
-            | I64GtS -> todo op
-            | I64GtU -> todo op
-            | I64LeU -> todo op
-            | I64GeS -> todo op
-            | I64GeU -> todo op
-            | F32Gt -> todo op
-            | F32Ge -> todo op
-            | F64Gt -> todo op
-            | F64Ge -> todo op
             | I32Clz -> todo op
             | I32Ctz -> todo op
             | I32Popcnt -> todo op
-            | I32RemS -> todo op
-            | I32RemU -> todo op
-            | I32And -> todo op
-            | I32Or -> todo op
-            | I32Xor -> todo op
-            | I32Shl -> todo op
-            | I32ShrS -> todo op
-            | I32ShrU -> todo op
             | I32Rotl -> todo op
             | I32Rotr -> todo op
             | I64Clz -> todo op
             | I64Ctz -> todo op
             | I64Popcnt -> todo op
-            | I64RemS -> todo op
-            | I64RemU -> todo op
-            | I64And -> todo op
-            | I64Or -> todo op
-            | I64Xor -> todo op
-            | I64Shl -> todo op
-            | I64ShrS -> todo op
-            | I64ShrU -> todo op
             | I64Rotl -> todo op
             | I64Rotr -> todo op
             | F32Copysign -> todo op
             | F64Copysign -> todo op
-            | I32WrapI64 -> todo op
-            | I32TruncF32S -> todo op
-            | I32TruncF32U -> todo op
-            | I32TruncF64S -> todo op
-            | I32TruncF64U -> todo op
-            | I64ExtendI32S -> todo op
-            | I64ExtendI32U -> todo op
-            | I64TruncF32S -> todo op
-            | I64TruncF32U -> todo op
-            | I64TruncF64S -> todo op
-            | I64TruncF64U -> todo op
-            | F32ConvertI32S -> todo op
             | F32ConvertI32U -> todo op
-            | F32ConvertI64S -> todo op
             | F32ConvertI64U -> todo op
-            | F32DemoteF64 -> todo op
-            | F64ConvertI32S -> todo op
             | F64ConvertI32U -> todo op
-            | F64ConvertI64S -> todo op
             | F64ConvertI64U -> todo op
-            | F64PromoteF32 -> todo op
             | I32ReinterpretF32 -> todo op
             | I64ReinterpretF64 -> todo op
             | F32ReinterpretI32 -> todo op
