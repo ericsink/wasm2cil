@@ -357,6 +357,14 @@ module wasm.cecil
             | F32ConvertI32S | F32ConvertI64S | F32DemoteF64 -> il.Append(il.Create(OpCodes.Conv_R4))
             | F64ConvertI32S | F64ConvertI64S | F64PromoteF32 -> il.Append(il.Create(OpCodes.Conv_R8))
 
+            | F32ConvertI32U | F32ConvertI64U ->
+                il.Append(il.Create(OpCodes.Conv_R_Un))
+                il.Append(il.Create(OpCodes.Conv_R4))
+
+            | F64ConvertI32U | F64ConvertI64U ->
+                il.Append(il.Create(OpCodes.Conv_R_Un))
+                il.Append(il.Create(OpCodes.Conv_R8))
+
             | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4))
             | I64ExtendI32S | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8))
 
@@ -419,10 +427,6 @@ module wasm.cecil
             | I64Rotr -> todo op
             | F32Copysign -> todo op
             | F64Copysign -> todo op
-            | F32ConvertI32U -> todo op
-            | F32ConvertI64U -> todo op
-            | F64ConvertI32U -> todo op
-            | F64ConvertI64U -> todo op
             | I32ReinterpretF32 -> todo op
             | I64ReinterpretF64 -> todo op
             | F32ReinterpretI32 -> todo op
