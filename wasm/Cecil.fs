@@ -91,6 +91,15 @@ module wasm.cecil
     let cecil_expr (il: ILProcessor) ctx (tmp_i32 : VariableDefinition) (a_locals : ParamOrVar[]) e =
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let lab_end = il.Create(OpCodes.Nop)
+        let get_label (a :CodeBlock[]) i =
+            let blk = a.[int i]
+            let lab =
+                match blk with
+                | CB_Block s -> s
+                | CB_Loop s -> s
+                | CB_If s -> s
+                | CB_Else s -> s
+            lab
         let todo q =
             printfn "TODO: %A" q
         for op in e do
@@ -132,24 +141,18 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Br, lab_end))
             | Br (LabelIdx i) ->
                 let a = blocks.ToArray()
-                let blk = a.[int i]
-                let lab =
-                    match blk with
-                    | CB_Block s -> s
-                    | CB_Loop s -> s
-                    | CB_If s -> s
-                    | CB_Else s -> s
+                let lab = get_label a i
                 il.Append(il.Create(OpCodes.Br, lab))
             | BrIf (LabelIdx i) ->
                 let a = blocks.ToArray()
-                let blk = a.[int i]
-                let lab =
-                    match blk with
-                    | CB_Block s -> s
-                    | CB_Loop s -> s
-                    | CB_If s -> s
-                    | CB_Else s -> s
+                let lab = get_label a i
                 il.Append(il.Create(OpCodes.Brtrue, lab))
+            | BrTable m ->
+                let a = blocks.ToArray()
+                let q = Array.map (fun i -> get_label a i) m.v
+                il.Append(il.Create(OpCodes.Switch, q))
+                let lab = get_label a m.other
+                il.Append(il.Create(OpCodes.Br, lab))
 
             | Call (FuncIdx fidx) ->
                 let fn = ctx.a_methods.[int fidx]
@@ -346,7 +349,6 @@ module wasm.cecil
 
             | Drop -> il.Append(il.Create(OpCodes.Pop))
 
-            | BrTable m -> todo op
             | Unreachable -> todo op
             | CallIndirect _ -> todo op
             | Select -> todo op
