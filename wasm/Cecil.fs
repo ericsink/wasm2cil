@@ -15,6 +15,7 @@ module wasm.cecil
         typ_i64 : TypeReference
         typ_f32 : TypeReference
         typ_f64 : TypeReference
+        typ_intptr : TypeReference
         }
 
     let cecil_valtype bt vt =
@@ -69,6 +70,7 @@ module wasm.cecil
     type GenContext = {
         md : ModuleDefinition
         mem : FieldDefinition
+        tbl_lookup : MethodDefinition
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
@@ -203,6 +205,10 @@ module wasm.cecil
                     printfn "TODO: Call %A" mf
                 | M_Internal mf ->
                     il.Append(il.Create(OpCodes.Call, mf.method))
+
+            | CallIndirect _ ->
+                il.Append(il.Create(OpCodes.Call, ctx.tbl_lookup))
+                il.Append(il.Create(OpCodes.Calli))
 
             | GlobalGet (GlobalIdx idx) ->
                 let g = ctx.a_globals.[int idx]
@@ -411,7 +417,6 @@ module wasm.cecil
             | Drop -> il.Append(il.Create(OpCodes.Pop))
 
             | Unreachable -> todo op
-            | CallIndirect _ -> todo op
             | Select -> todo op
             | MemorySize _ -> todo op
             | MemoryGrow _ -> todo op
@@ -540,6 +545,16 @@ module wasm.cecil
 
         a_globals
 
+    let gen_table_lookup ndx bt =
+        let method = 
+            new MethodDefinition(
+                "__tbl_lookup",
+                MethodAttributes.Private ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
+                bt.typ_intptr // TODO is this right?
+                )
+        // TODO lots of stuff needed here
+        method
+
     let gen_cctor ctx =
         let mem = ctx.mem
         let a_globals = ctx.a_globals
@@ -557,15 +572,6 @@ module wasm.cecil
         let ext = mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
         il.Append(il.Create(OpCodes.Stfld, mem))
-
-        let ctx =
-            {
-                md = method.Module
-                bt = bt
-                a_globals = a_globals
-                a_methods = Array.empty
-                mem = mem
-            }
 
         let tmps = prep_tmps bt method
 
@@ -597,6 +603,7 @@ module wasm.cecil
                 typ_f32 = main_module.TypeSystem.Single
                 typ_f64 = main_module.TypeSystem.Double
                 typ_void = main_module.TypeSystem.Void
+                typ_intptr = main_module.TypeSystem.IntPtr
             }
 
         let container = 
@@ -633,6 +640,9 @@ module wasm.cecil
             | M_Internal mi -> container.Methods.Add(mi.method)
             | M_Imported _ -> ()
 
+        let tbl_lookup = gen_table_lookup ndx bt
+        container.Methods.Add(tbl_lookup)
+
         let ctx =
             {
                 md = container.Module
@@ -640,6 +650,7 @@ module wasm.cecil
                 a_globals = a_globals
                 a_methods = a_methods
                 mem = mem
+                tbl_lookup = tbl_lookup
             }
 
         gen_code_for_methods ctx
