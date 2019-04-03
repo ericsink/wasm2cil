@@ -504,9 +504,8 @@ module wasm.cecil
         cecil_expr il ctx tmps a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
-    let cecil_function_section ndx mem a_globals sf sc (container : TypeDefinition) bt =
+    let create_methods ndx bt =
         let count_imports = count_function_imports ndx
-
         let prep_func i fi =
             match fi with
             | F_Imported s ->
@@ -514,26 +513,18 @@ module wasm.cecil
                 M_Imported { MethodRefImported.func = s }
             | F_Internal q ->
                 let method = create_method q (count_imports + i) bt
-                container.Methods.Add(method)
                 M_Internal { func = q; method = method; }
 
         let a_methods = Array.mapi prep_func ndx.FuncLookup
+        a_methods
 
-        let ctx =
-            {
-                md = container.Module
-                bt = bt
-                a_globals = a_globals
-                a_methods = a_methods
-                mem = mem
-            }
-
-        for m in a_methods do
+    let gen_code_for_methods ctx =
+        for m in ctx.a_methods do
             match m with
             | M_Internal mi -> gen_function_code ctx mi
             | M_Imported _ -> ()
 
-    let cecil_function_global ndx (container : TypeDefinition) bt =
+    let create_globals ndx bt =
         let count_imports = count_global_imports ndx
 
         let prep i gi =
@@ -543,14 +534,16 @@ module wasm.cecil
                 GS_Imported { GlobalRefImported.glob = s }
             | G_Internal q ->
                 let field = create_global q (count_imports + i) bt
-                container.Fields.Add(field)
                 GS_Internal { glob = q; field = field; }
 
         let a_globals = Array.mapi prep ndx.GlobalLookup
 
         a_globals
 
-    let gen_cctor (mem : FieldDefinition) (a_globals : GlobalStuff[]) bt =
+    let gen_cctor ctx =
+        let mem = ctx.mem
+        let a_globals = ctx.a_globals
+        let bt = ctx.bt
         let method = 
             new MethodDefinition(
                 ".cctor",
@@ -626,13 +619,32 @@ module wasm.cecil
 
         let ndx = get_module_index m
 
-        let a_globals = cecil_function_global ndx container bt
+        let a_globals = create_globals ndx bt
 
-        match (ndx.Function, ndx.Code) with 
-        | (Some sf, Some sc) -> cecil_function_section ndx mem a_globals sf sc container bt
-        | _ -> () // TODO error if one but not the other?
+        for m in a_globals do
+            match m with
+            | GS_Internal mi -> container.Fields.Add(mi.field)
+            | GS_Imported _ -> ()
 
-        let cctor = gen_cctor mem a_globals bt
+        let a_methods = create_methods ndx bt
+
+        for m in a_methods do
+            match m with
+            | M_Internal mi -> container.Methods.Add(mi.method)
+            | M_Imported _ -> ()
+
+        let ctx =
+            {
+                md = container.Module
+                bt = bt
+                a_globals = a_globals
+                a_methods = a_methods
+                mem = mem
+            }
+
+        gen_code_for_methods ctx
+
+        let cctor = gen_cctor ctx
         container.Methods.Add(cctor)
 
         assembly.Write("hello.dll");
