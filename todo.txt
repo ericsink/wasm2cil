@@ -1,4 +1,8 @@
 
+why doesn't clang generate any globals?
+
+how to make clang not generate refs to soft fp functions?
+
 how does an imported memory work?  probably
 depends on the tool that compiled the wasm.
 

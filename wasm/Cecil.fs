@@ -412,7 +412,7 @@ module wasm.cecil
             | M_Internal mi -> gen_function_code ctx mi
             | M_Imported _ -> ()
 
-    let cecil_function_global ndx sg (container : TypeDefinition) bt =
+    let cecil_function_global ndx (container : TypeDefinition) bt =
         let count_imports = count_global_imports ndx
 
         let prep i gi =
@@ -506,10 +506,7 @@ module wasm.cecil
 
         let ndx = get_module_index m
 
-        let a_globals =
-            match ndx.Global with
-            | Some sg -> cecil_function_global ndx sg container bt
-            | None -> [| |]
+        let a_globals = cecil_function_global ndx container bt
 
         match (ndx.Function, ndx.Code) with 
         | (Some sf, Some sc) -> cecil_function_section ndx mem a_globals sf sc container bt
