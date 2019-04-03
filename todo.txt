@@ -1,4 +1,9 @@
 
+how to do tests?  construct a program using defs.
+write it to a file.  read it back.  verify.
+compile it to an assembly.  load the assembly.
+run it.  verify the result.
+
 brtable needs to use op switch with an arrqy of
 instruction targets
 
