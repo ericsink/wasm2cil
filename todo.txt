@@ -1,4 +1,6 @@
 
+need tables for CallIndirect
+
 how to do tests?  construct a program using defs.
 write it to a file.  read it back.  verify.
 compile it to an assembly.  load the assembly.
@@ -33,7 +35,7 @@ why doesn't clang mark exports ?
 
 return value from blocks ?
 
-still some problems in roundtripping binary format that
+still some problems in roundtripping binary format,
 might be important, not sure
 
 need consistency about whether to pass around
