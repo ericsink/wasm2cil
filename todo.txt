@@ -1,4 +1,7 @@
 
+brtable needs to use op switch with an arrqy of
+instruction targets
+
 why doesn't clang generate any globals?
 
 how to make clang not generate refs to soft fp functions?
@@ -8,7 +11,8 @@ depends on the tool that compiled the wasm.
 
 how to deal with non-mut globals?
 
-consider an F# wrapper around cecil
+consider an F# wrapper around cecil, avoid all those
+il.Create() overloads
 
 how to implement data initialization for an imported
 memory.  static constructor?
