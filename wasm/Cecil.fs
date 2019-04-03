@@ -91,6 +91,8 @@ module wasm.cecil
     let cecil_expr (il: ILProcessor) ctx (tmp_i32 : VariableDefinition) (a_locals : ParamOrVar[]) e =
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let lab_end = il.Create(OpCodes.Nop)
+        let todo q =
+            printfn "TODO: %A" q
         for op in e do
             match op with
             | Nop -> il.Append(il.Create(OpCodes.Nop))
@@ -307,8 +309,100 @@ module wasm.cecil
 
             | Drop -> il.Append(il.Create(OpCodes.Pop))
 
-            // TODO when all the cases are done, the following line will be removed
-            | _ -> printfn "TODO: %A" op
+            | BrTable m -> todo op
+            | Unreachable -> todo op
+            | CallIndirect _ -> todo op
+            | Select -> todo op
+            | I64Load m -> todo op
+            | F32Load m -> todo op
+            | F64Load m -> todo op
+            | I32Load8S m -> todo op
+            | I32Load8U m -> todo op
+            | I32Load16S m -> todo op
+            | I32Load16U m -> todo op
+            | I64Load8S m -> todo op
+            | I64Load8U m -> todo op
+            | I64Load16S m -> todo op
+            | I64Load16U m -> todo op
+            | I64Load32S m -> todo op
+            | I64Load32U m -> todo op
+            | I64Store m -> todo op
+            | F32Store m -> todo op
+            | F64Store m -> todo op
+            | I32Store8 m -> todo op
+            | I32Store16 m -> todo op
+            | I64Store8 m -> todo op
+            | I64Store16 m -> todo op
+            | I64Store32 m -> todo op
+            | MemorySize _ -> todo op
+            | MemoryGrow _ -> todo op
+            | I32GtS -> todo op
+            | I32GtU -> todo op
+            | I32LeU -> todo op
+            | I32GeS -> todo op
+            | I32GeU -> todo op
+            | I64GtS -> todo op
+            | I64GtU -> todo op
+            | I64LeU -> todo op
+            | I64GeS -> todo op
+            | I64GeU -> todo op
+            | F32Gt -> todo op
+            | F32Ge -> todo op
+            | F64Gt -> todo op
+            | F64Ge -> todo op
+            | I32Clz -> todo op
+            | I32Ctz -> todo op
+            | I32Popcnt -> todo op
+            | I32RemS -> todo op
+            | I32RemU -> todo op
+            | I32And -> todo op
+            | I32Or -> todo op
+            | I32Xor -> todo op
+            | I32Shl -> todo op
+            | I32ShrS -> todo op
+            | I32ShrU -> todo op
+            | I32Rotl -> todo op
+            | I32Rotr -> todo op
+            | I64Clz -> todo op
+            | I64Ctz -> todo op
+            | I64Popcnt -> todo op
+            | I64RemS -> todo op
+            | I64RemU -> todo op
+            | I64And -> todo op
+            | I64Or -> todo op
+            | I64Xor -> todo op
+            | I64Shl -> todo op
+            | I64ShrS -> todo op
+            | I64ShrU -> todo op
+            | I64Rotl -> todo op
+            | I64Rotr -> todo op
+            | F32Copysign -> todo op
+            | F64Copysign -> todo op
+            | I32WrapI64 -> todo op
+            | I32TruncF32S -> todo op
+            | I32TruncF32U -> todo op
+            | I32TruncF64S -> todo op
+            | I32TruncF64U -> todo op
+            | I64ExtendI32S -> todo op
+            | I64ExtendI32U -> todo op
+            | I64TruncF32S -> todo op
+            | I64TruncF32U -> todo op
+            | I64TruncF64S -> todo op
+            | I64TruncF64U -> todo op
+            | F32ConvertI32S -> todo op
+            | F32ConvertI32U -> todo op
+            | F32ConvertI64S -> todo op
+            | F32ConvertI64U -> todo op
+            | F32DemoteF64 -> todo op
+            | F64ConvertI32S -> todo op
+            | F64ConvertI32U -> todo op
+            | F64ConvertI64S -> todo op
+            | F64ConvertI64U -> todo op
+            | F64PromoteF32 -> todo op
+            | I32ReinterpretF32 -> todo op
+            | I64ReinterpretF64 -> todo op
+            | F32ReinterpretI32 -> todo op
+            | F64ReinterpretI64 -> todo op
 
     let create_global gi idx bt =
         let name = 
