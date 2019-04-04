@@ -555,15 +555,6 @@ module wasm.cecil
         // TODO lots of stuff needed here
         method
 
-    let gen_data_fields sd ctx =
-        for it in sd.datas do
-            let f = new FieldDefinition(
-                "__mem",
-                FieldAttributes.Private ||| FieldAttributes.Static ||| FieldAttributes.HasRVA,
-                main_module.TypeSystem.IntPtr // TODO byte[] -- actually need this to be the size of the data, but a value type, like a struct
-                )
-        ()
-
     let gen_cctor ctx =
         let mem = ctx.mem
         let a_globals = ctx.a_globals
@@ -663,8 +654,6 @@ module wasm.cecil
             }
 
         gen_code_for_methods ctx
-
-        gen_data_fields ctx
 
         let cctor = gen_cctor ctx
         container.Methods.Add(cctor)
