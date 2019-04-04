@@ -23,6 +23,8 @@
     <Compile Include="WriteInstruction.fs" />
     <Compile Include="Write.fs" />
 
+    <Compile Include="Builder.fs" />
+
     <Compile Include="ModuleIndex.fs" />
     <Compile Include="Cecil.fs" />
   </ItemGroup>

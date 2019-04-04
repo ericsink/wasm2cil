@@ -552,6 +552,8 @@ module wasm.cecil
                 MethodAttributes.Private ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
                 bt.typ_intptr // TODO is this right?
                 )
+        let il = method.Body.GetILProcessor()
+        il.Append(il.Create(OpCodes.Nop))
         // TODO lots of stuff needed here
         method
 
