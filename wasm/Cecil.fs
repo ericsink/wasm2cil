@@ -555,7 +555,7 @@ module wasm.cecil
         // TODO lots of stuff needed here
         method
 
-    let gen_cctor ctx =
+    let gen_cctor ctx a_datas =
         let mem = ctx.mem
         let a_globals = ctx.a_globals
         let bt = ctx.bt
@@ -575,23 +575,42 @@ module wasm.cecil
 
         let tmps = prep_tmps bt method
 
+        for d in a_datas do
+            // TODO emit code to load the resource and copy it to memory
+            ()
+
         for g in a_globals do
             match g with
             | GS_Internal gi -> 
                 cecil_expr il ctx tmps Array.empty gi.glob.item.init
                 il.Append(il.Create(OpCodes.Stfld, gi.field))
             | GS_Imported _ -> ()
+
         method
 
-    let cecil_module m =
+    type DataStuff = {
+        item : DataItem
+        name : string
+        resource : EmbeddedResource
+        }
+
+    let create_data_resources ctx sd =
+        let f i d =
+            let name = sprintf "data_%d" i
+            let flags = ManifestResourceAttributes.Private
+            let r = EmbeddedResource(name, flags, d.init)
+            { item = d; name = name; resource = r; }
+        Array.mapi f sd.datas
+
+    let gen_assembly m assembly_name (dest : string) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
                 new AssemblyNameDefinition(
-                    "HelloWorld", 
+                    assembly_name, 
                     new System.Version(1, 0, 0, 0)
                     ), 
-                "HelloWorld", 
-                ModuleKind.Console
+                assembly_name, 
+                ModuleKind.Dll
                 )
 
         let main_module = assembly.MainModule
@@ -608,8 +627,8 @@ module wasm.cecil
 
         let container = 
             new TypeDefinition(
-                "HelloWorld", 
-                "Program",
+                "HelloWorld", // TODO
+                "Program",// TODO
                 TypeAttributes.Class ||| TypeAttributes.Public ||| TypeAttributes.Abstract ||| TypeAttributes.Sealed, 
                 main_module.TypeSystem.Object
                 )
@@ -655,8 +674,15 @@ module wasm.cecil
 
         gen_code_for_methods ctx
 
-        let cctor = gen_cctor ctx
+        let a_datas =
+            match ndx.Data with
+            | Some sd -> create_data_resources ctx sd
+            | None -> Array.empty
+        for d in a_datas do
+            main_module.Resources.Add(d.resource)
+
+        let cctor = gen_cctor ctx a_datas
         container.Methods.Add(cctor)
 
-        assembly.Write("hello.dll");
+        assembly.Write(dest);
 

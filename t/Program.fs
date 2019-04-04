@@ -15,7 +15,7 @@ let main argv =
     //printfn "%A milliseconds" timer.ElapsedMilliseconds
 
     //printfn "%A" m
-    cecil_module m
+    gen_assembly m "HelloWorld" "hello.dll"
 
     if argv.Length > 1 then
         use ms = new System.IO.MemoryStream()
