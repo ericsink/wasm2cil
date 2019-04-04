@@ -15,13 +15,20 @@ let main argv =
     //printfn "%A milliseconds" timer.ElapsedMilliseconds
 
     //printfn "%A" m
-    gen_assembly m "HelloWorld" "hello.dll"
+    let ba = 
+        use ms = new System.IO.MemoryStream()
+        gen_assembly m "HelloWorld" ms
+        ms.ToArray()
+    System.IO.File.WriteAllBytes("hello.dll", ba)
+
+    // TODO write
 
     if argv.Length > 1 then
-        use ms = new System.IO.MemoryStream()
-        use w = new System.IO.BinaryWriter(ms)
-        write_module w m
-        let ba = ms.ToArray()
+        let ba = 
+            use ms = new System.IO.MemoryStream()
+            use w = new System.IO.BinaryWriter(ms)
+            write_module w m
+            ms.ToArray()
         System.IO.File.WriteAllBytes(argv.[1], ba)
 
     0 // return an integer exit code

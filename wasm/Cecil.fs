@@ -602,7 +602,7 @@ module wasm.cecil
             { item = d; name = name; resource = r; }
         Array.mapi f sd.datas
 
-    let gen_assembly m assembly_name (dest : string) =
+    let gen_assembly m assembly_name (dest : System.IO.Stream) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
                 new AssemblyNameDefinition(
