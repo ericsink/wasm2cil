@@ -19,6 +19,40 @@ let newid () =
         .Replace("}", "")
         .Replace("-", "")
 
+type AssemblyStuff = {
+    a : System.Reflection.Assembly
+    ns : string
+    classname : string
+    }
+
+let prep_assembly m =
+    let id = newid ()
+    let ns = "test_namespace"
+    let classname = "foo"
+    let ver = new System.Version(1, 0, 0, 0)
+    let ba = 
+        use ms = new System.IO.MemoryStream()
+        gen_assembly m id ns classname ver ms
+        ms.ToArray()
+    let a = System.Reflection.Assembly.Load(ba)
+    Assert.NotNull(a)
+    { a = a; classname = classname; ns = ns; }
+
+let get_method a name =
+    let fullname = sprintf "%s.%s" a.ns a.classname
+    let t = a.a.GetType(fullname)
+    let mi = t.GetMethod(name)
+    Assert.NotNull(mi)
+    mi
+
+let check_1 (mi : System.Reflection.MethodInfo) (f : 'a -> 'b) (n : 'a) =
+    let args = [| box n |]
+    let r = mi.Invoke(null, args)
+    let x = unbox<'b> r
+    let should_be = f n
+    let eq = should_be = x
+    Assert.True(eq)
+
 [<Fact>]
 let ``empty module`` () =
     let m = {
@@ -26,15 +60,8 @@ let ``empty module`` () =
         sections = Array.empty
         }
 
-    let id = newid ()
-    let ver = new System.Version(1, 0, 0, 0)
-    let ba = 
-        use ms = new System.IO.MemoryStream()
-        gen_assembly m id "my_namespace" "foo" ver ms
-        ms.ToArray()
-    System.Reflection.Assembly.Load(ba)
-
-    Assert.True(true)
+    let a = prep_assembly m
+    Assert.NotNull(a.a)
 
 [<Fact>]
 let ``simple add`` () =
@@ -53,30 +80,17 @@ let ``simple add`` () =
 
     let m = b.CreateModule()
 
-    let ns = "my_namespace"
-    let classname = "foo"
-    let id = newid ()
-    let ver = new System.Version(1, 0, 0, 0)
-    let ba = 
-        use ms = new System.IO.MemoryStream()
-        gen_assembly m id ns classname ver ms
-        ms.ToArray()
-    let a = System.Reflection.Assembly.Load(ba)
-    let fullname = sprintf "%s.%s" ns classname
-    let t = a.GetType(fullname)
-    let mi = t.GetMethod(name)
-    Assert.NotNull(mi)
+    let a = prep_assembly m
+    let mi = get_method a name
 
-    let check n =
-        let args = [| box n |]
-        let r = mi.Invoke(null, args)
-        let x = unbox<int> r
-        Assert.Equal(n + addnum, x)
+    let impl n =
+        n + addnum
+
+    let check =
+        check_1 mi impl
 
     check 13
     check 22
-
-    Assert.True(true)
 
 [<Fact>]
 let ``simple loop optimized out`` () =
@@ -117,36 +131,21 @@ let ``simple loop optimized out`` () =
 
     let m = b.CreateModule()
 
-    let ns = "my_namespace"
-    let classname = "foo"
-    let id = newid ()
-    let ver = new System.Version(1, 0, 0, 0)
-    let ba = 
-        use ms = new System.IO.MemoryStream()
-        gen_assembly m id ns classname ver ms
-        ms.ToArray()
-    let a = System.Reflection.Assembly.Load(ba)
-    let fullname = sprintf "%s.%s" ns classname
-    let t = a.GetType(fullname)
-    let mi = t.GetMethod(name)
-    Assert.NotNull(mi)
+    let a = prep_assembly m
+    let mi = get_method a name
 
-    let check x =
-        let should =
-            let mutable r = 0
-            for i = 0 to (x - 1) do
-                r <- r + i
-            r
-        let args = [| box x |]
-        let r = mi.Invoke(null, args)
-        let x = unbox<int> r
-        Assert.Equal(should, x)
+    let impl x =
+        let mutable r = 0
+        for i = 0 to (x - 1) do
+            r <- r + i
+        r
+
+    let check =
+        check_1 mi impl
 
     check 0
     check 1
     check 13
     check -5
     check 22
-
-    Assert.True(true)
 

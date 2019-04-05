@@ -1,4 +1,7 @@
 
+might like the ability to output a wasm module
+as F# to reconstruct it with Builder
+
 consistency question about the final End opcode
 
 should coalesce the datas into one big data in just
