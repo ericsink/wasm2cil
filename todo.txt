@@ -1,4 +1,7 @@
 
+consider using the actual wasm opcode name
+for the union labels, with ``
+
 https://github.com/SteveGilham/altcover
 
 might like the ability to output a wasm module
