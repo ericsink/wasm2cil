@@ -94,6 +94,20 @@ let ``simple add`` () =
 
 [<Fact>]
 let ``simple loop optimized out`` () =
+    (*
+
+int foo(int x)
+{
+    int r = 0;
+    for (int i=0; i<x; i++)
+    {
+        r += i;
+    }
+    return r;
+}
+
+    *)
+
     let fb = FunctionBuilder()
     let name = "foo"
     fb.Name <- Some name
