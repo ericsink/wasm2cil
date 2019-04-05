@@ -149,39 +149,64 @@ let simple_add () =
     check 13
     check 22
 
-[<Fact>]
-let i32_gt () =
+let make_simple_compare_func name t op =
     let fb = FunctionBuilder()
-    let name = "i32_gt"
     fb.Name <- Some name
     fb.ReturnType <- Some I32
-    fb.AddParam I32
-    fb.AddParam I32
+    fb.AddParam t
+    fb.AddParam t
     fb.Add (LocalGet (LocalIdx 0u))
     fb.Add (LocalGet (LocalIdx 1u))
-    fb.Add I32GtS
+    fb.Add op
     fb.Add (End)
 
     let b = ModuleBuilder()
     b.AddFunction(fb)
 
     let m = b.CreateModule()
+    m
 
+let make_simple_compare_check t wasm_op fs_op =
+    let name = "compare"
+    let m = make_simple_compare_func name t wasm_op
     let a = prep_assembly m
     let mi = get_method a name
 
     let impl a b =
-        if a > b then 1 else 0
+        if fs_op a b then 1 else 0
 
     let check =
         check_2 mi impl
 
-    check 0 0
-    check 0 1
-    check 1 0
-    check 4 32
-    check 13 9
-    check 22 23
+    check
+
+[<Fact>]
+let i32_gt () =
+    let check = make_simple_compare_check I32 I32GtS (>)
+    for x = -4 to 4 do
+        for y = -4 to 4 do
+            check x y
+
+[<Fact>]
+let i32_lt () =
+    let check = make_simple_compare_check I32 I32LtS (<)
+    for x = -4 to 4 do
+        for y = -4 to 4 do
+            check x y
+
+[<Fact>]
+let i32_ge () =
+    let check = make_simple_compare_check I32 I32GeS (>=)
+    for x = -4 to 4 do
+        for y = -4 to 4 do
+            check x y
+
+[<Fact>]
+let i32_le () =
+    let check = make_simple_compare_check I32 I32LeS (<=)
+    for x = -4 to 4 do
+        for y = -4 to 4 do
+            check x y
 
 [<Fact>]
 let simple_loop_optimized_out () =
