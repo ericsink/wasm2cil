@@ -17,9 +17,12 @@ so then it's easy to just take the address of the field
 and memcpy.  works nicely, but I can't figure out how
 to make Mono.Cecil do that.
 
-this note is called a mapped field.  and it arguably
+this notion is called a mapped field.  and it arguably
 was not designed to be used for data initialization
-with blobs.
+with blobs.  it seems to be designed for primitive
+types, and technically, yeah, it's possible to
+use it for struct types with lots of byte fields,
+but that's apparently not the use case it was designed for.
 
 dumb idea would be to just inline tons of single-byte
 store instructions in the cctor.  or do 8 bytes at a
