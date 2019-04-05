@@ -60,6 +60,14 @@ let check_1 (mi : System.Reflection.MethodInfo) (f : 'a -> 'b) (n : 'a) =
     let eq = should_be = x
     Assert.True(eq)
 
+let check_2 (mi : System.Reflection.MethodInfo) (f : 'a -> 'a -> 'b) (x : 'a) (y : 'a) =
+    let args = [| box x; box y |]
+    let r = mi.Invoke(null, args)
+    let result = unbox<'b> r
+    let should_be = f x y
+    let eq = should_be = result
+    Assert.True(eq)
+
 [<Fact>]
 let ``empty module`` () =
     let m = {
@@ -140,6 +148,40 @@ let ``simple add`` () =
 
     check 13
     check 22
+
+[<Fact>]
+let ``i32_gt`` () =
+    let fb = FunctionBuilder()
+    let name = "i32_gt"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add I32GtS
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl a b =
+        if a > b then 1 else 0
+
+    let check =
+        check_2 mi impl
+
+    check 0 0
+    check 0 1
+    check 1 0
+    check 4 32
+    check 13 9
+    check 22 23
 
 [<Fact>]
 let ``simple loop optimized out`` () =
