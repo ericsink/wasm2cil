@@ -604,12 +604,12 @@ module wasm.cecil
             { item = d; name = name; resource = r; }
         Array.mapi f sd.datas
 
-    let gen_assembly m assembly_name (dest : System.IO.Stream) =
+    let gen_assembly m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
                 new AssemblyNameDefinition(
                     assembly_name, 
-                    new System.Version(1, 0, 0, 0)
+                    ver
                     ), 
                 assembly_name, 
                 ModuleKind.Dll
@@ -629,8 +629,8 @@ module wasm.cecil
 
         let container = 
             new TypeDefinition(
-                "HelloWorld", // TODO
-                "Program",// TODO
+                ns,
+                classname,
                 TypeAttributes.Class ||| TypeAttributes.Public ||| TypeAttributes.Abstract ||| TypeAttributes.Sealed, 
                 main_module.TypeSystem.Object
                 )

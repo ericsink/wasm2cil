@@ -17,7 +17,11 @@ let main argv =
     //printfn "%A" m
     let ba = 
         use ms = new System.IO.MemoryStream()
-        gen_assembly m "HelloWorld" ms
+        let id = "HelloWorld"
+        let ns = id
+        let classname = "foo"
+        let ver = new System.Version(1, 0, 0, 0)
+        gen_assembly m id ns classname ver ms
         ms.ToArray()
     System.IO.File.WriteAllBytes("hello.dll", ba)
 

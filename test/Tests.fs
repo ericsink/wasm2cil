@@ -26,16 +26,17 @@ let ``empty module`` () =
         }
 
     let id = newid ()
+    let ver = new System.Version(1, 0, 0, 0)
     let ba = 
         use ms = new System.IO.MemoryStream()
-        gen_assembly m id ms
+        gen_assembly m id "my_namespace" "foo" ver ms
         ms.ToArray()
     System.Reflection.Assembly.Load(ba)
 
     Assert.True(true)
 
 [<Fact>]
-let ``simple module`` () =
+let ``simple add`` () =
     let fb = FunctionBuilder()
     let addnum = 42
     let name = sprintf "add_%d" addnum
@@ -51,13 +52,18 @@ let ``simple module`` () =
 
     let m = b.Result()
 
+    let ns = "my_namespace"
+    let classname = "foo"
+
     let id = newid ()
+    let ver = new System.Version(1, 0, 0, 0)
     let ba = 
         use ms = new System.IO.MemoryStream()
-        gen_assembly m id ms
+        gen_assembly m id ns classname ver ms
         ms.ToArray()
     let a = System.Reflection.Assembly.Load(ba)
-    let t = a.GetType("HelloWorld.Program")
+    let fullname = sprintf "%s.%s" ns classname
+    let t = a.GetType(fullname)
     let mi = t.GetMethod(name)
     Assert.NotNull(mi)
 
