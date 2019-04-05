@@ -50,11 +50,10 @@ let ``simple add`` () =
     let b = ModuleBuilder()
     b.AddFunction(fb)
 
-    let m = b.Result()
+    let m = b.CreateModule()
 
     let ns = "my_namespace"
     let classname = "foo"
-
     let id = newid ()
     let ver = new System.Version(1, 0, 0, 0)
     let ba = 

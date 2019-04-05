@@ -46,7 +46,7 @@ module wasm.builder
         member this.AddFunction(fb : FunctionBuilder) =
             fbuilders.Add(fb)
 
-        member this.Result() =
+        member this.CreateModule() =
             let types = System.Collections.Generic.List<FuncType>()
             let funcs = System.Collections.Generic.List<TypeIdx>()
             let exports = System.Collections.Generic.List<ExportItem>()
