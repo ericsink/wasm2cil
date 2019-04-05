@@ -74,6 +74,7 @@ let ``simple add`` () =
     fb.Add (LocalGet (LocalIdx 0u))
     fb.Add (I32Const addnum)
     fb.Add I32Add
+    fb.Add (End)
 
     let b = ModuleBuilder()
     b.AddFunction(fb)
