@@ -69,7 +69,7 @@ let check_2 (mi : System.Reflection.MethodInfo) (f : 'a -> 'a -> 'b) (x : 'a) (y
     Assert.True(eq)
 
 [<Fact>]
-let ``empty module`` () =
+let empty_module () =
     let m = {
         version = 1u
         sections = Array.empty
@@ -79,7 +79,7 @@ let ``empty module`` () =
     Assert.NotNull(a.a)
 
 [<Fact>]
-let ``empty method`` () =
+let empty_method () =
     let fb = FunctionBuilder()
     let name = "empty"
     fb.Name <- Some name
@@ -97,7 +97,7 @@ let ``empty method`` () =
     Assert.True(true)
 
 [<Fact>]
-let ``int constant`` () =
+let int_constant () =
     let fb = FunctionBuilder()
     let num = 42
     let name = "constant"
@@ -120,7 +120,7 @@ let ``int constant`` () =
     check_0 mi impl
 
 [<Fact>]
-let ``simple add`` () =
+let simple_add () =
     let fb = FunctionBuilder()
     let addnum = 42
     let name = sprintf "add_%d" addnum
@@ -150,7 +150,7 @@ let ``simple add`` () =
     check 22
 
 [<Fact>]
-let ``i32_gt`` () =
+let i32_gt () =
     let fb = FunctionBuilder()
     let name = "i32_gt"
     fb.Name <- Some name
@@ -184,7 +184,7 @@ let ``i32_gt`` () =
     check 22 23
 
 [<Fact>]
-let ``simple loop optimized out`` () =
+let simple_loop_optimized_out () =
     (*
 
 int foo(int x)
