@@ -174,8 +174,7 @@ module wasm.cecil
                 blocks.Push(blk)
             | End -> 
                 if blocks.Count = 0 then
-                    printfn "END LABEL"
-                    il.Append(lab_end)
+                    il.Append(lab_end) // TODO only gen this if it is needed
                 else
                     let blk = blocks.Pop()
                     match blk with
@@ -210,7 +209,7 @@ module wasm.cecil
 
             | CallIndirect _ ->
                 il.Append(il.Create(OpCodes.Call, ctx.tbl_lookup))
-                il.Append(il.Create(OpCodes.Calli))
+                // TODO need CallSite il.Append(il.Create(OpCodes.Calli))
 
             | GlobalGet (GlobalIdx idx) ->
                 let g = ctx.a_globals.[int idx]
