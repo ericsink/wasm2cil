@@ -1,4 +1,6 @@
 
+consistency question about the final End opcode
+
 should coalesce the datas into one big data in just
 one resource?  except each one gets its own offset
 which is expressed in wasm opcodes that need to be

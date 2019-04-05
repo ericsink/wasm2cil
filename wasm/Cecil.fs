@@ -98,6 +98,7 @@ module wasm.cecil
         }
 
     let prep_tmps bt (method : MethodDefinition) =
+        // TODO er, let's not declare locals we don't need
         let tmps = 
             {
                 tmp_i32 = new VariableDefinition(bt.typ_i32)
@@ -173,6 +174,7 @@ module wasm.cecil
                 blocks.Push(blk)
             | End -> 
                 if blocks.Count = 0 then
+                    printfn "END LABEL"
                     il.Append(lab_end)
                 else
                     let blk = blocks.Pop()
