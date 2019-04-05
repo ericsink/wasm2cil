@@ -45,6 +45,13 @@ let get_method a name =
     Assert.NotNull(mi)
     mi
 
+let check_0 (mi : System.Reflection.MethodInfo) (f : Unit -> 'b) =
+    let r = mi.Invoke(null, null)
+    let x = unbox<'b> r
+    let should_be = f ()
+    let eq = should_be = x
+    Assert.True(eq)
+
 let check_1 (mi : System.Reflection.MethodInfo) (f : 'a -> 'b) (n : 'a) =
     let args = [| box n |]
     let r = mi.Invoke(null, args)
@@ -62,6 +69,47 @@ let ``empty module`` () =
 
     let a = prep_assembly m
     Assert.NotNull(a.a)
+
+[<Fact>]
+let ``empty method`` () =
+    let fb = FunctionBuilder()
+    let name = "empty"
+    fb.Name <- Some name
+    fb.ReturnType <- None
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+    let mi = get_method a name
+    mi.Invoke(null, null) |> ignore
+    Assert.True(true)
+
+[<Fact>]
+let ``int constant`` () =
+    let fb = FunctionBuilder()
+    let num = 42
+    let name = "constant"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.Add (I32Const num)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl n =
+        num
+
+    check_0 mi impl
 
 [<Fact>]
 let ``simple add`` () =
