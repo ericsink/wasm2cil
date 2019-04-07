@@ -45,3 +45,28 @@ module wasm.def_basic
         other: uint32
         }
 
+    type OpcodeStack1 = {
+        rtype: ValType option
+        arg : ValType
+    }
+
+    type OpcodeStack2 = {
+        rtype: ValType option
+        arg1 : ValType
+        arg2 : ValType
+    }
+
+    type OpcodeStackInfo =
+        | NoArgs of ValType option
+        | OneArg of OpcodeStack1
+        | TwoArgs of OpcodeStack2
+        | SpecialCaseDrop
+        | SpecialCaseSelect
+        | SpecialCaseCall of FuncIdx
+        | SpecialCaseCallIndirect of CallIndirectArg
+        | SpecialCaseLocalGet of LocalIdx
+        | SpecialCaseLocalSet of LocalIdx
+        | SpecialCaseLocalTee of LocalIdx
+        | SpecialCaseGlobalGet of GlobalIdx
+        | SpecialCaseGlobalSet of GlobalIdx
+

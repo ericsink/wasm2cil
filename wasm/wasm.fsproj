@@ -12,6 +12,7 @@
     <Compile Include="DefBasic.fs" />
     <Compile Include="Instruction.fs" />
     <Compile Include="InstructionName.fs" />
+    <Compile Include="InstructionStackInfo.fs" />
     <Compile Include="Module.fs" />
 
     <Compile Include="ReadBasic.fs" />

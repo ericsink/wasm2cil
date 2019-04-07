@@ -8,6 +8,7 @@ module wasm.cecil
     open wasm.def
     open wasm.def_instr
     open wasm.module_index
+    open wasm.instr_stack
 
     type BasicTypes = {
         typ_void : TypeReference
@@ -68,6 +69,7 @@ module wasm.cecil
         | M_Internal of MethodRefInternal
 
     type GenContext = {
+        types: FuncType[]
         md : ModuleDefinition
         mem : FieldDefinition
         tbl_lookup : MethodDefinition
@@ -118,6 +120,7 @@ module wasm.cecil
         let tmp_f32 = tmps.tmp_f32
         let tmp_f64 = tmps.tmp_f64
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
+        let stack = System.Collections.Generic.Stack<ValType>()
         let lab_end = il.Create(OpCodes.Nop)
 
         let get_label (a :CodeBlock[]) i =
@@ -148,6 +151,103 @@ module wasm.cecil
         let todo q =
             printfn "TODO: %A" q
         for op in e do
+            let stack_info = get_instruction_stack_info op
+
+(*
+            printfn "op: %A" op
+            printfn "stack_info: %A" stack_info
+            printfn "stack depth: %d" stack.Count
+*)
+            let result_type =
+                let handle_stack_for_call ftype =
+                    if ftype.parms.Length > 0 then
+                        for i = (ftype.parms.Length - 1) downto 0 do
+                            let should = ftype.parms.[i]
+                            let actual = stack.Pop();
+                            if actual <> should then failwith "type mismatch"
+                    if ftype.result.Length = 0 then
+                        None
+                    else if ftype.result.Length = 1 then
+                        ftype.result.[0] |> Some
+                    else
+                        failwith "not implemented"
+
+                match stack_info with
+                | NoArgs rt -> rt
+                | OneArg { rtype = rt; arg = t1; } ->
+                    let arg1 = stack.Pop()
+                    if arg1 <> t1 then failwith "wrong stack type"
+                    rt
+                | TwoArgs { rtype = rt; arg1 = t1; arg2 = t2; } ->
+                    let arg2 = stack.Pop()
+                    let arg1 = stack.Pop()
+                    if arg1 <> t1 then failwith "wrong stack type"
+                    if arg2 <> t2 then failwith "wrong stack type"
+                    rt
+                | SpecialCaseDrop ->
+                    stack.Pop() |> ignore
+                    None
+                | SpecialCaseSelect ->
+                    let arg3 = stack.Pop()
+                    let arg2 = stack.Pop()
+                    let arg1 = stack.Pop()
+                    if arg3 <> I32 then failwith "Select type wrong"
+                    if arg1 <> arg2 then failwith "wrong stack type"
+                    Some arg1
+                | SpecialCaseCall (FuncIdx fidx) ->
+                    let fn = ctx.a_methods.[int fidx]
+                    let ftype = 
+                        match fn with
+                        | M_Imported mf -> mf.func.f_typ
+                        | M_Internal mf -> mf.func.if_typ
+                    handle_stack_for_call ftype
+                | SpecialCaseCallIndirect calli ->
+                    let tidx = calli.x
+                    let ftype = ctx.types.[int tidx]
+                    handle_stack_for_call ftype
+                | SpecialCaseLocalSet (LocalIdx i) ->
+                    let loc = a_locals.[int i]
+                    let typ =
+                        match loc with
+                        | PV_Param { P_typ = t } -> t
+                        | PV_Var { L_typ = t } -> t
+                    let arg = stack.Pop()
+                    if arg <> typ then failwith "type mismatch"
+                    None
+                | SpecialCaseLocalGet (LocalIdx i) ->
+                    let loc = a_locals.[int i]
+                    let typ =
+                        match loc with
+                        | PV_Param { P_typ = t } -> t
+                        | PV_Var { L_typ = t } -> t
+                    Some typ
+                | SpecialCaseGlobalSet (GlobalIdx i) ->
+                    let g = ctx.a_globals.[int i]
+                    let typ = 
+                        match g with
+                        | GS_Imported mf -> mf.glob.g_typ.typ
+                        | GS_Internal mf -> mf.glob.item.globaltype.typ
+                    let arg = stack.Pop()
+                    if arg <> typ then failwith "type mismatch"
+                    None
+                | SpecialCaseGlobalGet (GlobalIdx i) ->
+                    let g = ctx.a_globals.[int i]
+                    let typ = 
+                        match g with
+                        | GS_Imported mf -> mf.glob.g_typ.typ
+                        | GS_Internal mf -> mf.glob.item.globaltype.typ
+                    Some typ
+                | SpecialCaseLocalTee (LocalIdx i) ->
+                    let loc = a_locals.[int i]
+                    let typ =
+                        match loc with
+                        | PV_Param { P_typ = t } -> t
+                        | PV_Var { L_typ = t } -> t
+                    let arg = stack.Pop()
+                    if arg <> typ then failwith "type mismatch"
+                    stack.Push(arg);
+                    None
+
             match op with
             | Nop -> il.Append(il.Create(OpCodes.Nop))
             | Block t -> 
@@ -418,7 +518,7 @@ module wasm.cecil
             | Drop -> il.Append(il.Create(OpCodes.Pop))
 
             | Unreachable -> todo op
-            | Select -> todo op
+            | Select -> todo op // TODO can use result_type now
             | MemorySize _ -> todo op
             | MemoryGrow _ -> todo op
             | I32Clz -> todo op
@@ -437,6 +537,10 @@ module wasm.cecil
             | I64ReinterpretF64 -> todo op
             | F32ReinterpretI32 -> todo op
             | F64ReinterpretI64 -> todo op
+
+            match result_type with
+            | Some t -> stack.Push(t)
+            | None -> ()
 
     let create_global gi idx bt =
         let name = 
@@ -665,8 +769,14 @@ module wasm.cecil
         let tbl_lookup = gen_table_lookup ndx bt
         container.Methods.Add(tbl_lookup)
 
+        let types =
+            match ndx.Type with
+            | Some s -> s.types
+            | None -> [| |]
+
         let ctx =
             {
+                types = types
                 md = container.Module
                 bt = bt
                 a_globals = a_globals
