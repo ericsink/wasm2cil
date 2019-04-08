@@ -26,19 +26,19 @@ module wasm.cecil
         | F32 -> bt.typ_f32
         | F64 -> bt.typ_f64
 
-    type ParamInfo = {
+    type ParamRef = {
         P_typ : ValType;
-        P_def : ParameterDefinition;
+        def_param : ParameterDefinition;
         }
 
-    type LocalInfo = {
+    type LocalRef = {
         L_typ : ValType;
-        L_def : VariableDefinition;
+        def_var : VariableDefinition;
         }
 
     type ParamOrVar =
-        | PV_Param of ParamInfo
-        | PV_Var of LocalInfo
+        | ParamRef of ParamRef
+        | LocalRef of LocalRef
 
     type GlobalRefImported = {
         glob : ImportedGlobal
@@ -51,8 +51,8 @@ module wasm.cecil
         }
 
     type GlobalStuff = 
-        | GS_Imported of GlobalRefImported
-        | GS_Internal of GlobalRefInternal
+        | GlobalRefImported of GlobalRefImported
+        | GlobalRefInternal of GlobalRefInternal
 
     type MethodRefImported = {
         func : ImportedFunc
@@ -65,8 +65,8 @@ module wasm.cecil
         }
 
     type MethodStuff = 
-        | M_Imported of MethodRefImported
-        | M_Internal of MethodRefInternal
+        | MethodRefImported of MethodRefImported
+        | MethodRefInternal of MethodRefInternal
 
     type GenContext = {
         types: FuncType[]
@@ -183,8 +183,8 @@ module wasm.cecil
                     let fn = ctx.a_methods.[int fidx]
                     let ftype = 
                         match fn with
-                        | M_Imported mf -> mf.func.typ
-                        | M_Internal mf -> mf.func.typ
+                        | MethodRefImported mf -> mf.func.typ
+                        | MethodRefInternal mf -> mf.func.typ
                     handle_stack_for_call ftype
                 | SpecialCaseCallIndirect calli ->
                     let (TypeIdx tidx) = calli.typeidx
@@ -194,8 +194,8 @@ module wasm.cecil
                     let loc = a_locals.[int i]
                     let typ =
                         match loc with
-                        | PV_Param { P_typ = t } -> t
-                        | PV_Var { L_typ = t } -> t
+                        | ParamRef { P_typ = t } -> t
+                        | LocalRef { L_typ = t } -> t
                     let arg = stack.Pop()
                     if arg <> typ then failwith "type mismatch"
                     None
@@ -203,15 +203,15 @@ module wasm.cecil
                     let loc = a_locals.[int i]
                     let typ =
                         match loc with
-                        | PV_Param { P_typ = t } -> t
-                        | PV_Var { L_typ = t } -> t
+                        | ParamRef { P_typ = t } -> t
+                        | LocalRef { L_typ = t } -> t
                     Some typ
                 | SpecialCaseGlobalSet (GlobalIdx i) ->
                     let g = ctx.a_globals.[int i]
                     let typ = 
                         match g with
-                        | GS_Imported mf -> mf.glob.typ.typ
-                        | GS_Internal mf -> mf.glob.item.globaltype.typ
+                        | GlobalRefImported mf -> mf.glob.typ.typ
+                        | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
                     let arg = stack.Pop()
                     if arg <> typ then failwith "type mismatch"
                     None
@@ -219,15 +219,15 @@ module wasm.cecil
                     let g = ctx.a_globals.[int i]
                     let typ = 
                         match g with
-                        | GS_Imported mf -> mf.glob.typ.typ
-                        | GS_Internal mf -> mf.glob.item.globaltype.typ
+                        | GlobalRefImported mf -> mf.glob.typ.typ
+                        | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
                     Some typ
                 | SpecialCaseLocalTee (LocalIdx i) ->
                     let loc = a_locals.[int i]
                     let typ =
                         match loc with
-                        | PV_Param { P_typ = t } -> t
-                        | PV_Var { L_typ = t } -> t
+                        | ParamRef { P_typ = t } -> t
+                        | LocalRef { L_typ = t } -> t
                     let arg = stack.Pop()
                     if arg <> typ then failwith "type mismatch"
                     stack.Push(arg);
@@ -287,9 +287,9 @@ module wasm.cecil
             | Call (FuncIdx fidx) ->
                 let fn = ctx.a_methods.[int fidx]
                 match fn with
-                | M_Imported mf ->
+                | MethodRefImported mf ->
                     printfn "TODO: Call %A" mf
-                | M_Internal mf ->
+                | MethodRefInternal mf ->
                     il.Append(il.Create(OpCodes.Call, mf.method))
 
             | CallIndirect _ ->
@@ -299,37 +299,37 @@ module wasm.cecil
             | GlobalGet (GlobalIdx idx) ->
                 let g = ctx.a_globals.[int idx]
                 match g with
-                | GS_Imported mf ->
+                | GlobalRefImported mf ->
                     printfn "TODO: get global %A" mf
-                | GS_Internal mf ->
+                | GlobalRefInternal mf ->
                     il.Append(il.Create(OpCodes.Ldfld, mf.field))
 
             | GlobalSet (GlobalIdx idx) ->
                 let g = ctx.a_globals.[int idx]
                 match g with
-                | GS_Imported mf ->
+                | GlobalRefImported mf ->
                     printfn "TODO: set global %A" mf
-                | GS_Internal mf ->
+                | GlobalRefInternal mf ->
                     il.Append(il.Create(OpCodes.Stfld, mf.field))
 
             | LocalTee (LocalIdx i) -> 
                 il.Append(il.Create(OpCodes.Dup))
                 let loc = a_locals.[int i]
                 match loc with
-                | PV_Param { P_def = n } -> il.Append(il.Create(OpCodes.Starg, n))
-                | PV_Var { L_def = n } -> il.Append(il.Create(OpCodes.Stloc, n))
+                | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
+                | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
 
             | LocalSet (LocalIdx i) -> 
                 let loc = a_locals.[int i]
                 match loc with
-                | PV_Param { P_def = n } -> il.Append(il.Create(OpCodes.Starg, n))
-                | PV_Var { L_def = n } -> il.Append(il.Create(OpCodes.Stloc, n))
+                | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
+                | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
 
             | LocalGet (LocalIdx i) -> 
                 let loc = a_locals.[int i]
                 match loc with
-                | PV_Param { P_def = n } -> il.Append(il.Create(OpCodes.Ldarg, n))
-                | PV_Var { L_def = n } -> il.Append(il.Create(OpCodes.Ldloc, n))
+                | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Ldarg, n))
+                | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Ldloc, n))
 
             | I32Load m -> load m OpCodes.Ldind_I4
             | I64Load m -> load m OpCodes.Ldind_I8
@@ -598,20 +598,20 @@ module wasm.cecil
                 let typ = cecil_valtype ctx.bt x
                 let name = get_name()
                 let def = new ParameterDefinition(name, ParameterAttributes.None, typ)
-                a.Add(PV_Param { P_def = def; P_typ = x; })
+                a.Add(ParamRef { def_param = def; P_typ = x; })
             for loc in mi.func.code.locals do
                 // TODO assert count > 0 ?
                 for x = 1 to (int loc.count) do
                     let typ = cecil_valtype ctx.bt loc.localtype
                     let def = new VariableDefinition(typ)
-                    a.Add(PV_Var { L_def = def; L_typ = loc.localtype })
+                    a.Add(LocalRef { def_var = def; L_typ = loc.localtype })
             Array.ofSeq a
             
         mi.method.Body.InitLocals <- true
         for pair in a_locals do
             match pair with
-            | PV_Param { P_def = def } -> mi.method.Parameters.Add(def)
-            | PV_Var { L_def = def } -> mi.method.Body.Variables.Add(def)
+            | ParamRef { def_param = def } -> mi.method.Parameters.Add(def)
+            | LocalRef { def_var = def } -> mi.method.Body.Variables.Add(def)
 
         let f_make_tmp = make_tmp ctx.bt mi.method
 
@@ -625,10 +625,10 @@ module wasm.cecil
             match fi with
             | ImportedFunc s ->
                 // TODO
-                M_Imported { MethodRefImported.func = s }
+                MethodRefImported { MethodRefImported.func = s }
             | InternalFunc q ->
                 let method = create_method q (count_imports + i) bt
-                M_Internal { func = q; method = method; }
+                MethodRefInternal { func = q; method = method; }
 
         let a_methods = Array.mapi prep_func ndx.FuncLookup
         a_methods
@@ -636,8 +636,8 @@ module wasm.cecil
     let gen_code_for_methods ctx =
         for m in ctx.a_methods do
             match m with
-            | M_Internal mi -> gen_function_code ctx mi
-            | M_Imported _ -> ()
+            | MethodRefInternal mi -> gen_function_code ctx mi
+            | MethodRefImported _ -> ()
 
     let create_globals ndx bt =
         let count_imports = count_global_imports ndx
@@ -646,10 +646,10 @@ module wasm.cecil
             match gi with
             | ImportedGlobal s ->
                 // TODO
-                GS_Imported { GlobalRefImported.glob = s }
+                GlobalRefImported { GlobalRefImported.glob = s }
             | InternalGlobal q ->
                 let field = create_global q (count_imports + i) bt
-                GS_Internal { glob = q; field = field; }
+                GlobalRefInternal { glob = q; field = field; }
 
         let a_globals = Array.mapi prep ndx.GlobalLookup
 
@@ -690,10 +690,10 @@ module wasm.cecil
 
         for g in ctx.a_globals do
             match g with
-            | GS_Internal gi -> 
+            | GlobalRefInternal gi -> 
                 cecil_expr il ctx f_make_tmp Array.empty gi.glob.item.init
                 il.Append(il.Create(OpCodes.Stfld, gi.field))
-            | GS_Imported _ -> ()
+            | GlobalRefImported _ -> ()
 
         method
 
@@ -758,15 +758,15 @@ module wasm.cecil
 
         for m in a_globals do
             match m with
-            | GS_Internal mi -> container.Fields.Add(mi.field)
-            | GS_Imported _ -> ()
+            | GlobalRefInternal mi -> container.Fields.Add(mi.field)
+            | GlobalRefImported _ -> ()
 
         let a_methods = create_methods ndx bt
 
         for m in a_methods do
             match m with
-            | M_Internal mi -> container.Methods.Add(mi.method)
-            | M_Imported _ -> ()
+            | MethodRefInternal mi -> container.Methods.Add(mi.method)
+            | MethodRefImported _ -> ()
 
         let tbl_lookup = gen_table_lookup ndx bt
         container.Methods.Add(tbl_lookup)
