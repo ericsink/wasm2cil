@@ -39,10 +39,9 @@ module wasm.def_basic
         other: byte // this indicates which table, currently always 0
         }
 
-    // TODO LabelIdx below
     type BrTableArg = {
-        v: uint32[]
-        other: uint32
+        v: LabelIdx[]
+        other: LabelIdx
         }
 
     type OpcodeStack1 = {

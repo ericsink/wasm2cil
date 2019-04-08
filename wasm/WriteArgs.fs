@@ -5,9 +5,10 @@ module wasm.write_args
 
     let write_brtable w t =
         write_var_u32 w (uint32 t.v.Length)
-        for it in t.v do
+        for (LabelIdx it) in t.v do
             write_var_u32 w it
-        write_var_u32 w t.other
+        let (LabelIdx other) = t.other
+        write_var_u32 w other
 
     let write_memarg w t =
         write_var_u32 w t.align

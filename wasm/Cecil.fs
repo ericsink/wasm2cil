@@ -108,6 +108,7 @@ module wasm.cecil
         let lab_end = il.Create(OpCodes.Nop)
 
         let get_label (a :CodeBlock[]) i =
+            let (LabelIdx i) = i
             let blk = a.[int i]
             let lab =
                 match blk with
@@ -268,11 +269,11 @@ module wasm.cecil
                     | CB_Else lab -> il.Append(lab)
             | Return ->
                 il.Append(il.Create(OpCodes.Br, lab_end))
-            | Br (LabelIdx i) ->
+            | Br i ->
                 let a = blocks.ToArray()
                 let lab = get_label a i
                 il.Append(il.Create(OpCodes.Br, lab))
-            | BrIf (LabelIdx i) ->
+            | BrIf i ->
                 let a = blocks.ToArray()
                 let lab = get_label a i
                 il.Append(il.Create(OpCodes.Brtrue, lab))

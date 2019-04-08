@@ -17,7 +17,7 @@ module wasm.read_args
         let read_item br =
             read_var_u32 br
         let count = read_var_u32 br
-        let a = read_vector br count read_item
+        let a = read_vector br count read_item |> Array.map (fun x -> LabelIdx x)
         let o = read_var_u32 br
-        { v = a; other = o; }
+        { v = a; other = LabelIdx o; }
 
