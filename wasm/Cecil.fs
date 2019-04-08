@@ -668,8 +668,8 @@ module wasm.cecil
         let method = 
             new MethodDefinition(
                 "__tbl_lookup",
-                MethodAttributes.Public ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
-                bt.typ_intptr // TODO is this right?
+                MethodAttributes.Public ||| MethodAttributes.Static,
+                bt.typ_intptr
                 )
         let parm = new ParameterDefinition(bt.typ_i32)
         method.Parameters.Add(parm)
@@ -753,7 +753,7 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-// TODO consider moving other things here out into separate static methods
+        // TODO consider moving other things here out into separate static methods
 
         il.Append(il.Create(OpCodes.Ldc_I4, 64 * 1024))
         // TODO where is this freed?
