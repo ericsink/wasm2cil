@@ -1,4 +1,18 @@
 
+write a test case that defines two methods and
+does a call
+
+implement data segments
+
+implement tbl_lookup for CallIndirect
+
+need some tests to verify read/write of the binary
+format
+
+stack cleanup around br and friends
+
+--
+
 consider using the actual wasm opcode name
 for the union labels, with ``
 
@@ -15,7 +29,7 @@ which is expressed in wasm opcodes that need to be
 executed.  but we could check the opcodes to see if
 it's just a constant.
 
-implement data segments
+--
 
 how to store the datas?
 
@@ -50,9 +64,6 @@ hmmm.  consider system.reflection.metadata?
 
 need tables for CallIndirect
 
-need some tests to verify read/write of the binary
-format
-
 why doesn't clang generate any globals?
 
 how to make clang not generate refs to soft fp functions?
@@ -67,11 +78,6 @@ il.Create() overloads
 
 how to implement data initialization for an imported
 memory.  static constructor?
-
-how to deal with select without knowing the type
-of the args on the stack?  need to keep track of
-them.  which means needing to know how every op
-affects the stack.
 
 does br need to do stack cleanup ?
 
