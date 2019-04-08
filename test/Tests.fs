@@ -10,6 +10,7 @@ open wasm.read
 open wasm.write
 open wasm.cecil
 open wasm.builder
+open Builders
 
 let newid () =
     Guid
@@ -55,21 +56,20 @@ let check_0 (mi : System.Reflection.MethodInfo) (f : Unit -> 'b) =
 let check_1 (mi : System.Reflection.MethodInfo) (f : 'a -> 'b) (n : 'a) =
     let args = [| box n |]
     let r = mi.Invoke(null, args)
-    let x = unbox<'b> r
+    let result = unbox<'b> r
     let should_be = f n
-    let eq = should_be = x
-    Assert.True(eq)
+    Assert.Equal<'b>(should_be, result)
 
 let check_2 (mi : System.Reflection.MethodInfo) (f : 'a -> 'a -> 'b) (x : 'a) (y : 'a) =
     let args = [| box x; box y |]
     let r = mi.Invoke(null, args)
     let result = unbox<'b> r
     let should_be = f x y
-    let eq = should_be = result
-    Assert.True(eq)
+    Assert.Equal<'b>(should_be, result)
 
 [<Fact>]
 let empty_module () =
+    let test_name = System.Reflection.MethodBase.GetCurrentMethod().Name
     let m = {
         version = 1u
         sections = Array.empty
@@ -224,6 +224,30 @@ let simple_two_funcs () =
     check 1
     check 13
     check 22
+
+[<Fact>]
+let simple_callindirect () =
+
+    let addnum = 42
+    let mulnum = 7
+    let m = build_simple_callindirect addnum mulnum
+
+    let a = prep_assembly m
+    let mi = get_method a "calc"
+
+    let impl w n =
+        if n = 0 then
+            w + addnum
+        else if n = 1 then
+            w * mulnum
+        else
+            failwith (sprintf "illegal: n=%d" n)
+
+    let check =
+        check_2 mi impl
+
+    check 5 0
+    check 5 1
 
 let make_simple_compare_func name t op =
     let fb = FunctionBuilder()

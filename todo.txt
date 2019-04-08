@@ -1,3 +1,4 @@
+maybe we need a func to emit an expression for this case, more limited
 
 implement data segments
 

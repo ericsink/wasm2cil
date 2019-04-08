@@ -42,7 +42,7 @@ module wasm.cecil
 
     type GlobalRefImported = {
         glob : ImportedGlobal
-        // TODO need something here
+        field : FieldDefinition
         }
 
     type GlobalRefInternal = {
@@ -56,7 +56,7 @@ module wasm.cecil
 
     type MethodRefImported = {
         func : ImportedFunc
-        // TODO need a call object
+        method : MethodDefinition
         }
 
     type MethodRefInternal = {
@@ -92,17 +92,12 @@ module wasm.cecil
         | CB_If of Mono.Cecil.Cil.Instruction
         | CB_Else of Mono.Cecil.Cil.Instruction
 
-    let make_tmp bt (method : MethodDefinition) t =
-        let v = 
-            match t with
-            | I32 -> new VariableDefinition(bt.typ_i32)
-            | I64 -> new VariableDefinition(bt.typ_i64)
-            | F32 -> new VariableDefinition(bt.typ_f32)
-            | F64 -> new VariableDefinition(bt.typ_f64)
+    let make_tmp (method : MethodDefinition) (t : TypeReference) =
+        let v = new VariableDefinition(t)
         method.Body.Variables.Add(v)
         v
 
-    let cecil_expr (il: ILProcessor) ctx f_make_tmp (a_locals : ParamOrVar[]) e =
+    let cecil_expr (il: ILProcessor) ctx (f_make_tmp : TypeReference -> VariableDefinition) (a_locals : ParamOrVar[]) e =
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let stack = System.Collections.Generic.Stack<ValType>()
         let lab_end = il.Create(OpCodes.Nop)
@@ -120,7 +115,7 @@ module wasm.cecil
 
         let prep_addr m =
             // TODO what about m ?
-            il.Append(il.Create(OpCodes.Ldfld, ctx.mem))
+            il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
             il.Append(il.Create(OpCodes.Add))
 
         let load m op =
@@ -288,7 +283,7 @@ module wasm.cecil
                 let fn = ctx.a_methods.[int fidx]
                 match fn with
                 | MethodRefImported mf ->
-                    printfn "TODO: Call %A" mf
+                    il.Append(il.Create(OpCodes.Call, mf.method))
                 | MethodRefInternal mf ->
                     il.Append(il.Create(OpCodes.Call, mf.method))
 
@@ -300,14 +295,10 @@ module wasm.cecil
                             match result_type with
                             | Some t -> CallSite(cecil_valtype ctx.bt t)
                             | None -> CallSite(ctx.bt.typ_void)
-                        // TODO parm types
                         let (TypeIdx tidx) = calli.typeidx
                         let ftype = ctx.types.[int tidx]
-                        (*
                         for a in ftype.parms do
-                            cs.Parameters.Add(cecil_valtype ctx.bt a)
-                        // TODO do we need to create ParameterDefinition for each one and then LdArg?
-                        *)
+                            cs.Parameters.Add(ParameterDefinition(cecil_valtype ctx.bt a))
                         cs
                     | _ -> failwith "should not happen"
                 il.Append(il.Create(OpCodes.Call, ctx.tbl_lookup))
@@ -317,17 +308,17 @@ module wasm.cecil
                 let g = ctx.a_globals.[int idx]
                 match g with
                 | GlobalRefImported mf ->
-                    printfn "TODO: get global %A" mf
+                    il.Append(il.Create(OpCodes.Ldsfld, mf.field))
                 | GlobalRefInternal mf ->
-                    il.Append(il.Create(OpCodes.Ldfld, mf.field))
+                    il.Append(il.Create(OpCodes.Ldsfld, mf.field))
 
             | GlobalSet (GlobalIdx idx) ->
                 let g = ctx.a_globals.[int idx]
                 match g with
                 | GlobalRefImported mf ->
-                    printfn "TODO: set global %A" mf
+                    il.Append(il.Create(OpCodes.Stsfld, mf.field))
                 | GlobalRefInternal mf ->
-                    il.Append(il.Create(OpCodes.Stfld, mf.field))
+                    il.Append(il.Create(OpCodes.Stsfld, mf.field))
 
             | LocalTee (LocalIdx i) -> 
                 il.Append(il.Create(OpCodes.Dup))
@@ -363,15 +354,15 @@ module wasm.cecil
             | I64Load32S m -> load m OpCodes.Ldind_I4
             | I64Load32U m -> load m OpCodes.Ldind_U4
 
-            | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp I32)
-            | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp I64)
-            | F32Store m -> store m OpCodes.Stind_R4 (f_make_tmp F32)
-            | F64Store m -> store m OpCodes.Stind_R8 (f_make_tmp F64)
-            | I32Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp I32)
-            | I32Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp I32)
-            | I64Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp I64)
-            | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp I64)
-            | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp I64)
+            | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i32)
+            | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp ctx.bt.typ_i64)
+            | F32Store m -> store m OpCodes.Stind_R4 (f_make_tmp ctx.bt.typ_f32)
+            | F64Store m -> store m OpCodes.Stind_R8 (f_make_tmp ctx.bt.typ_f64)
+            | I32Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i32)
+            | I32Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i32)
+            | I64Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i64)
+            | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i64)
+            | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i64)
 
             | I32Const i -> il.Append(il.Create(OpCodes.Ldc_I4, i))
             | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
@@ -523,11 +514,11 @@ module wasm.cecil
             | Select -> 
                 match result_type with
                 | Some t ->
-                    let var_c = f_make_tmp I32
+                    let var_c = f_make_tmp ctx.bt.typ_i32
                     il.Append(il.Create(OpCodes.Stloc, var_c))
-                    let var_v2 = f_make_tmp t
+                    let var_v2 = f_make_tmp (cecil_valtype ctx.bt t)
                     il.Append(il.Create(OpCodes.Stloc, var_v2))
-                    let var_v1 = f_make_tmp t
+                    let var_v1 = f_make_tmp (cecil_valtype ctx.bt t)
                     il.Append(il.Create(OpCodes.Stloc, var_v1))
 
                     let push_v1 = il.Create(OpCodes.Ldloc, var_v1);
@@ -630,7 +621,7 @@ module wasm.cecil
             | ParamRef { def_param = def } -> mi.method.Parameters.Add(def)
             | LocalRef { def_var = def } -> mi.method.Body.Variables.Add(def)
 
-        let f_make_tmp = make_tmp ctx.bt mi.method
+        let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
         cecil_expr il ctx f_make_tmp a_locals mi.func.code.expr
@@ -642,7 +633,8 @@ module wasm.cecil
             match fi with
             | ImportedFunc s ->
                 // TODO
-                MethodRefImported { MethodRefImported.func = s }
+                let method = null // TODO resolve
+                MethodRefImported { MethodRefImported.func = s; method = method }
             | InternalFunc q ->
                 let method = create_method q (count_imports + i) bt
                 MethodRefInternal { func = q; method = method; }
@@ -663,7 +655,8 @@ module wasm.cecil
             match gi with
             | ImportedGlobal s ->
                 // TODO
-                GlobalRefImported { GlobalRefImported.glob = s }
+                let field = null // TODO resolve
+                GlobalRefImported { GlobalRefImported.glob = s; field = field; }
             | InternalGlobal q ->
                 let field = create_global q (count_imports + i) bt
                 GlobalRefInternal { glob = q; field = field; }
@@ -672,34 +665,108 @@ module wasm.cecil
 
         a_globals
 
-    let gen_table_lookup ndx bt =
+    let gen_tbl_lookup ndx bt (tbl : FieldDefinition) =
         let method = 
             new MethodDefinition(
                 "__tbl_lookup",
-                MethodAttributes.Private ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
+                MethodAttributes.Public ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
                 bt.typ_intptr // TODO is this right?
                 )
+        let parm = new ParameterDefinition(bt.typ_i32)
+        method.Parameters.Add(parm)
+
+        // TODO this needs to do type check, range check
+
         let il = method.Body.GetILProcessor()
-        il.Append(il.Create(OpCodes.Nop))
-        // TODO lots of stuff needed here
+
+        il.Append(il.Create(OpCodes.Ldsfld, tbl))
+        il.Append(il.Create(OpCodes.Ldarg, parm))
+        il.Append(il.Create(OpCodes.Ldc_I4, 8))
+        il.Append(il.Create(OpCodes.Mul))
+        il.Append(il.Create(OpCodes.Add))
+        il.Append(il.Create(OpCodes.Ldind_I))
+        il.Append(il.Create(OpCodes.Ret))
+
         method
 
-    let gen_cctor ctx a_datas =
+    let gen_tbl_setup ndx ctx (tbl : FieldDefinition) lim (elems : ElementItem[]) =
         let method = 
             new MethodDefinition(
-                ".cctor",
-                MethodAttributes.Private ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
+                "__tbl_setup",
+                MethodAttributes.Public ||| MethodAttributes.Static,
                 ctx.bt.typ_void
                 )
         let il = method.Body.GetILProcessor()
+
+        let count_tbl_entries = 
+            match lim with
+            | Min m -> m
+            | MinMax (min,max) -> max
+        let size = (int count_tbl_entries) * 8 // TODO
+
+        il.Append(il.Create(OpCodes.Ldc_I4, size))
+        // TODO where is this freed?
+        let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
+        il.Append(il.Create(OpCodes.Call, ext))
+        il.Append(il.Create(OpCodes.Stsfld, tbl))
+
+        let f_make_tmp = make_tmp method
+
+        let tmp = VariableDefinition(ctx.bt.typ_i32)
+        method.Body.Variables.Add(tmp)
+
+        for elem in elems do
+            cecil_expr il ctx f_make_tmp Array.empty elem.offset
+            il.Append(il.Create(OpCodes.Stloc, tmp))
+            for i = 0 to (elem.init.Length - 1) do
+
+                // prep the addr
+                il.Append(il.Create(OpCodes.Ldsfld, tbl))
+                il.Append(il.Create(OpCodes.Ldloc, tmp))
+                il.Append(il.Create(OpCodes.Ldc_I4, i))
+                il.Append(il.Create(OpCodes.Add))
+                il.Append(il.Create(OpCodes.Ldc_I4, 8))
+                il.Append(il.Create(OpCodes.Mul))
+                il.Append(il.Create(OpCodes.Add))
+
+                // now the func ptr
+                let (FuncIdx fidx) = elem.init.[i]
+                let m = ctx.a_methods.[int fidx]
+                let m = 
+                    match m with
+                    | MethodRefImported m -> m.method
+                    | MethodRefInternal m -> m.method
+                il.Append(il.Create(OpCodes.Ldftn, m))
+
+                // and store it
+                il.Append(il.Create(OpCodes.Stind_I))
+
+        il.Append(il.Create(OpCodes.Ret))
+
+        method
+
+    let gen_cctor ctx a_datas (tbl_setup : MethodDefinition option) =
+        let method = 
+            new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Private ||| MethodAttributes.Static ||| MethodAttributes.SpecialName ||| MethodAttributes.RTSpecialName,
+                ctx.bt.typ_void
+                )
+        let il = method.Body.GetILProcessor()
+
+// TODO consider moving other things here out into separate static methods
 
         il.Append(il.Create(OpCodes.Ldc_I4, 64 * 1024))
         // TODO where is this freed?
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
-        il.Append(il.Create(OpCodes.Stfld, ctx.mem))
+        il.Append(il.Create(OpCodes.Stsfld, ctx.mem))
 
-        let f_make_tmp = make_tmp ctx.bt method
+        match tbl_setup with
+        | Some m -> il.Append(il.Create(OpCodes.Call, m))
+        | None -> ()
+
+        let f_make_tmp = make_tmp method
 
         for d in a_datas do
             // TODO emit code to load the resource and copy it to memory
@@ -709,8 +776,10 @@ module wasm.cecil
             match g with
             | GlobalRefInternal gi -> 
                 cecil_expr il ctx f_make_tmp Array.empty gi.glob.item.init
-                il.Append(il.Create(OpCodes.Stfld, gi.field))
+                il.Append(il.Create(OpCodes.Stsfld, gi.field))
             | GlobalRefImported _ -> ()
+
+        il.Append(il.Create(OpCodes.Ret))
 
         method
 
@@ -764,7 +833,7 @@ module wasm.cecil
         let mem =
             new FieldDefinition(
                 "__mem",
-                FieldAttributes.Private ||| FieldAttributes.Static, 
+                FieldAttributes.Public ||| FieldAttributes.Static, 
                 main_module.TypeSystem.IntPtr
                 )
         container.Fields.Add(mem)
@@ -783,9 +852,17 @@ module wasm.cecil
         for m in a_methods do
             match m with
             | MethodRefInternal mi -> container.Methods.Add(mi.method)
-            | MethodRefImported _ -> ()
+            | MethodRefImported mi -> container.Methods.Add(mi.method)
 
-        let tbl_lookup = gen_table_lookup ndx bt
+        let tbl =
+            new FieldDefinition(
+                "__tbl",
+                FieldAttributes.Public ||| FieldAttributes.Static, 
+                main_module.TypeSystem.IntPtr
+                )
+        container.Fields.Add(tbl)
+
+        let tbl_lookup = gen_tbl_lookup ndx bt tbl
         container.Methods.Add(tbl_lookup)
 
         let types =
@@ -804,6 +881,16 @@ module wasm.cecil
                 tbl_lookup = tbl_lookup
             }
 
+        let tbl_setup =
+            match (ndx.Table, ndx.Element) with
+            | (Some st, Some se) ->
+                let lim = st.tables.[0].limits
+                let m = gen_tbl_setup ndx ctx tbl lim se.elems
+                container.Methods.Add(m)
+                Some m
+            | (None, None) ->
+                None
+
         gen_code_for_methods ctx
 
         let a_datas =
@@ -813,7 +900,7 @@ module wasm.cecil
         for d in a_datas do
             main_module.Resources.Add(d.resource)
 
-        let cctor = gen_cctor ctx a_datas
+        let cctor = gen_cctor ctx a_datas tbl_setup
         container.Methods.Add(cctor)
 
         assembly.Write(dest);

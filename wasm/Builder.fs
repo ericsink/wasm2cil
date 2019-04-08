@@ -42,9 +42,13 @@ module wasm.builder
 
     type ModuleBuilder () =
         let fbuilders = System.Collections.Generic.List<FunctionBuilder>()
+        let elems = System.Collections.Generic.List<int * uint32>()
 
         member this.AddFunction(fb : FunctionBuilder) =
             fbuilders.Add(fb)
+
+        member this.AddElement(offset : int, fidx : uint32) =
+            elems.Add((offset, fidx))
 
         member this.CreateModule() =
             let types = System.Collections.Generic.List<FuncType>()
@@ -87,6 +91,18 @@ module wasm.builder
             sections.Add(Function s_function)
             sections.Add(Export s_export)
             sections.Add(Code s_code)
+
+            if elems.Count > 0 then
+                let s_table = { tables = [| { elemtype = FuncRef; limits = Min (uint32 elems.Count); } |] }
+                sections.Add(Table s_table)
+
+                let a_elems =
+                    elems
+                    |> Array.ofSeq
+                    |> Array.map (fun (off,fidx) -> { tableidx = TableIdx 0u; offset = [| I32Const off ; End; |]; init = [| FuncIdx fidx |]; })
+
+                let s_elem = { elems = a_elems }
+                sections.Add(Element s_elem)
 
             {
                 version = 1u
