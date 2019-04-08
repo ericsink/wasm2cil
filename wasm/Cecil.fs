@@ -92,33 +92,17 @@ module wasm.cecil
         | CB_If of Mono.Cecil.Cil.Instruction
         | CB_Else of Mono.Cecil.Cil.Instruction
 
-    type Temps = {
-        tmp_i32 : VariableDefinition
-        tmp_i64 : VariableDefinition
-        tmp_f32 : VariableDefinition
-        tmp_f64 : VariableDefinition
-        }
+    let make_tmp bt (method : MethodDefinition) t =
+        let v = 
+            match t with
+            | I32 -> new VariableDefinition(bt.typ_i32)
+            | I64 -> new VariableDefinition(bt.typ_i64)
+            | F32 -> new VariableDefinition(bt.typ_f32)
+            | F64 -> new VariableDefinition(bt.typ_f64)
+        method.Body.Variables.Add(v)
+        v
 
-    let prep_tmps bt (method : MethodDefinition) =
-        // TODO er, let's not declare locals we don't need
-        let tmps = 
-            {
-                tmp_i32 = new VariableDefinition(bt.typ_i32)
-                tmp_i64 = new VariableDefinition(bt.typ_i64)
-                tmp_f32 = new VariableDefinition(bt.typ_f32)
-                tmp_f64 = new VariableDefinition(bt.typ_f64)
-            }
-        method.Body.Variables.Add(tmps.tmp_i32)
-        method.Body.Variables.Add(tmps.tmp_i64)
-        method.Body.Variables.Add(tmps.tmp_f32)
-        method.Body.Variables.Add(tmps.tmp_f64)
-        tmps
-
-    let cecil_expr (il: ILProcessor) ctx tmps (a_locals : ParamOrVar[]) e =
-        let tmp_i32 = tmps.tmp_i32
-        let tmp_i64 = tmps.tmp_i64
-        let tmp_f32 = tmps.tmp_f32
-        let tmp_f64 = tmps.tmp_f64
+    let cecil_expr (il: ILProcessor) ctx f_make_tmp (a_locals : ParamOrVar[]) e =
         let blocks = System.Collections.Generic.Stack<CodeBlock>()
         let stack = System.Collections.Generic.Stack<ValType>()
         let lab_end = il.Create(OpCodes.Nop)
@@ -361,15 +345,15 @@ module wasm.cecil
             | I64Load32S m -> load m OpCodes.Ldind_I4
             | I64Load32U m -> load m OpCodes.Ldind_U4
 
-            | I32Store m -> store m OpCodes.Stind_I4 tmp_i32
-            | I64Store m -> store m OpCodes.Stind_I8 tmp_i64
-            | F32Store m -> store m OpCodes.Stind_R4 tmp_f32
-            | F64Store m -> store m OpCodes.Stind_R8 tmp_f64
-            | I32Store8 m -> store m OpCodes.Stind_I1 tmp_i32
-            | I32Store16 m -> store m OpCodes.Stind_I2 tmp_i32
-            | I64Store8 m -> store m OpCodes.Stind_I1 tmp_i64
-            | I64Store16 m -> store m OpCodes.Stind_I2 tmp_i64
-            | I64Store32 m -> store m OpCodes.Stind_I4 tmp_i64
+            | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp I32)
+            | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp I64)
+            | F32Store m -> store m OpCodes.Stind_R4 (f_make_tmp F32)
+            | F64Store m -> store m OpCodes.Stind_R8 (f_make_tmp F64)
+            | I32Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp I32)
+            | I32Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp I32)
+            | I64Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp I64)
+            | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp I64)
+            | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp I64)
 
             | I32Const i -> il.Append(il.Create(OpCodes.Ldc_I4, i))
             | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
@@ -518,7 +502,27 @@ module wasm.cecil
             | Drop -> il.Append(il.Create(OpCodes.Pop))
 
             | Unreachable -> todo op
-            | Select -> todo op // TODO can use result_type now
+            | Select -> 
+                match result_type with
+                | Some t ->
+                    let var_c = f_make_tmp I32
+                    il.Append(il.Create(OpCodes.Stloc, var_c))
+                    let var_v2 = f_make_tmp t
+                    il.Append(il.Create(OpCodes.Stloc, var_v2))
+                    let var_v1 = f_make_tmp t
+                    il.Append(il.Create(OpCodes.Stloc, var_v1))
+
+                    let push_v1 = il.Create(OpCodes.Ldloc, var_v1);
+                    let push_v2 = il.Create(OpCodes.Ldloc, var_v2);
+                    let lab_done = il.Create(OpCodes.Nop);
+
+                    il.Append(il.Create(OpCodes.Ldloc, var_c)) // put c back
+                    il.Append(il.Create(OpCodes.Brtrue, push_v1))
+                    il.Append(push_v2);
+                    il.Append(il.Create(OpCodes.Br, lab_done));
+                    il.Append(push_v1);
+                    il.Append(lab_done);
+                | None -> failwith "should not happen"
             | MemorySize _ -> todo op
             | MemoryGrow _ -> todo op
             | I32Clz -> todo op
@@ -608,10 +612,10 @@ module wasm.cecil
             | PV_Param { P_def = def } -> mi.method.Parameters.Add(def)
             | PV_Var { L_def = def } -> mi.method.Body.Variables.Add(def)
 
-        let tmps = prep_tmps ctx.bt mi.method
+        let f_make_tmp = make_tmp ctx.bt mi.method
 
         let il = mi.method.Body.GetILProcessor()
-        cecil_expr il ctx tmps a_locals mi.func.code.expr
+        cecil_expr il ctx f_make_tmp a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
     let create_methods ndx bt =
@@ -663,33 +667,30 @@ module wasm.cecil
         method
 
     let gen_cctor ctx a_datas =
-        let mem = ctx.mem
-        let a_globals = ctx.a_globals
-        let bt = ctx.bt
         let method = 
             new MethodDefinition(
                 ".cctor",
                 MethodAttributes.Private ||| MethodAttributes.Static,  // TODO SpecialName?  RTSpecialName?
-                bt.typ_void
+                ctx.bt.typ_void
                 )
         let il = method.Body.GetILProcessor()
 
         il.Append(il.Create(OpCodes.Ldc_I4, 64 * 1024))
         // TODO where is this freed?
-        let ext = mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
+        let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
-        il.Append(il.Create(OpCodes.Stfld, mem))
+        il.Append(il.Create(OpCodes.Stfld, ctx.mem))
 
-        let tmps = prep_tmps bt method
+        let f_make_tmp = make_tmp ctx.bt method
 
         for d in a_datas do
             // TODO emit code to load the resource and copy it to memory
             ()
 
-        for g in a_globals do
+        for g in ctx.a_globals do
             match g with
             | GS_Internal gi -> 
-                cecil_expr il ctx tmps Array.empty gi.glob.item.init
+                cecil_expr il ctx f_make_tmp Array.empty gi.glob.item.init
                 il.Append(il.Create(OpCodes.Stfld, gi.field))
             | GS_Imported _ -> ()
 
