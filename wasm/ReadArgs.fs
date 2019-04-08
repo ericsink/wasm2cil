@@ -11,7 +11,7 @@ module wasm.read_args
     let read_callindirect br =
         let x = read_var_u32 br
         let o = read_byte br
-        { x = x; other = o; }
+        { typeidx = TypeIdx x; other = o; }
 
     let read_brtable br =
         let read_item br =

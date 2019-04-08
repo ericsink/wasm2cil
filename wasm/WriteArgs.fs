@@ -14,6 +14,7 @@ module wasm.write_args
         write_var_u32 w t.offset
 
     let write_callindirect w t =
-        write_var_u32 w t.x
+        let (TypeIdx x) = t.typeidx
+        write_var_u32 w x
         write_byte w t.other
 

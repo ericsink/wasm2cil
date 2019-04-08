@@ -186,7 +186,7 @@ module wasm.cecil
                         | M_Internal mf -> mf.func.typ
                     handle_stack_for_call ftype
                 | SpecialCaseCallIndirect calli ->
-                    let tidx = calli.x
+                    let (TypeIdx tidx) = calli.typeidx
                     let ftype = ctx.types.[int tidx]
                     handle_stack_for_call ftype
                 | SpecialCaseLocalSet (LocalIdx i) ->

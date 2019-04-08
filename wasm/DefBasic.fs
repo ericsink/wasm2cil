@@ -35,7 +35,7 @@ module wasm.def_basic
         }
 
     type CallIndirectArg = {
-        x: uint32 // TODO typeidx
+        typeidx: TypeIdx
         other: byte // this indicates which table, currently always 0
         }
 
