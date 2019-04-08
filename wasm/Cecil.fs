@@ -293,8 +293,25 @@ module wasm.cecil
                     il.Append(il.Create(OpCodes.Call, mf.method))
 
             | CallIndirect _ ->
+                let cs =
+                    match stack_info with
+                    | SpecialCaseCallIndirect calli ->
+                        let cs = 
+                            match result_type with
+                            | Some t -> CallSite(cecil_valtype ctx.bt t)
+                            | None -> CallSite(ctx.bt.typ_void)
+                        // TODO parm types
+                        let (TypeIdx tidx) = calli.typeidx
+                        let ftype = ctx.types.[int tidx]
+                        (*
+                        for a in ftype.parms do
+                            cs.Parameters.Add(cecil_valtype ctx.bt a)
+                        // TODO do we need to create ParameterDefinition for each one and then LdArg?
+                        *)
+                        cs
+                    | _ -> failwith "should not happen"
                 il.Append(il.Create(OpCodes.Call, ctx.tbl_lookup))
-                // TODO need CallSite il.Append(il.Create(OpCodes.Calli))
+                il.Append(il.Create(OpCodes.Calli, cs))
 
             | GlobalGet (GlobalIdx idx) ->
                 let g = ctx.a_globals.[int idx]
