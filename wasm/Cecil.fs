@@ -80,9 +80,9 @@ module wasm.cecil
 
     let get_function_name fidx f =
         match f with
-        | F_Imported i -> sprintf "%s.%s" i.f_m i.f_name
-        | F_Internal i -> 
-            match i.if_name with
+        | ImportedFunc i -> sprintf "%s.%s" i.m i.name
+        | InternalFunc i -> 
+            match i.name with
             | Some s -> s
             | None -> sprintf "func_%d" fidx
 
@@ -182,8 +182,8 @@ module wasm.cecil
                     let fn = ctx.a_methods.[int fidx]
                     let ftype = 
                         match fn with
-                        | M_Imported mf -> mf.func.f_typ
-                        | M_Internal mf -> mf.func.if_typ
+                        | M_Imported mf -> mf.func.typ
+                        | M_Internal mf -> mf.func.typ
                     handle_stack_for_call ftype
                 | SpecialCaseCallIndirect calli ->
                     let tidx = calli.x
@@ -209,7 +209,7 @@ module wasm.cecil
                     let g = ctx.a_globals.[int i]
                     let typ = 
                         match g with
-                        | GS_Imported mf -> mf.glob.g_typ.typ
+                        | GS_Imported mf -> mf.glob.typ.typ
                         | GS_Internal mf -> mf.glob.item.globaltype.typ
                     let arg = stack.Pop()
                     if arg <> typ then failwith "type mismatch"
@@ -218,7 +218,7 @@ module wasm.cecil
                     let g = ctx.a_globals.[int i]
                     let typ = 
                         match g with
-                        | GS_Imported mf -> mf.glob.g_typ.typ
+                        | GS_Imported mf -> mf.glob.typ.typ
                         | GS_Internal mf -> mf.glob.item.globaltype.typ
                     Some typ
                 | SpecialCaseLocalTee (LocalIdx i) ->
@@ -546,9 +546,9 @@ module wasm.cecil
             | Some t -> stack.Push(t)
             | None -> ()
 
-    let create_global gi idx bt =
+    let create_global (gi : InternalGlobal) idx bt =
         let name = 
-            match gi.ig_name with
+            match gi.name with
             | Some s -> s
             | None -> sprintf "global_%d" idx
 
@@ -565,16 +565,16 @@ module wasm.cecil
 
         method
 
-    let create_method fi fidx bt =
+    let create_method (fi : InternalFunc) fidx bt =
         let name = 
-            match fi.if_name with
+            match fi.name with
             | Some s -> s
             | None -> sprintf "func_%d" fidx
 
         let return_type =
-            match fi.if_typ.result.Length with
+            match fi.typ.result.Length with
             | 0 -> bt.typ_void
-            | 1 -> cecil_valtype bt (fi.if_typ.result.[0])
+            | 1 -> cecil_valtype bt (fi.typ.result.[0])
             | _ -> failwith "not implemented"
 
         let access = if fi.exported then MethodAttributes.Public else MethodAttributes.Private
@@ -593,7 +593,7 @@ module wasm.cecil
             let a = System.Collections.Generic.List<ParamOrVar>()
             let get_name () =
                 sprintf "p%d" (a.Count)
-            for x in mi.func.if_typ.parms do
+            for x in mi.func.typ.parms do
                 let typ = cecil_valtype ctx.bt x
                 let name = get_name()
                 let def = new ParameterDefinition(name, ParameterAttributes.None, typ)
@@ -622,10 +622,10 @@ module wasm.cecil
         let count_imports = count_function_imports ndx
         let prep_func i fi =
             match fi with
-            | F_Imported s ->
+            | ImportedFunc s ->
                 // TODO
                 M_Imported { MethodRefImported.func = s }
-            | F_Internal q ->
+            | InternalFunc q ->
                 let method = create_method q (count_imports + i) bt
                 M_Internal { func = q; method = method; }
 
@@ -643,10 +643,10 @@ module wasm.cecil
 
         let prep i gi =
             match gi with
-            | G_Imported s ->
+            | ImportedGlobal s ->
                 // TODO
                 GS_Imported { GlobalRefImported.glob = s }
-            | G_Internal q ->
+            | InternalGlobal q ->
                 let field = create_global q (count_imports + i) bt
                 GS_Internal { glob = q; field = field; }
 

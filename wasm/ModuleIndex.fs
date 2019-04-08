@@ -5,37 +5,37 @@ module wasm.module_index
     open wasm.def_basic
 
     type ImportedFunc = {
-        f_m : string
-        f_name : string
-        f_typ : FuncType
+        m : string
+        name : string
+        typ : FuncType
         }
 
     type InternalFunc = {
-        if_name : string option;
-        if_typ : FuncType;
+        name : string option;
+        typ : FuncType;
         code : CodeItem
         exported : bool
         }
 
     type FuncLookupItem =
-        | F_Imported of ImportedFunc
-        | F_Internal of InternalFunc
+        | ImportedFunc of ImportedFunc
+        | InternalFunc of InternalFunc
 
     type ImportedGlobal = {
-        g_m : string
-        g_name : string
-        g_typ : GlobalType
+        m : string
+        name : string
+        typ : GlobalType
         }
 
     type InternalGlobal = {
-        ig_name : string option;
+        name : string option;
         item : GlobalItem;
         exported : bool
         }
 
     type GlobalLookupItem =
-        | G_Imported of ImportedGlobal
-        | G_Internal of InternalGlobal
+        | ImportedGlobal of ImportedGlobal
+        | InternalGlobal of InternalGlobal
 
     type ModuleIndex = {
         Type : TypeSection option
@@ -99,12 +99,12 @@ module wasm.module_index
                     match name with
                     | Some _ -> true
                     | None -> false
-                F_Internal { if_name = name; if_typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported }
+                InternalFunc { name = name; typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported }
                 
             Array.mapi f sf.funcs
 
         let get_func_imports si st =
-            (Array.choose (fun i -> match i.desc with | ImportFunc (TypeIdx i_type) -> Some (F_Imported {f_m = i.m; f_name = i.name; f_typ = st.types.[int i_type];}) | _ -> None) si.imports)
+            (Array.choose (fun i -> match i.desc with | ImportFunc (TypeIdx i_type) -> Some (ImportedFunc {m = i.m; name = i.name; typ = st.types.[int i_type];}) | _ -> None) si.imports)
 
         // TODO problem with the match cases below.  the issue
         // is that the spec says all sections are optional, but
@@ -152,12 +152,12 @@ module wasm.module_index
                     match name with
                     | Some _ -> true
                     | None -> false
-                G_Internal { ig_name = name; item = t; exported = exported }
+                InternalGlobal { name = name; item = t; exported = exported }
                 
             Array.mapi f sf.globals
 
         let get_global_imports si =
-            (Array.choose (fun i -> match i.desc with | ImportGlobal gt -> Some (G_Imported {g_m = i.m; g_name = i.name; g_typ = gt;}) | _ -> None) si.imports)
+            (Array.choose (fun i -> match i.desc with | ImportGlobal gt -> Some (ImportedGlobal {m = i.m; name = i.name; typ = gt;}) | _ -> None) si.imports)
 
         let glookup =
             match (s_import, s_global) with
