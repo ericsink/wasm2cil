@@ -120,6 +120,22 @@ let int_constant () =
     check_0 mi impl
 
 [<Fact>]
+let drop_empty () =
+    let fb = FunctionBuilder()
+    let name = "drop_empty"
+    fb.Name <- Some name
+    fb.ReturnType <- None
+    fb.Add (Drop)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    Assert.Throws<InvalidOperationException>(fun () -> prep_assembly m |> ignore)
+
+[<Fact>]
 let simple_add () =
     let fb = FunctionBuilder()
     let addnum = 42
