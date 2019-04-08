@@ -32,8 +32,10 @@ let prep_assembly m =
     let classname = "foo"
     let ver = new System.Version(1, 0, 0, 0)
     let ba = 
+        // TODO mv this above to a static field?
+        let assy = System.Reflection.Assembly.GetAssembly(typeof<env>)
         use ms = new System.IO.MemoryStream()
-        gen_assembly m id ns classname ver ms
+        gen_assembly assy m id ns classname ver ms
         ms.ToArray()
     let a = System.Reflection.Assembly.Load(ba)
     Assert.NotNull(a)

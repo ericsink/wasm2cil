@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\wasm\wasm.fsproj" />
     <ProjectReference Include="..\builders\builders.fsproj" />
+    <ProjectReference Include="..\env\env.csproj" />
   </ItemGroup>
 
   <ItemGroup>

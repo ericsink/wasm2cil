@@ -9,6 +9,7 @@ module wasm.cecil
     open wasm.def_instr
     open wasm.module_index
     open wasm.instr_stack
+    open wasm.import
 
     type BasicTypes = {
         typ_void : TypeReference
@@ -56,7 +57,7 @@ module wasm.cecil
 
     type MethodRefImported = {
         func : ImportedFunc
-        method : MethodDefinition
+        method : MethodReference
         }
 
     type MethodRefInternal = {
@@ -627,13 +628,12 @@ module wasm.cecil
         cecil_expr il ctx f_make_tmp a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
-    let create_methods ndx bt =
+    let create_methods ndx bt (md : ModuleDefinition) assy =
         let count_imports = count_function_imports ndx
         let prep_func i fi =
             match fi with
             | ImportedFunc s ->
-                // TODO
-                let method = null // TODO resolve
+                let method = import_function md s assy
                 MethodRefImported { MethodRefImported.func = s; method = method }
             | InternalFunc q ->
                 let method = create_method q (count_imports + i) bt
@@ -735,7 +735,7 @@ module wasm.cecil
                 let m = 
                     match m with
                     | MethodRefImported m -> m.method
-                    | MethodRefInternal m -> m.method
+                    | MethodRefInternal m -> m.method :> MethodReference
                 il.Append(il.Create(OpCodes.Ldftn, m))
 
                 // and store it
@@ -797,7 +797,7 @@ module wasm.cecil
             { item = d; name = name; resource = r; }
         Array.mapi f sd.datas
 
-    let gen_assembly m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
+    let gen_assembly (env : System.Reflection.Assembly) m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
                 new AssemblyNameDefinition(
@@ -847,12 +847,12 @@ module wasm.cecil
             | GlobalRefInternal mi -> container.Fields.Add(mi.field)
             | GlobalRefImported _ -> ()
 
-        let a_methods = create_methods ndx bt
+        let a_methods = create_methods ndx bt main_module env
 
         for m in a_methods do
             match m with
             | MethodRefInternal mi -> container.Methods.Add(mi.method)
-            | MethodRefImported mi -> container.Methods.Add(mi.method)
+            | MethodRefImported mi -> ()
 
         let tbl =
             new FieldDefinition(
