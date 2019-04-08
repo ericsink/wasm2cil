@@ -21,6 +21,12 @@ module wasm.module_index
         | ImportedFunc of ImportedFunc
         | InternalFunc of InternalFunc
 
+    type ImportedMemory = {
+        m : string
+        name : string
+        mem : MemType
+        }
+
     type ImportedGlobal = {
         m : string
         name : string
@@ -53,6 +59,7 @@ module wasm.module_index
 
         FuncLookup : FuncLookupItem[]
         GlobalLookup : GlobalLookupItem[]
+        MemoryImport : ImportedMemory option
         }
 
     let count_function_imports ndx =
@@ -172,6 +179,19 @@ module wasm.module_index
             | (None, None) ->
                 Array.empty
 
+        let memory_import =
+            let a = 
+                match s_import with
+                | Some si ->
+                    (Array.choose (fun i -> match i.desc with | ImportMem gt -> Some {m = i.m; name = i.name; mem = gt;} | _ -> None) si.imports)
+                | None -> [| |]
+            if a.Length = 0 then
+                None
+            else if a.Length = 1 then
+                Some (a.[0])
+            else
+                failwith "not supported"
+
         {
             Import = s_import
             Function = s_function
@@ -186,6 +206,7 @@ module wasm.module_index
             Data = Array.tryPick (fun x -> match x with | Data i -> Some i | _ -> None) m.sections
             FuncLookup = flookup
             GlobalLookup = glookup
+            MemoryImport = memory_import
         }
 
     let is_function_exported ndx i =

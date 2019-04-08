@@ -72,7 +72,7 @@ module wasm.cecil
     type GenContext = {
         types: FuncType[]
         md : ModuleDefinition
-        mem : FieldDefinition
+        mem : FieldReference
         tbl_lookup : MethodDefinition
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
@@ -830,15 +830,21 @@ module wasm.cecil
 
         main_module.Types.Add(container);
 
-        let mem =
-            new FieldDefinition(
-                "__mem",
-                FieldAttributes.Public ||| FieldAttributes.Static, 
-                main_module.TypeSystem.IntPtr
-                )
-        container.Fields.Add(mem)
-
         let ndx = get_module_index m
+
+        let mem =
+            match ndx.MemoryImport with
+            | Some mi ->
+                import_memory main_module mi env
+            | None ->
+                let f =
+                    new FieldDefinition(
+                        "__mem",
+                        FieldAttributes.Public ||| FieldAttributes.Static, 
+                        main_module.TypeSystem.IntPtr
+                        )
+                container.Fields.Add(f)
+                f :> FieldReference
 
         let a_globals = create_globals ndx bt
 

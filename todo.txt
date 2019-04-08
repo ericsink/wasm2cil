@@ -1,9 +1,15 @@
+
+if a memory is imported, who is supposed to allocate it?
+we can probably make an arbitrary choice here since we
+control env as well.  and there is decent reason to
+have memory be in env so that other functions in env
+can reference it.
+
 maybe we need a func to emit an expression for this case, more limited
 
 implement data segments
 
-implement tbl_lookup for CallIndirect
-
+not sure how imported table makes sense
 need some tests to verify read/write of the binary
 format
 
