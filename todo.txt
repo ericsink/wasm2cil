@@ -1,13 +1,28 @@
 
+implement data segments
+
+things that are tricky could be implemented in C# in env
+and just import and call out to it
+
+consider possibility of just using int everywhere
+a uint32 is used, because that's just how .NET
+does things, with array indexes and such being
+int instead of unsigned
+
+import globals too, except clang doesn't gen them.
+
+why doesn't clang generate any globals?
+
+--
+
 if a memory is imported, who is supposed to allocate it?
 we can probably make an arbitrary choice here since we
 control env as well.  and there is decent reason to
 have memory be in env so that other functions in env
 can reference it.
 
-maybe we need a func to emit an expression for this case, more limited
-
-implement data segments
+maybe we need a func to emit an expression for init cases, 
+more limited
 
 not sure how imported table makes sense
 need some tests to verify read/write of the binary
@@ -66,10 +81,6 @@ hmmm.  consider system.reflection.metadata?
 
 --
 
-need tables for CallIndirect
-
-why doesn't clang generate any globals?
-
 how to make clang not generate refs to soft fp functions?
 
 how does an imported memory work?  probably
@@ -92,11 +103,6 @@ might be important, not sure
 
 need consistency about whether to pass around
 wrapped indexes or just the ints
-
-consider possibility of just using int everywhere
-a uint32 is used, because that's just how .NET
-does things, with array indexes and such being
-int instead of unsigned
 
 consider using checked int operations in leb128 code
 
