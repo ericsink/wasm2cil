@@ -1,7 +1,4 @@
 
-write a test case that defines two methods and
-does a call
-
 implement data segments
 
 implement tbl_lookup for CallIndirect

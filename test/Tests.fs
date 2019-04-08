@@ -165,6 +165,66 @@ let simple_add () =
     check 13
     check 22
 
+[<Fact>]
+let simple_two_funcs () =
+
+    let fb_add = FunctionBuilder()
+    let addnum = 42
+    let name = sprintf "add_%d" addnum
+    fb_add.Name <- Some name
+    fb_add.ReturnType <- Some I32
+    fb_add.AddParam I32
+    fb_add.Add (LocalGet (LocalIdx 0u))
+    fb_add.Add (I32Const addnum)
+    fb_add.Add I32Add
+    fb_add.Add (End)
+
+    let fb_mul = FunctionBuilder()
+    let mulnum = 3
+    let name = sprintf "mul_%d" mulnum
+    fb_mul.Name <- Some name
+    fb_mul.ReturnType <- Some I32
+    fb_mul.AddParam I32
+    fb_mul.Add (LocalGet (LocalIdx 0u))
+    fb_mul.Add (I32Const mulnum)
+    fb_mul.Add I32Mul
+    fb_mul.Add (End)
+
+    let fb_calc = FunctionBuilder()
+    let subnum = 7
+    let name = "calc"
+    fb_calc.Name <- Some name
+    fb_calc.ReturnType <- Some I32
+    fb_calc.AddParam I32
+    fb_calc.Add (LocalGet (LocalIdx 0u))
+    fb_calc.Add (Call (FuncIdx 0u))
+    fb_calc.Add (Call (FuncIdx 1u))
+    fb_calc.Add (I32Const subnum)
+    fb_calc.Add I32Sub
+    fb_calc.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb_add)
+    b.AddFunction(fb_mul)
+    b.AddFunction(fb_calc)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+    let mi = get_method a "calc"
+
+    let impl n =
+        ((n + addnum) * mulnum) - subnum
+
+    let check =
+        check_1 mi impl
+
+    check -1
+    check 0
+    check 1
+    check 13
+    check 22
+
 let make_simple_compare_func name t op =
     let fb = FunctionBuilder()
     fb.Name <- Some name
