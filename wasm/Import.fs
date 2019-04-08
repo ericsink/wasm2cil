@@ -31,3 +31,11 @@ module wasm.import
         // TODO complain if the field is not intptr ?
         let mref = md.ImportReference(f)
         mref
+
+    let import_global (md : ModuleDefinition) (s : ImportedGlobal) (a : System.Reflection.Assembly) =
+        let typ = a.GetType(s.m)
+        let f = typ.GetField(s.name)
+        // TODO complain if the field type is wrong ?
+        let mref = md.ImportReference(f)
+        mref
+

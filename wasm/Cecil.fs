@@ -43,7 +43,7 @@ module wasm.cecil
 
     type GlobalRefImported = {
         glob : ImportedGlobal
-        field : FieldDefinition
+        field : FieldReference
         }
 
     type GlobalRefInternal = {
@@ -648,14 +648,13 @@ module wasm.cecil
             | MethodRefInternal mi -> gen_function_code ctx mi
             | MethodRefImported _ -> ()
 
-    let create_globals ndx bt =
+    let create_globals ndx bt (md : ModuleDefinition) assy =
         let count_imports = count_global_imports ndx
 
         let prep i gi =
             match gi with
             | ImportedGlobal s ->
-                // TODO
-                let field = null // TODO resolve
+                let field = import_global md s assy
                 GlobalRefImported { GlobalRefImported.glob = s; field = field; }
             | InternalGlobal q ->
                 let field = create_global q (count_imports + i) bt
@@ -846,7 +845,7 @@ module wasm.cecil
                 container.Fields.Add(f)
                 f :> FieldReference
 
-        let a_globals = create_globals ndx bt
+        let a_globals = create_globals ndx bt main_module env
 
         for m in a_globals do
             match m with

@@ -9,10 +9,6 @@ a uint32 is used, because that's just how .NET
 does things, with array indexes and such being
 int instead of unsigned
 
-import globals too, except clang doesn't gen them.
-
-why doesn't clang generate any globals?
-
 --
 
 if a memory is imported, who is supposed to allocate it?
@@ -81,22 +77,16 @@ hmmm.  consider system.reflection.metadata?
 
 --
 
+why doesn't clang generate any globals?
+
 how to make clang not generate refs to soft fp functions?
 
-how does an imported memory work?  probably
-depends on the tool that compiled the wasm.
+why doesn't clang mark exports ?
 
 how to deal with non-mut globals?
 
 consider an F# wrapper around cecil, avoid all those
 il.Create() overloads
-
-how to implement data initialization for an imported
-memory.  static constructor?
-
-does br need to do stack cleanup ?
-
-why doesn't clang mark exports ?
 
 still some problems in roundtripping binary format,
 might be important, not sure
