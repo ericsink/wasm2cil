@@ -27,12 +27,12 @@ module wasm.cecil
         | F64 -> bt.typ_f64
 
     type ParamRef = {
-        P_typ : ValType;
+        typ : ValType;
         def_param : ParameterDefinition;
         }
 
     type LocalRef = {
-        L_typ : ValType;
+        typ : ValType;
         def_var : VariableDefinition;
         }
 
@@ -194,8 +194,8 @@ module wasm.cecil
                     let loc = a_locals.[int i]
                     let typ =
                         match loc with
-                        | ParamRef { P_typ = t } -> t
-                        | LocalRef { L_typ = t } -> t
+                        | ParamRef { typ = t } -> t
+                        | LocalRef { typ = t } -> t
                     let arg = stack.Pop()
                     if arg <> typ then failwith "type mismatch"
                     None
@@ -203,8 +203,8 @@ module wasm.cecil
                     let loc = a_locals.[int i]
                     let typ =
                         match loc with
-                        | ParamRef { P_typ = t } -> t
-                        | LocalRef { L_typ = t } -> t
+                        | ParamRef { typ = t } -> t
+                        | LocalRef { typ = t } -> t
                     Some typ
                 | SpecialCaseGlobalSet (GlobalIdx i) ->
                     let g = ctx.a_globals.[int i]
@@ -226,8 +226,8 @@ module wasm.cecil
                     let loc = a_locals.[int i]
                     let typ =
                         match loc with
-                        | ParamRef { P_typ = t } -> t
-                        | LocalRef { L_typ = t } -> t
+                        | ParamRef { typ = t } -> t
+                        | LocalRef { typ = t } -> t
                     let arg = stack.Pop()
                     if arg <> typ then failwith "type mismatch"
                     stack.Push(arg);
@@ -598,13 +598,13 @@ module wasm.cecil
                 let typ = cecil_valtype ctx.bt x
                 let name = get_name()
                 let def = new ParameterDefinition(name, ParameterAttributes.None, typ)
-                a.Add(ParamRef { def_param = def; P_typ = x; })
+                a.Add(ParamRef { def_param = def; typ = x; })
             for loc in mi.func.code.locals do
                 // TODO assert count > 0 ?
                 for x = 1 to (int loc.count) do
                     let typ = cecil_valtype ctx.bt loc.localtype
                     let def = new VariableDefinition(typ)
-                    a.Add(LocalRef { def_var = def; L_typ = loc.localtype })
+                    a.Add(LocalRef { def_var = def; typ = loc.localtype })
             Array.ofSeq a
             
         mi.method.Body.InitLocals <- true

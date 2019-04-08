@@ -1,7 +1,4 @@
 
-need to get away from using Prefix_ for
-union labels or record field labels.
-
 consider using the actual wasm opcode name
 for the union labels, with ``
 
