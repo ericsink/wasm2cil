@@ -49,16 +49,12 @@ or is there some other way to get the data into the
 
 hmmm.  consider system.reflection.metadata?
 
-or AbsIL?
-
 --
 
 need tables for CallIndirect
 
-how to do tests?  construct a program using defs.
-write it to a file.  read it back.  verify.
-compile it to an assembly.  load the assembly.
-run it.  verify the result.
+need some tests to verify read/write of the binary
+format
 
 why doesn't clang generate any globals?
 
@@ -83,8 +79,6 @@ affects the stack.
 does br need to do stack cleanup ?
 
 why doesn't clang mark exports ?
-
-return value from blocks ?
 
 still some problems in roundtripping binary format,
 might be important, not sure
