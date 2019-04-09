@@ -6,21 +6,18 @@ is this invalid?
     (unreachable)
     End
 
-want to package this a dotnet global tool
+want to eventually package this as a dotnet global tool
 
 need more tests of invalid wasm
 
 it would be nice to throw more specific exceptions
 so the tests can be more precise in error cases
 
-stack cleanup around br and friends.  write a failing
-test case for this.
+stack cleanup around br and friends.  write failing
+test cases for this.
 
 memory load/store operations are supposed to be
 range-checked
-
-validation:  at the end of a function, the stack
-should contain only the return value, if any
 
 should use the short form of CIL instructions like
 Ldc_I4 0
@@ -51,7 +48,7 @@ format
 --
 
 consider using the actual wasm opcode name
-for the union labels, with ``
+for the union labels, with `` ?
 
 might like the ability to output a wasm module
 as F# to reconstruct it with Builder
@@ -60,7 +57,8 @@ consistency question about the final End opcode
 
 --
 
-hmmm.  consider system.reflection.metadata?
+hmmm.  consider system.reflection.metadata
+instead of Cecil ?
 
 --
 
