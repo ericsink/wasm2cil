@@ -356,6 +356,11 @@ let add_with_incorrect_types () =
 
     Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
 
+[<Fact>]
+let test_invalid_block_type () =
+    let m = build_module_invalid_block_type
+    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+
 (* TODO
 [<Fact>]
 let simple_add_with_block () =

@@ -10,6 +10,26 @@ open wasm.write
 open wasm.cecil
 open wasm.builder
 
+let build_function_invalid_block_type =
+    let fb = FunctionBuilder()
+    let name = "invalid_block_type"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.Add (Block (Some I32))
+    fb.Add (F64Const 3.14)
+    fb.Add (End)
+    fb.Add (End)
+    fb
+
+let build_module_invalid_block_type =
+    let fb = build_function_invalid_block_type
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+    m
+
 let build_simple_callindirect addnum mulnum =
 
     let fb_add = FunctionBuilder()
