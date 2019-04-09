@@ -773,7 +773,7 @@ module wasm.cecil
             match lim with
             | Min m -> m
             | MinMax (min,max) -> max
-        let size_in_bytes = (int count_tbl_entries) * 8 // TODO
+        let size_in_bytes = (int count_tbl_entries) * 8 // TODO nativeint size 4 vs 8 
 
         il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
         // TODO where is this freed?

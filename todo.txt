@@ -1,4 +1,10 @@
 
+stack cleanup around br and friends.  write a failing
+test case for this.
+
+memory load/store operations are supposed to be
+ranged-checked
+
 validation:  at the end of a function, the stack
 should contain only the return value, if any
 
@@ -18,15 +24,7 @@ a uint32 is used, because that's just how .NET
 does things, with array indexes and such being
 int instead of unsigned
 
-better error messages for imports not found
-
 --
-
-if a memory is imported, who is supposed to allocate it?
-we can probably make an arbitrary choice here since we
-control env as well.  and there is decent reason to
-have memory be in env so that other functions in env
-can reference it.
 
 maybe we need a func to emit an expression for init cases, 
 more limited
@@ -35,8 +33,6 @@ not sure how imported table makes sense
 
 need some tests to verify read/write of the binary
 format
-
-stack cleanup around br and friends
 
 --
 
