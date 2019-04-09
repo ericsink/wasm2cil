@@ -15,7 +15,7 @@ let main argv =
     let m =
         match argv.[0] with
         | "build" ->
-            build_module_too_many_block_results
+            build_module_too_many_func_results
         | filename ->
             printfn "Reading %s" filename
             let br = BinaryWasmStream(System.IO.File.ReadAllBytes(filename))

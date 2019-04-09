@@ -10,6 +10,23 @@ open wasm.write
 open wasm.cecil
 open wasm.builder
 
+let build_function_too_many_func_results =
+    let fb = FunctionBuilder()
+    let name = "too_many_func_results"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.Add (I32Const 4)
+    fb.Add (I32Const 8)
+    fb.Add (End)
+    fb
+
+let build_module_too_many_func_results =
+    let fb = build_function_too_many_func_results
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+    let m = b.CreateModule()
+    m
+
 let build_function_too_many_block_results =
     let fb = FunctionBuilder()
     let name = "too_many_block_results"
