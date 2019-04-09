@@ -4,7 +4,7 @@ most tests need a private memory, not ref the
 imported one in env.  but can we reference it
 from a test?
 
-need to memset the memory ?
+need to memset the memory ?  use InitBlk
 
 probably need a field to keep track of mem size
 
@@ -15,6 +15,8 @@ consider possibility of just using int everywhere
 a uint32 is used, because that's just how .NET
 does things, with array indexes and such being
 int instead of unsigned
+
+better error messages for imports not found
 
 --
 
@@ -28,6 +30,7 @@ maybe we need a func to emit an expression for init cases,
 more limited
 
 not sure how imported table makes sense
+
 need some tests to verify read/write of the binary
 format
 
@@ -45,46 +48,11 @@ as F# to reconstruct it with Builder
 
 consistency question about the final End opcode
 
-should coalesce the datas into one big data in just
-one resource?  except each one gets its own offset
-which is expressed in wasm opcodes that need to be
-executed.  but we could check the opcodes to see if
-it's just a constant.
-
 --
-
-how to store the datas?
-
-the Emit implementations are using DefineInitializedData,
-which seems to be a field that is a value type of a
-certain size.  the data gets put in the .sdata section,
-and then something loads it and puts it in the field,
-so then it's easy to just take the address of the field
-and memcpy.  works nicely, but I can't figure out how
-to make Mono.Cecil do that.
-
-this notion is called a mapped field.  and it arguably
-was not designed to be used for data initialization
-with blobs.  it seems to be designed for primitive
-types, and technically, yeah, it's possible to
-use it for struct types with lots of byte fields,
-but that's apparently not the use case it was designed for.
-
-dumb idea would be to just inline tons of single-byte
-store instructions in the cctor.  or do 8 bytes at a
-time with remainder at the end.
-
-or store the data in a resource, and in the cctor, load
-it and store it.
-
-or is there some other way to get the data into the
-.sdata section and then access it from CIL instructions?
 
 hmmm.  consider system.reflection.metadata?
 
 --
-
-why doesn't clang generate any globals?
 
 how to make clang not generate refs to soft fp functions?
 

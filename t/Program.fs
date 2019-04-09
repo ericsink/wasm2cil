@@ -11,15 +11,13 @@ open Builders
 let main argv =
     let assy = System.Reflection.Assembly.GetAssembly(typeof<env>)
 
-    (*
     let br = BinaryWasmStream(System.IO.File.ReadAllBytes(argv.[0]))
     let timer = System.Diagnostics.Stopwatch.StartNew()
     let m = read_module br
     timer.Stop()
     //printfn "%A milliseconds" timer.ElapsedMilliseconds
-    *)
 
-    let m = build_simple_callindirect 42 7
+    //let m = build_simple_callindirect 42 7
 
     //printfn "%A" m
 

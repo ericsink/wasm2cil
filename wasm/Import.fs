@@ -22,6 +22,8 @@ module wasm.import
             s.typ.parms
             |> Array.map valtype_to_basic_type
         let method = typ.GetMethod(s.name, parms)
+        if method = null then
+            failwith (sprintf "import method not found: %s.%s" s.m s.name)
         let mref = md.ImportReference(method)
         mref
 
@@ -29,6 +31,8 @@ module wasm.import
         let typ = a.GetType(s.m)
         let f = typ.GetField(s.name)
         // TODO complain if the field is not intptr ?
+        if f = null then
+            failwith (sprintf "import memory not found: %s.%s" s.m s.name)
         let mref = md.ImportReference(f)
         mref
 
@@ -36,6 +40,8 @@ module wasm.import
         let typ = a.GetType(s.m)
         let f = typ.GetField(s.name)
         // TODO complain if the field type is wrong ?
+        if f = null then
+            failwith (sprintf "import global not found: %s.%s" s.m s.name)
         let mref = md.ImportReference(f)
         mref
 
