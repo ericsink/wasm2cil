@@ -773,15 +773,19 @@ module wasm.cecil
             match lim with
             | Min m -> m
             | MinMax (min,max) -> max
-        let size = (int count_tbl_entries) * 8 // TODO
+        let size_in_bytes = (int count_tbl_entries) * 8 // TODO
 
-        il.Append(il.Create(OpCodes.Ldc_I4, size))
+        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
         // TODO where is this freed?
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
         il.Append(il.Create(OpCodes.Stsfld, tbl))
 
-        // TODO Initblk this
+        // memset 0
+        il.Append(il.Create(OpCodes.Ldsfld, tbl))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0))
+        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
+        il.Append(il.Create(OpCodes.Initblk))
 
         let f_make_tmp = make_tmp method
 
