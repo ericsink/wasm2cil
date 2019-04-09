@@ -361,6 +361,12 @@ let test_invalid_block_type () =
     let m = build_module_invalid_block_type
     Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
 
+[<Fact>]
+let test_too_many_block_results () =
+    let m = build_module_too_many_block_results
+    // TODO review exception type here
+    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+
 (* TODO
 [<Fact>]
 let simple_add_with_block () =

@@ -1,4 +1,11 @@
 
+is this invalid?
+    Block void
+    (whatever)
+    Br 0
+    (unreachable)
+    End
+
 want to package this a dotnet global tool
 
 need more tests of invalid wasm
