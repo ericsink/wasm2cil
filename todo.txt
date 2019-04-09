@@ -1,10 +1,14 @@
 
+validation:  at the end of a function, the stack
+should contain only the return value, if any
+
+should use the short form of CIL instructions like
+Ldc_I4 0
+
 only one copy of memory, shared by all the tests?
 most tests need a private memory, not ref the
 imported one in env.  but can we reference it
 from a test?
-
-probably need a field to keep track of mem size
 
 things that are tricky could be implemented in C# in env
 and just import and call out to it

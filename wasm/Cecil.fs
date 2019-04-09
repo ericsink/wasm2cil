@@ -11,6 +11,8 @@ module wasm.cecil
     open wasm.instr_stack
     open wasm.import
 
+    let mem_page_size = 64 * 1024
+
     type BasicTypes = {
         typ_void : TypeReference
         typ_i32 : TypeReference
@@ -73,6 +75,7 @@ module wasm.cecil
         types: FuncType[]
         md : ModuleDefinition
         mem : FieldReference
+        mem_size : FieldReference
         tbl_lookup : MethodDefinition
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
@@ -542,7 +545,7 @@ module wasm.cecil
                     il.Append(push_v1);
                     il.Append(lab_done);
                 | None -> failwith "should not happen"
-            | MemorySize _ -> todo op
+            | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
             | MemoryGrow _ -> todo op
             | I32Clz -> todo op
             | I32Ctz -> todo op
@@ -778,6 +781,8 @@ module wasm.cecil
         il.Append(il.Create(OpCodes.Call, ext))
         il.Append(il.Create(OpCodes.Stsfld, tbl))
 
+        // TODO Initblk this
+
         let f_make_tmp = make_tmp method
 
         let tmp = VariableDefinition(ctx.bt.typ_i32)
@@ -822,8 +827,13 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-        let size = 64 * 1024
-        il.Append(il.Create(OpCodes.Ldc_I4, size))
+        let mem_size_in_pages = 1
+        let size_in_bytes = mem_size_in_pages * mem_page_size
+
+        il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))
+        il.Append(il.Create(OpCodes.Stsfld, ctx.mem_size))
+
+        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
         // TODO where is this freed?
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
@@ -832,7 +842,7 @@ module wasm.cecil
         // memset 0
         il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
         il.Append(il.Create(OpCodes.Ldc_I4, 0))
-        il.Append(il.Create(OpCodes.Ldc_I4, size))
+        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
         il.Append(il.Create(OpCodes.Initblk))
 
         match tbl_setup with
@@ -903,6 +913,16 @@ module wasm.cecil
 
         let ndx = get_module_index m
 
+        let mem_size =
+            let f =
+                new FieldDefinition(
+                    "__mem_size",
+                    FieldAttributes.Public ||| FieldAttributes.Static, 
+                    main_module.TypeSystem.Int32
+                    )
+            container.Fields.Add(f)
+            f :> FieldReference
+
         let mem =
             match ndx.MemoryImport with
             | Some mi ->
@@ -956,6 +976,7 @@ module wasm.cecil
                 a_globals = a_globals
                 a_methods = a_methods
                 mem = mem
+                mem_size = mem_size
                 tbl_lookup = tbl_lookup
             }
 

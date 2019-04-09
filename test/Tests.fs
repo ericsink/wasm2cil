@@ -138,6 +138,28 @@ let drop_empty () =
     Assert.Throws<InvalidOperationException>(fun () -> prep_assembly m |> ignore)
 
 [<Fact>]
+let memory_size () =
+    let fb = FunctionBuilder()
+    let name = "memory_size"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.Add (MemorySize 0uy)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl n =
+        1
+
+    check_0 mi impl
+
+[<Fact>]
 let import_memory_store () =
     let fb = FunctionBuilder()
     let num = 42
