@@ -76,7 +76,7 @@ module wasm.cecil
         md : ModuleDefinition
         mem : FieldReference
         mem_size : FieldReference
-        tbl_lookup : MethodDefinition
+        tbl_lookup : MethodDefinition option
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
@@ -314,7 +314,9 @@ module wasm.cecil
                             cs.Parameters.Add(ParameterDefinition(cecil_valtype ctx.bt a))
                         cs
                     | _ -> failwith "should not happen"
-                il.Append(il.Create(OpCodes.Call, ctx.tbl_lookup))
+                match ctx.tbl_lookup with
+                | Some f -> il.Append(il.Create(OpCodes.Call, f))
+                | None -> failwith "illegal to use CallIndirect with no table"
                 il.Append(il.Create(OpCodes.Calli, cs))
 
             | GlobalGet (GlobalIdx idx) ->
@@ -963,9 +965,14 @@ module wasm.cecil
                 )
         container.Fields.Add(tbl)
 
-        // TODO maybe don't gen this if there is no tbl.
-        let tbl_lookup = gen_tbl_lookup ndx bt tbl
-        container.Methods.Add(tbl_lookup)
+        let tbl_lookup = 
+            // TODO this needs to deal with an imported table
+            match ndx.Table with
+            | Some _ ->
+                let m = gen_tbl_lookup ndx bt tbl
+                container.Methods.Add(m)
+                Some m
+            | None -> None
 
         let types =
             match ndx.Type with
@@ -985,6 +992,7 @@ module wasm.cecil
             }
 
         let tbl_setup =
+            // TODO this needs to deal with an imported table
             match (ndx.Table, ndx.Element) with
             | (Some st, Some se) ->
                 let lim = st.tables.[0].limits
