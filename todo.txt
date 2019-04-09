@@ -1,4 +1,13 @@
 
+only one copy of memory, shared by all the tests?
+most tests need a private memory, not ref the
+imported one in env.  but can we reference it
+from a test?
+
+need to memset the memory ?
+
+probably need a field to keep track of mem size
+
 tests for load/store to memory
 
 implement data segments

@@ -114,10 +114,13 @@ module wasm.cecil
                 | CB_Else s -> s
             lab
 
-        let prep_addr m =
-            // TODO what about m ?
+        let prep_addr (m : MemArg) =
+            // the address operand should be on the stack
             il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
             il.Append(il.Create(OpCodes.Add))
+            if m.offset <> 0u then
+                il.Append(il.Create(OpCodes.Ldc_I4, int m.offset))
+                il.Append(il.Create(OpCodes.Add))
 
         let load m op =
             prep_addr m

@@ -43,12 +43,16 @@ module wasm.builder
     type ModuleBuilder () =
         let fbuilders = System.Collections.Generic.List<FunctionBuilder>()
         let elems = System.Collections.Generic.List<int * uint32>()
+        let imports = System.Collections.Generic.List<ImportItem>()
 
         member this.AddFunction(fb : FunctionBuilder) =
             fbuilders.Add(fb)
 
         member this.AddElement(offset : int, fidx : uint32) =
             elems.Add((offset, fidx))
+
+        member this.AddImport(it : ImportItem) =
+            imports.Add(it)
 
         member this.CreateModule() =
             let types = System.Collections.Generic.List<FuncType>()
@@ -104,6 +108,10 @@ module wasm.builder
                 let s_elem = { elems = a_elems }
                 sections.Add(Element s_elem)
 
+            if imports.Count > 0 then
+                let s_import = { imports = Array.ofSeq imports }
+                sections.Add(Import s_import)
+                
             {
                 version = 1u
                 sections = (Array.ofSeq sections)

@@ -138,6 +138,97 @@ let drop_empty () =
     Assert.Throws<InvalidOperationException>(fun () -> prep_assembly m |> ignore)
 
 [<Fact>]
+let import_memory_store () =
+    let fb = FunctionBuilder()
+    let num = 42
+    let name = "constant"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.Add (I32Const num)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    b.AddImport({ m = "env"; name = "__mem_only_imported_in_one_test"; desc = ImportMem { limits = Min 1u }; })
+
+    let m = b.CreateModule()
+
+    Assert.Equal(IntPtr.Zero, env.__mem_only_imported_in_one_test)
+
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl n =
+        num
+
+    check_0 mi impl
+
+    Assert.NotEqual(IntPtr.Zero, env.__mem_only_imported_in_one_test)
+
+[<Fact>]
+let test_memory_load () =
+    let name_k = "constant"
+    let name_fetch = "fetch"
+    let num_k = 42;
+
+    let fb_k =
+        let fb = FunctionBuilder()
+        fb.Name <- Some name_k
+        fb.ReturnType <- Some I32
+        fb.Add (I32Const num_k)
+        fb.Add (End)
+        fb
+
+    let fb_fetch =
+        let fb = FunctionBuilder()
+        fb.Name <- Some name_fetch
+        fb.AddParam I32
+        fb.ReturnType <- Some I32
+        fb.Add (LocalGet (LocalIdx 0u))
+        fb.Add (I32Load8U { align=0u; offset=0u; })
+        fb.Add (End)
+        fb
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb_k)
+    b.AddFunction(fb_fetch)
+
+    // TODO note that all tests share the same instance of env.__my_mem
+
+    b.AddImport({ m = "env"; name = "__my_mem"; desc = ImportMem { limits = Min 1u }; })
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+
+    let mi_k = get_method a name_k
+
+    let impl_k n =
+        num_k
+
+    check_0 mi_k impl_k
+
+    let mi_fetch = get_method a name_fetch
+
+    let store_byte (off : int32) (b : byte) =
+        let ba = [| b |]
+        System.Runtime.InteropServices.Marshal.Copy(ba, 0, env.__my_mem + (nativeint off), 1);
+
+    store_byte 77 89uy
+
+    let impl_fetch (off : int32) =
+        let ba = [| 0uy |]
+        System.Runtime.InteropServices.Marshal.Copy(env.__my_mem + (nativeint off), ba, 0, 1);
+        ba.[0] |> int
+
+    let check =
+        check_1 mi_fetch impl_fetch
+
+    check 77
+    check 7632
+
+[<Fact>]
 let simple_add () =
     let fb = FunctionBuilder()
     let addnum = 42
