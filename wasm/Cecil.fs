@@ -10,6 +10,7 @@ module wasm.cecil
     open wasm.module_index
     open wasm.instr_stack
     open wasm.import
+    open wasm.errors
 
     let mem_page_size = 64 * 1024
 
@@ -152,12 +153,17 @@ module wasm.cecil
             printfn "stack depth: %d" stack.Count
 *)
             let result_type =
+                let type_check should actual =
+                    if actual <> should then
+                        let name = wasm.instr_name.get_instruction_name op
+                        let s = sprintf "%s: arg is %A but should be %A" name actual should
+                        raise (WrongOperandType s)
                 let handle_stack_for_call ftype =
                     if ftype.parms.Length > 0 then
                         for i = (ftype.parms.Length - 1) downto 0 do
                             let should = ftype.parms.[i]
                             let actual = stack.Pop();
-                            if actual <> should then failwith "type mismatch"
+                            type_check should actual
                     if ftype.result.Length = 0 then
                         None
                     else if ftype.result.Length = 1 then
@@ -169,13 +175,13 @@ module wasm.cecil
                 | NoArgs rt -> rt
                 | OneArg { rtype = rt; arg = t1; } ->
                     let arg1 = stack.Pop()
-                    if arg1 <> t1 then failwith "wrong stack type"
+                    type_check arg1 t1
                     rt
                 | TwoArgs { rtype = rt; arg1 = t1; arg2 = t2; } ->
                     let arg2 = stack.Pop()
                     let arg1 = stack.Pop()
-                    if arg1 <> t1 then failwith "wrong stack type"
-                    if arg2 <> t2 then failwith "wrong stack type"
+                    type_check t1 arg1
+                    type_check t2 arg2
                     rt
                 | SpecialCaseDrop ->
                     stack.Pop() |> ignore
@@ -184,8 +190,8 @@ module wasm.cecil
                     let arg3 = stack.Pop()
                     let arg2 = stack.Pop()
                     let arg1 = stack.Pop()
-                    if arg3 <> I32 then failwith "Select type wrong"
-                    if arg1 <> arg2 then failwith "wrong stack type"
+                    type_check arg3 I32
+                    if arg1 <> arg2 then failwith "select types must match"
                     Some arg1
                 | SpecialCaseCall (FuncIdx fidx) ->
                     let fn = ctx.a_methods.[int fidx]
@@ -205,7 +211,7 @@ module wasm.cecil
                         | ParamRef { typ = t } -> t
                         | LocalRef { typ = t } -> t
                     let arg = stack.Pop()
-                    if arg <> typ then failwith "type mismatch"
+                    type_check arg typ
                     None
                 | SpecialCaseLocalGet (LocalIdx i) ->
                     let loc = a_locals.[int i]
@@ -221,7 +227,7 @@ module wasm.cecil
                         | GlobalRefImported mf -> mf.glob.typ.typ
                         | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
                     let arg = stack.Pop()
-                    if arg <> typ then failwith "type mismatch"
+                    type_check arg typ
                     None
                 | SpecialCaseGlobalGet (GlobalIdx i) ->
                     let g = ctx.a_globals.[int i]
@@ -237,7 +243,7 @@ module wasm.cecil
                         | ParamRef { typ = t } -> t
                         | LocalRef { typ = t } -> t
                     let arg = stack.Pop()
-                    if arg <> typ then failwith "type mismatch"
+                    type_check arg typ
                     stack.Push(arg);
                     None
 

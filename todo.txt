@@ -1,4 +1,11 @@
 
+want to package this a dotnet global tool
+
+need more tests of invalid wasm
+
+it would be nice to throw more specific exceptions
+so the tests can be more precise in error cases
+
 stack cleanup around br and friends.  write a failing
 test case for this.
 

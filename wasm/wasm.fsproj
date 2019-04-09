@@ -28,6 +28,7 @@
     <Compile Include="Builder.fs" />
 
     <Compile Include="ModuleIndex.fs" />
+    <Compile Include="Errors.fs" />
     <Compile Include="Import.fs" />
     <Compile Include="Cecil.fs" />
   </ItemGroup>

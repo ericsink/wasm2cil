@@ -10,6 +10,7 @@ open wasm.read
 open wasm.write
 open wasm.cecil
 open wasm.builder
+open wasm.errors
 open Builders
 
 let newid () =
@@ -335,6 +336,62 @@ let simple_add () =
 
     check 13
     check 22
+
+[<Fact>]
+let add_with_incorrect_types () =
+    let fb = FunctionBuilder()
+    let name = "add"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (F64Const 3.14)
+    fb.Add I32Add
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+
+(* TODO
+[<Fact>]
+let simple_add_with_block () =
+    let fb = FunctionBuilder()
+    let addnum = 42
+    let name = sprintf "add_%d" addnum
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (Block None)
+    fb.Add (I32Const 357)
+    fb.Add (Br (LabelIdx 0u))
+    fb.Add (F64Const 3.14)
+    fb.Add (End)
+    fb.Add (I32Const addnum)
+    fb.Add I32Add
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl n =
+        n + addnum
+
+    let check =
+        check_1 mi impl
+
+    check 13
+    check 22
+*)
 
 [<Fact>]
 let simple_two_funcs () =
