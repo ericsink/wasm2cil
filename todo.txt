@@ -3,7 +3,7 @@ stack cleanup around br and friends.  write a failing
 test case for this.
 
 memory load/store operations are supposed to be
-ranged-checked
+range-checked
 
 validation:  at the end of a function, the stack
 should contain only the return value, if any
@@ -13,8 +13,8 @@ Ldc_I4 0
 
 only one copy of memory, shared by all the tests?
 most tests need a private memory, not ref the
-imported one in env.  but can we reference it
-from a test?
+imported one in env.  but can we reference an
+internal memory from a test?
 
 things that are tricky could be implemented in C# in env
 and just import and call out to it
@@ -39,8 +39,6 @@ format
 consider using the actual wasm opcode name
 for the union labels, with ``
 
-https://github.com/SteveGilham/altcover
-
 might like the ability to output a wasm module
 as F# to reconstruct it with Builder
 
@@ -59,7 +57,8 @@ why doesn't clang mark exports ?
 how to deal with non-mut globals?
 
 consider an F# wrapper around cecil, avoid all those
-il.Create() overloads
+il.Create() overloads, so problems can be caught at
+compile time instead of run time.
 
 still some problems in roundtripping binary format,
 might be important, not sure
