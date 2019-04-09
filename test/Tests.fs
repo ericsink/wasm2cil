@@ -229,6 +229,55 @@ let test_memory_load () =
     check 7632
 
 [<Fact>]
+let test_data () =
+    let b = ModuleBuilder()
+    let data = [| 1uy; 9uy; 8uy; 2uy; |]
+    let off = 16309
+    b.AddData(off, data)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+
+    let ba = env.GetResource(a.a, "data_0")
+
+    Assert.Equal<byte[]>(data, ba)
+
+[<Fact>]
+let test_memory_load_data () =
+    let name_fetch = "fetch"
+
+    let fb_fetch =
+        let fb = FunctionBuilder()
+        fb.Name <- Some name_fetch
+        fb.AddParam I32
+        fb.ReturnType <- Some I32
+        fb.Add (LocalGet (LocalIdx 0u))
+        fb.Add (I32Load8U { align=0u; offset=0u; })
+        fb.Add (End)
+        fb
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb_fetch)
+    let data = [| 1uy; 9uy; 8uy; 2uy; |]
+    let off = 16309
+    b.AddData(off, data)
+
+    let m = b.CreateModule()
+
+    let a = prep_assembly m
+
+    let mi_fetch = get_method a name_fetch
+
+    let impl_fetch (x : int32) =
+        data.[x - off] |> int
+
+    let check =
+        check_1 mi_fetch impl_fetch
+
+    check (off + 0)
+
+[<Fact>]
 let simple_add () =
     let fb = FunctionBuilder()
     let addnum = 42

@@ -79,6 +79,12 @@ module wasm.cecil
         bt : BasicTypes
         }
 
+    type DataStuff = {
+        item : DataItem
+        name : string
+        resource : EmbeddedResource
+        }
+
     let get_function_name fidx f =
         match f with
         | ImportedFunc i -> sprintf "%s.%s" i.m i.name
@@ -691,6 +697,66 @@ module wasm.cecil
 
         method
 
+    let gen_data_setup ndx ctx (a_env : System.Reflection.Assembly) (a_datas : DataStuff[]) =
+        let method = 
+            new MethodDefinition(
+                "__data_setup",
+                MethodAttributes.Public ||| MethodAttributes.Static,
+                ctx.bt.typ_void
+                )
+        let il = method.Body.GetILProcessor()
+
+        // need to grab a reference to this assembly 
+        // (the one that contains our resources)
+        // and store it in a local so we can use it
+        // each time through the loop.
+
+        let ref_typ_assembly = ctx.md.ImportReference(typeof<System.Reflection.Assembly>)
+        let loc_assembly = new VariableDefinition(ref_typ_assembly)
+        method.Body.Variables.Add(loc_assembly)
+        let ref_gea = ctx.md.ImportReference(typeof<System.Reflection.Assembly>.GetMethod("GetExecutingAssembly"))
+        il.Append(il.Create(OpCodes.Call, ref_gea))
+        il.Append(il.Create(OpCodes.Stloc, loc_assembly))
+
+        // also need to import Marshal.Copy
+
+        let ref_mcopy = ctx.md.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("Copy", [| typeof<byte[]>; typeof<int32>; typeof<nativeint>; typeof<int32> |]))
+
+        // grab GetResource from env
+
+        let ref_getresource =
+            let typ = a_env.GetType("env")
+            let method = typ.GetMethod("GetResource")
+            let mref = ctx.md.ImportReference(method)
+            mref
+
+        for d in a_datas do
+            // the 4 args to Marshal.Copy...
+
+            // the byte array containing the resource
+            il.Append(il.Create(OpCodes.Ldloc, loc_assembly))
+            il.Append(il.Create(OpCodes.Ldstr, d.name))
+            il.Append(il.Create(OpCodes.Call, ref_getresource))
+
+            // 0, the offset
+            il.Append(il.Create(OpCodes.Ldc_I4, 0))
+
+            // the destination pointer
+            il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
+            let f_make_tmp = make_tmp method
+            cecil_expr il ctx f_make_tmp Array.empty d.item.offset
+            il.Append(il.Create(OpCodes.Add))
+
+            // and the length
+            il.Append(il.Create(OpCodes.Ldc_I4, d.item.init.Length))
+
+            // now copy
+            il.Append(il.Create(OpCodes.Call, ref_mcopy))
+
+        il.Append(il.Create(OpCodes.Ret))
+
+        method
+
     let gen_tbl_setup ndx ctx (tbl : FieldDefinition) lim (elems : ElementItem[]) =
         let method = 
             new MethodDefinition(
@@ -747,7 +813,7 @@ module wasm.cecil
 
         method
 
-    let gen_cctor ctx a_datas (tbl_setup : MethodDefinition option) =
+    let gen_cctor ctx (tbl_setup : MethodDefinition option) (data_setup : MethodDefinition option) =
         let method = 
             new MethodDefinition(
                 ".cctor",
@@ -755,8 +821,6 @@ module wasm.cecil
                 ctx.bt.typ_void
                 )
         let il = method.Body.GetILProcessor()
-
-        // TODO consider moving other things here out into separate static methods
 
         il.Append(il.Create(OpCodes.Ldc_I4, 64 * 1024))
         // TODO where is this freed?
@@ -768,12 +832,13 @@ module wasm.cecil
         | Some m -> il.Append(il.Create(OpCodes.Call, m))
         | None -> ()
 
+        match data_setup with
+        | Some m -> il.Append(il.Create(OpCodes.Call, m))
+        | None -> ()
+
         let f_make_tmp = make_tmp method
 
-        for d in a_datas do
-            // TODO emit code to load the resource and copy it to memory
-            ()
-
+        // TODO mv globals out into a different func?
         for g in ctx.a_globals do
             match g with
             | GlobalRefInternal gi -> 
@@ -785,16 +850,13 @@ module wasm.cecil
 
         method
 
-    type DataStuff = {
-        item : DataItem
-        name : string
-        resource : EmbeddedResource
-        }
-
     let create_data_resources ctx sd =
         let f i d =
             let name = sprintf "data_%d" i
-            let flags = ManifestResourceAttributes.Private
+            // public because
+            // (1) env.GetResource is in a separate assembly
+            // (2) so tests can load the resource manually
+            let flags = ManifestResourceAttributes.Public
             let r = EmbeddedResource(name, flags, d.init)
             { item = d; name = name; resource = r; }
         Array.mapi f sd.datas
@@ -870,6 +932,7 @@ module wasm.cecil
                 )
         container.Fields.Add(tbl)
 
+        // TODO maybe don't gen this if there is no tbl.
         let tbl_lookup = gen_tbl_lookup ndx bt tbl
         container.Methods.Add(tbl_lookup)
 
@@ -901,14 +964,18 @@ module wasm.cecil
 
         gen_code_for_methods ctx
 
-        let a_datas =
+        let data_setup =
             match ndx.Data with
-            | Some sd -> create_data_resources ctx sd
-            | None -> Array.empty
-        for d in a_datas do
-            main_module.Resources.Add(d.resource)
+            | Some sd -> 
+                let a_datas = create_data_resources ctx sd
+                for d in a_datas do
+                    main_module.Resources.Add(d.resource)
+                let m = gen_data_setup ndx ctx env a_datas
+                container.Methods.Add(m)
+                Some m
+            | None -> None
 
-        let cctor = gen_cctor ctx a_datas tbl_setup
+        let cctor = gen_cctor ctx tbl_setup data_setup
         container.Methods.Add(cctor)
 
         assembly.Write(dest);

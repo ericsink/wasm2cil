@@ -8,10 +8,6 @@ need to memset the memory ?
 
 probably need a field to keep track of mem size
 
-tests for load/store to memory
-
-implement data segments
-
 things that are tricky could be implemented in C# in env
 and just import and call out to it
 

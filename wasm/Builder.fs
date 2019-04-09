@@ -44,6 +44,7 @@ module wasm.builder
         let fbuilders = System.Collections.Generic.List<FunctionBuilder>()
         let elems = System.Collections.Generic.List<int * uint32>()
         let imports = System.Collections.Generic.List<ImportItem>()
+        let datas = System.Collections.Generic.List<DataItem>()
 
         member this.AddFunction(fb : FunctionBuilder) =
             fbuilders.Add(fb)
@@ -53,6 +54,14 @@ module wasm.builder
 
         member this.AddImport(it : ImportItem) =
             imports.Add(it)
+
+        member this.AddData(off : int32, data : byte[]) =
+            let it = {
+                memidx = MemIdx 0u
+                offset = [| I32Const off; End; |]
+                init = data
+                }
+            datas.Add(it)
 
         member this.CreateModule() =
             let types = System.Collections.Generic.List<FuncType>()
@@ -111,6 +120,10 @@ module wasm.builder
             if imports.Count > 0 then
                 let s_import = { imports = Array.ofSeq imports }
                 sections.Add(Import s_import)
+                
+            if datas.Count > 0 then
+                let s_data = { datas = Array.ofSeq datas }
+                sections.Add(Data s_data)
                 
             {
                 version = 1u
