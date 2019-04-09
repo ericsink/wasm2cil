@@ -828,12 +828,12 @@ module wasm.cecil
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
         il.Append(il.Create(OpCodes.Stsfld, ctx.mem))
-        (*
+
+        // memset 0
         il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
         il.Append(il.Create(OpCodes.Ldc_I4, 0))
         il.Append(il.Create(OpCodes.Ldc_I4, size))
         il.Append(il.Create(OpCodes.Initblk))
-        *)
 
         match tbl_setup with
         | Some m -> il.Append(il.Create(OpCodes.Call, m))

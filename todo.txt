@@ -4,8 +4,6 @@ most tests need a private memory, not ref the
 imported one in env.  but can we reference it
 from a test?
 
-need to memset the memory ?  use InitBlk
-
 probably need a field to keep track of mem size
 
 things that are tricky could be implemented in C# in env
