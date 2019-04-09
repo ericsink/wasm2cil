@@ -166,6 +166,13 @@ let import_memory_store () =
 
     Assert.NotEqual(IntPtr.Zero, env.__mem_only_imported_in_one_test)
 
+    let size = 64 * 1024
+    // TODO Assert.Equal(size, env.__mem_only_imported_in_one_test.Length)
+    let (za : byte[]) = Array.zeroCreate (64 * 1024)
+    let (ta : byte[]) = Array.zeroCreate (64 * 1024)
+    System.Runtime.InteropServices.Marshal.Copy(env.__mem_only_imported_in_one_test, ta, 0, size);
+    Assert.Equal<byte[]>(za, ta)
+
 [<Fact>]
 let test_memory_load () =
     let name_k = "constant"
