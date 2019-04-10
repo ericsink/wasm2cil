@@ -10,6 +10,25 @@ open wasm.write
 open wasm.cecil
 open wasm.builder
 
+let build_function_block_stack_underflow =
+    let fb = FunctionBuilder()
+    let name = "block_stack_underflow"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.Add (I32Const 4)
+    fb.Add (Block None)
+    fb.Add (Drop)
+    fb.Add (End)
+    fb.Add (End)
+    fb
+
+let build_module_block_stack_underflow =
+    let fb = build_function_block_stack_underflow
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+    let m = b.CreateModule()
+    m
+
 let build_function_too_many_func_results =
     let fb = FunctionBuilder()
     let name = "too_many_func_results"

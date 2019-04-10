@@ -1,4 +1,7 @@
 
+so actually, for validation purposes, each block
+should get its own stack
+
 is this invalid?
     Block void
     (whatever)
