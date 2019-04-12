@@ -706,7 +706,27 @@ module wasm.cecil
         | I32Clz -> todo op
         | I32Ctz -> todo op
         | I32Popcnt -> todo op
-        | I32Rotl -> todo op
+        | I32Rotl ->
+            // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
+            // return (value << count) | (value >> (32 - count))
+
+            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, var_count))
+            let var_v = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, var_count))
+
+            il.Append(il.Create(OpCodes.Ldloc, var_v))
+            il.Append(il.Create(OpCodes.Ldloc, var_count))
+            il.Append(il.Create(OpCodes.Shl))
+
+            il.Append(il.Create(OpCodes.Ldloc, var_v))
+            il.Append(il.Create(OpCodes.Ldc_I4, 32))
+            il.Append(il.Create(OpCodes.Ldloc, var_count))
+            il.Append(il.Create(OpCodes.Sub))
+            il.Append(il.Create(OpCodes.Shr_Un))
+
+            il.Append(il.Create(OpCodes.Or))
+
         | I32Rotr -> todo op
         | I64Clz -> todo op
         | I64Ctz -> todo op
