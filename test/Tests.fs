@@ -136,7 +136,7 @@ let drop_empty () =
 
     let m = b.CreateModule()
 
-    Assert.Throws<InvalidOperationException>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly m |> ignore)
 
 [<Fact>]
 let memory_size () =
@@ -365,19 +365,19 @@ let test_invalid_block_type () =
 let test_too_many_block_results () =
     let m = build_module_too_many_block_results
     // TODO review exception type here
-    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<ExtraBlockResult>(fun () -> prep_assembly m |> ignore)
 
 [<Fact>]
 let test_too_many_func_results () =
     let m = build_module_too_many_func_results
     // TODO review exception type here
-    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<ExtraBlockResult>(fun () -> prep_assembly m |> ignore)
 
 [<Fact>]
 let test_block_stack_underflow () =
     let m = build_module_block_stack_underflow
     // TODO review exception type here
-    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly m |> ignore)
 
 (* TODO
 [<Fact>]
@@ -500,6 +500,21 @@ let simple_callindirect () =
     check 5 0
     check 5 1
 
+[<Fact>]
+let add_value_from_block () =
+
+    let m = build_module_add_value_from_block
+    let a = prep_assembly m
+    let mi = get_method a "add_value_from_block"
+
+    let impl x y = x + y
+
+    let check =
+        check_2 mi impl
+
+    check 13 27
+    check 2 2
+
 let make_simple_compare_func name t op =
     let fb = FunctionBuilder()
     fb.Name <- Some name
@@ -561,55 +576,10 @@ let i32_le () =
 
 [<Fact>]
 let simple_loop_optimized_out () =
-    (*
-
-int foo(int x)
-{
-    int r = 0;
-    for (int i=0; i<x; i++)
-    {
-        r += i;
-    }
-    return r;
-}
-
-    *)
-
-    let fb = FunctionBuilder()
     let name = "foo"
-    fb.Name <- Some name
-    fb.ReturnType <- Some I32
-    fb.AddParam I32
-
-    fb.Add (Block (Some I32))
-    fb.Add (LocalGet (LocalIdx 0u))
-    fb.Add (I32Const 1)
-    fb.Add (I32LtS)
-    fb.Add (BrIf (LabelIdx 0u))
-    fb.Add (LocalGet (LocalIdx 0u))
-    fb.Add (I32Const -1)
-    fb.Add (I32Add)
-    fb.Add (I64ExtendI32U)
-    fb.Add (LocalGet (LocalIdx 0u))
-    fb.Add (I32Const -2)
-    fb.Add (I32Add)
-    fb.Add (I64ExtendI32U)
-    fb.Add (I64Mul)
-    fb.Add (I64Const 1L)
-    fb.Add (I64ShrU)
-    fb.Add (I32WrapI64)
-    fb.Add (LocalGet (LocalIdx 0u))
-    fb.Add (I32Add)
-    fb.Add (I32Const -1)
-    fb.Add (I32Add)
-    fb.Add (Return)
-    fb.Add (End)
-    fb.Add (I32Const 0)
-    fb.Add (End)
-
+    let fb = build_function_simple_loop_optimized_out name
     let b = ModuleBuilder()
     b.AddFunction(fb)
-
     let m = b.CreateModule()
 
     let a = prep_assembly m

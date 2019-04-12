@@ -97,31 +97,257 @@ module wasm.cecil
             | Some s -> s
             | None -> sprintf "func_%d" fidx
 
+    type MyStack<'a> = {
+            mutable top : 'a list
+        }
+
+    let pop stk =
+        //printfn "before pop: %A" stk.top
+        match stk.top with
+        | [] -> raise (OperandStackUnderflow "TODO")
+        | v::tail ->
+            stk.top <- tail
+            v
+
+    let try_peek stk =
+        match stk.top with
+        | [] -> None
+        | v::tail -> Some v
+
+    let peek stk =
+        match stk.top with
+        | [] -> raise (OperandStackUnderflow "TODO")
+        | v::tail -> v
+
+    let push stk v =
+        stk.top <- v :: stk.top
+        //printfn "after push: %A" stk.top
+
+    let new_stack_empty () =
+        { top = [] }
+
+    let new_stack_one v =
+        { top = [ v ] }
+
+    type BlockInfo = {
+        result : ValType option
+        opstack : MyStack<ValType>
+        label : Mono.Cecil.Cil.Instruction
+        mutable stack_polymorphic : bool
+        }
+
+    // TODO should reverse this, 
+    // since all the union cases have the same data,
+    // just do BlockInfo.kind
     type CodeBlock =
-        | CB_Block of Mono.Cecil.Cil.Instruction
-        | CB_Loop of Mono.Cecil.Cil.Instruction
-        | CB_If of Mono.Cecil.Cil.Instruction
-        | CB_Else of Mono.Cecil.Cil.Instruction
+        | CB_Body of BlockInfo
+        | CB_Block of BlockInfo
+        | CB_Loop of BlockInfo
+        | CB_If of BlockInfo
+        | CB_Else of BlockInfo
+
+    let get_blockinfo blk =
+        match blk with
+        | CB_Body b -> b
+        | CB_Block b -> b
+        | CB_Loop b -> b
+        | CB_If b -> b
+        | CB_Else b -> b
 
     let make_tmp (method : MethodDefinition) (t : TypeReference) =
         let v = new VariableDefinition(t)
         method.Body.Variables.Add(v)
         v
 
-    let cecil_expr (il: ILProcessor) ctx (f_make_tmp : TypeReference -> VariableDefinition) (a_locals : ParamOrVar[]) e =
-        let blocks = System.Collections.Generic.Stack<CodeBlock>()
-        let stack = System.Collections.Generic.Stack<ValType>()
-        let lab_end = il.Create(OpCodes.Nop)
+    let check_instr ctx (a_locals : ParamOrVar[]) blocks op =
+        let cur_block = peek blocks
+        let cur_blockinfo = get_blockinfo cur_block
+        let cur_opstack = cur_blockinfo.opstack
 
-        let get_label (a :CodeBlock[]) i =
-            let (LabelIdx i) = i
-            let blk = a.[int i]
-            let lab =
+        let stack_info = get_instruction_stack_info op
+        printfn "    stack_info: %A" stack_info
+        printfn "    cur_opstack : %A" cur_opstack
+
+        let type_check should actual =
+            if actual <> should then
+                let name = wasm.instr_name.get_instruction_name op
+                let s = sprintf "%s: arg is %A but should be %A" name actual should
+                raise (WrongOperandType s)
+        let handle_stack_for_call ftype =
+            if ftype.parms.Length > 0 then
+                for i = (ftype.parms.Length - 1) downto 0 do
+                    let should = ftype.parms.[i]
+                    let actual = pop cur_opstack
+                    type_check should actual
+            function_result_type ftype
+
+        match stack_info with
+        | NoArgs rt -> rt
+        | OneArg { rtype = rt; arg = t1; } ->
+            let arg1 = pop cur_opstack
+            type_check arg1 t1
+            rt
+        | TwoArgs { rtype = rt; arg1 = t1; arg2 = t2; } ->
+            let arg2 = pop cur_opstack
+            let arg1 = pop cur_opstack
+            type_check t1 arg1
+            type_check t2 arg2
+            rt
+        | SpecialCaseBr ->
+            cur_blockinfo.stack_polymorphic <- true
+            None
+        | SpecialCaseBrTable ->
+            // TODO needs to pop the int ?
+            cur_blockinfo.stack_polymorphic <- true
+            None
+        | SpecialCaseReturn ->
+            cur_blockinfo.stack_polymorphic <- true
+            None
+        | SpecialCaseUnreachable ->
+            cur_blockinfo.stack_polymorphic <- true
+            None
+        | SpecialCaseBlock t ->
+            None
+        | SpecialCaseIf t ->
+            None
+        | SpecialCaseElse ->
+            None
+        | SpecialCaseLoop t ->
+            None
+        | SpecialCaseEnd ->
+            // TODO how to deal with stack_polymorphic mode here?
+            //printfn "in stack code for End: blocks: %A" blocks
+            //printfn "    and opstack is %A" cur_opstack
+            let bi = get_blockinfo cur_block
+            match bi.result with
+            | Some t ->
+                printfn "    block type is %A" t
+                let arg = pop cur_opstack
+                printfn "    after pop block result, opstack is %A" cur_opstack
+                type_check arg t
+            | None -> ()
+            match try_peek cur_opstack with
+            | Some _ -> raise (ExtraBlockResult "TODO")
+            | None -> printfn "    end of block stack is fine"
+            bi.result
+        | SpecialCaseDrop ->
+            pop cur_opstack |> ignore
+            None
+        | SpecialCaseSelect ->
+            let arg3 = pop cur_opstack
+            let arg2 = pop cur_opstack
+            let arg1 = pop cur_opstack
+            type_check arg3 I32
+            if arg1 <> arg2 then failwith "select types must match"
+            Some arg1
+        | SpecialCaseCall (FuncIdx fidx) ->
+            let fn = ctx.a_methods.[int fidx]
+            let ftype = 
+                match fn with
+                | MethodRefImported mf -> mf.func.typ
+                | MethodRefInternal mf -> mf.func.typ
+            handle_stack_for_call ftype
+        | SpecialCaseCallIndirect calli ->
+            let arg1 = pop cur_opstack
+            type_check arg1 I32
+            let (TypeIdx tidx) = calli.typeidx
+            let ftype = ctx.types.[int tidx]
+            handle_stack_for_call ftype
+        | SpecialCaseLocalSet (LocalIdx i) ->
+            let loc = a_locals.[int i]
+            let typ =
+                match loc with
+                | ParamRef { typ = t } -> t
+                | LocalRef { typ = t } -> t
+            let arg = pop cur_opstack
+            type_check arg typ
+            None
+        | SpecialCaseLocalGet (LocalIdx i) ->
+            let loc = a_locals.[int i]
+            let typ =
+                match loc with
+                | ParamRef { typ = t } -> t
+                | LocalRef { typ = t } -> t
+            Some typ
+        | SpecialCaseGlobalSet (GlobalIdx i) ->
+            let g = ctx.a_globals.[int i]
+            let typ = 
+                match g with
+                | GlobalRefImported mf -> mf.glob.typ.typ
+                | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
+            let arg = pop cur_opstack
+            type_check arg typ
+            None
+        | SpecialCaseGlobalGet (GlobalIdx i) ->
+            let g = ctx.a_globals.[int i]
+            let typ = 
+                match g with
+                | GlobalRefImported mf -> mf.glob.typ.typ
+                | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
+            Some typ
+        | SpecialCaseLocalTee (LocalIdx i) ->
+            let loc = a_locals.[int i]
+            let typ =
+                match loc with
+                | ParamRef { typ = t } -> t
+                | LocalRef { typ = t } -> t
+            let arg = pop cur_opstack
+            type_check arg typ
+            push cur_opstack arg
+            None
+
+    let gen_unreachable ctx blocks (il : ILProcessor) op =
+        match op with
+        | Block t -> 
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_Block { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
+            push blocks blk
+        | Loop t -> 
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_Loop { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
+            push blocks blk
+            il.Append(lab)
+        | If t -> 
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_If { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
+            push blocks blk
+        | Else -> 
+            // first, end the if block
+            let blk_typ =
+                match pop blocks with
+                | CB_If { label = lab; result = r; } -> 
+                    il.Append(lab)
+                    r
+                | _ -> failwith "bad nest"
+
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_Else { label = lab; opstack = new_stack_empty (); result = blk_typ; stack_polymorphic = true; }
+            push blocks blk
+        | End -> 
+            match pop blocks with
+            | CB_Body { label = lab } -> il.Append(lab) // TODO only gen this if it is needed ?
+            | CB_Block { label = lab } -> il.Append(lab)
+            | CB_Loop _ -> () // loop label was at the top
+            | CB_If { label = lab } -> il.Append(lab)
+            | CB_Else { label = lab } -> il.Append(lab)
+        | _ -> ()
+
+    let gen_instr ctx (a_locals : ParamOrVar[]) blocks result_type body (il : ILProcessor) f_make_tmp op =
+        let find_branch_target i =
+            //printfn "find_branch_target"
+
+            let get_label_from_block blk =
                 match blk with
-                | CB_Block s -> s
-                | CB_Loop s -> s
-                | CB_If s -> s
-                | CB_Else s -> s
+                | CB_Body _ -> failwith "branch not allowed outside block"
+                | CB_Block { label = s } -> s
+                | CB_Loop { label = s } -> s
+                | CB_If { label = s } -> s
+                | CB_Else { label = s } -> s
+
+            let (LabelIdx i) = i
+            let i = int i
+            let blk = List.item i blocks.top
+            let lab = get_label_from_block blk
             lab
 
         let prep_addr (m : MemArg) =
@@ -144,437 +370,382 @@ module wasm.cecil
 
         let todo q =
             printfn "TODO: %A" q
-        for op in e do
-            let stack_info = get_instruction_stack_info op
-
-(*
-            printfn "op: %A" op
-            printfn "stack_info: %A" stack_info
-            printfn "stack depth: %d" stack.Count
-*)
-            let result_type =
-                let type_check should actual =
-                    if actual <> should then
-                        let name = wasm.instr_name.get_instruction_name op
-                        let s = sprintf "%s: arg is %A but should be %A" name actual should
-                        raise (WrongOperandType s)
-                let handle_stack_for_call ftype =
-                    if ftype.parms.Length > 0 then
-                        for i = (ftype.parms.Length - 1) downto 0 do
-                            let should = ftype.parms.[i]
-                            let actual = stack.Pop();
-                            type_check should actual
-                    if ftype.result.Length = 0 then
-                        None
-                    else if ftype.result.Length = 1 then
-                        ftype.result.[0] |> Some
-                    else
-                        failwith "not implemented"
-
-                match stack_info with
-                | NoArgs rt -> rt
-                | OneArg { rtype = rt; arg = t1; } ->
-                    let arg1 = stack.Pop()
-                    type_check arg1 t1
-                    rt
-                | TwoArgs { rtype = rt; arg1 = t1; arg2 = t2; } ->
-                    let arg2 = stack.Pop()
-                    let arg1 = stack.Pop()
-                    type_check t1 arg1
-                    type_check t2 arg2
-                    rt
-                | SpecialCaseDrop ->
-                    stack.Pop() |> ignore
-                    None
-                | SpecialCaseSelect ->
-                    let arg3 = stack.Pop()
-                    let arg2 = stack.Pop()
-                    let arg1 = stack.Pop()
-                    type_check arg3 I32
-                    if arg1 <> arg2 then failwith "select types must match"
-                    Some arg1
-                | SpecialCaseCall (FuncIdx fidx) ->
-                    let fn = ctx.a_methods.[int fidx]
-                    let ftype = 
-                        match fn with
-                        | MethodRefImported mf -> mf.func.typ
-                        | MethodRefInternal mf -> mf.func.typ
-                    handle_stack_for_call ftype
-                | SpecialCaseCallIndirect calli ->
-                    let (TypeIdx tidx) = calli.typeidx
-                    let ftype = ctx.types.[int tidx]
-                    handle_stack_for_call ftype
-                | SpecialCaseLocalSet (LocalIdx i) ->
-                    let loc = a_locals.[int i]
-                    let typ =
-                        match loc with
-                        | ParamRef { typ = t } -> t
-                        | LocalRef { typ = t } -> t
-                    let arg = stack.Pop()
-                    type_check arg typ
-                    None
-                | SpecialCaseLocalGet (LocalIdx i) ->
-                    let loc = a_locals.[int i]
-                    let typ =
-                        match loc with
-                        | ParamRef { typ = t } -> t
-                        | LocalRef { typ = t } -> t
-                    Some typ
-                | SpecialCaseGlobalSet (GlobalIdx i) ->
-                    let g = ctx.a_globals.[int i]
-                    let typ = 
-                        match g with
-                        | GlobalRefImported mf -> mf.glob.typ.typ
-                        | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
-                    let arg = stack.Pop()
-                    type_check arg typ
-                    None
-                | SpecialCaseGlobalGet (GlobalIdx i) ->
-                    let g = ctx.a_globals.[int i]
-                    let typ = 
-                        match g with
-                        | GlobalRefImported mf -> mf.glob.typ.typ
-                        | GlobalRefInternal mf -> mf.glob.item.globaltype.typ
-                    Some typ
-                | SpecialCaseLocalTee (LocalIdx i) ->
-                    let loc = a_locals.[int i]
-                    let typ =
-                        match loc with
-                        | ParamRef { typ = t } -> t
-                        | LocalRef { typ = t } -> t
-                    let arg = stack.Pop()
-                    type_check arg typ
-                    stack.Push(arg);
-                    None
-
-            match op with
-            | Nop -> il.Append(il.Create(OpCodes.Nop))
-            | Block t -> 
-                let lab = il.Create(OpCodes.Nop)
-                let blk = CB_Block lab
-                blocks.Push(blk)
-            | Loop t -> 
-                let lab = il.Create(OpCodes.Nop)
-                let blk = CB_Loop lab
-                blocks.Push(blk)
-                il.Append(lab)
-            | If t -> 
-                let lab = il.Create(OpCodes.Nop)
-                let blk = CB_If lab
-                blocks.Push(blk)
-            | Else -> 
-                // first, end the if block
-                match blocks.Pop() with
-                | CB_If lab -> il.Append(lab)
+        match op with
+        | Block t -> 
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_Block { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
+            push blocks blk
+        | Loop t -> 
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_Loop { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
+            push blocks blk
+            il.Append(lab)
+        | If t -> 
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_If { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
+            push blocks blk
+        | Else -> 
+            // first, end the if block
+            let blk_typ =
+                match pop blocks with
+                | CB_If { label = lab; result = r; } -> 
+                    il.Append(lab)
+                    r
                 | _ -> failwith "bad nest"
 
-                let lab = il.Create(OpCodes.Nop)
-                let blk = CB_Else lab
-                blocks.Push(blk)
-            | End -> 
-                if blocks.Count = 0 then
-                    il.Append(lab_end) // TODO only gen this if it is needed
-                else
-                    let blk = blocks.Pop()
-                    match blk with
-                    | CB_Block lab -> il.Append(lab)
-                    | CB_Loop _ -> () // loop label was at the top
-                    | CB_If lab -> il.Append(lab)
-                    | CB_Else lab -> il.Append(lab)
-            | Return ->
-                il.Append(il.Create(OpCodes.Br, lab_end))
-            | Br i ->
-                let a = blocks.ToArray()
-                let lab = get_label a i
-                il.Append(il.Create(OpCodes.Br, lab))
-            | BrIf i ->
-                let a = blocks.ToArray()
-                let lab = get_label a i
-                il.Append(il.Create(OpCodes.Brtrue, lab))
-            | BrTable m ->
-                let a = blocks.ToArray()
-                let q = Array.map (fun i -> get_label a i) m.v
-                il.Append(il.Create(OpCodes.Switch, q))
-                let lab = get_label a m.other
-                il.Append(il.Create(OpCodes.Br, lab))
+            let lab = il.Create(OpCodes.Nop)
+            let blk = CB_Else { label = lab; opstack = new_stack_empty (); result = blk_typ; stack_polymorphic = false; }
+            push blocks blk
+        | End -> 
+            match pop blocks with
+            | CB_Body { label = lab } -> il.Append(lab) // TODO only gen this if it is needed ?
+            | CB_Block { label = lab } -> il.Append(lab)
+            | CB_Loop _ -> () // loop label was at the top
+            | CB_If { label = lab } -> il.Append(lab)
+            | CB_Else { label = lab } -> il.Append(lab)
+        | Return ->
+            il.Append(il.Create(OpCodes.Br, body.label))
+        | Nop -> il.Append(il.Create(OpCodes.Nop))
+        | Br i ->
+            let lab = find_branch_target i
+            il.Append(il.Create(OpCodes.Br, lab))
+        | BrIf i ->
+            let lab = find_branch_target i
+            il.Append(il.Create(OpCodes.Brtrue, lab))
+        | BrTable m -> todo op
+            (*
+            let a = blocks.ToArray()
+            let q = Array.map (fun i -> get_label a i) m.v
+            il.Append(il.Create(OpCodes.Switch, q))
+            let lab = get_label a m.other
+            il.Append(il.Create(OpCodes.Br, lab))
+            *)
 
-            | Call (FuncIdx fidx) ->
-                let fn = ctx.a_methods.[int fidx]
-                match fn with
-                | MethodRefImported mf ->
-                    il.Append(il.Create(OpCodes.Call, mf.method))
-                | MethodRefInternal mf ->
-                    il.Append(il.Create(OpCodes.Call, mf.method))
+        | Call (FuncIdx fidx) ->
+            let fn = ctx.a_methods.[int fidx]
+            match fn with
+            | MethodRefImported mf ->
+                il.Append(il.Create(OpCodes.Call, mf.method))
+            | MethodRefInternal mf ->
+                il.Append(il.Create(OpCodes.Call, mf.method))
 
-            | CallIndirect _ ->
-                let cs =
-                    match stack_info with
-                    | SpecialCaseCallIndirect calli ->
-                        let cs = 
-                            match result_type with
-                            | Some t -> CallSite(cecil_valtype ctx.bt t)
-                            | None -> CallSite(ctx.bt.typ_void)
-                        let (TypeIdx tidx) = calli.typeidx
-                        let ftype = ctx.types.[int tidx]
-                        for a in ftype.parms do
-                            cs.Parameters.Add(ParameterDefinition(cecil_valtype ctx.bt a))
-                        cs
-                    | _ -> failwith "should not happen"
-                match ctx.tbl_lookup with
-                | Some f -> il.Append(il.Create(OpCodes.Call, f))
-                | None -> failwith "illegal to use CallIndirect with no table"
-                il.Append(il.Create(OpCodes.Calli, cs))
+        | CallIndirect _ ->
+            let cs =
+                let stack_info = get_instruction_stack_info op
+                match stack_info with
+                | SpecialCaseCallIndirect calli ->
+                    let cs = 
+                        match result_type with
+                        | Some t -> CallSite(cecil_valtype ctx.bt t)
+                        | None -> CallSite(ctx.bt.typ_void)
+                    let (TypeIdx tidx) = calli.typeidx
+                    let ftype = ctx.types.[int tidx]
+                    for a in ftype.parms do
+                        cs.Parameters.Add(ParameterDefinition(cecil_valtype ctx.bt a))
+                    cs
+                | _ -> failwith "should not happen"
+            match ctx.tbl_lookup with
+            | Some f -> il.Append(il.Create(OpCodes.Call, f))
+            | None -> failwith "illegal to use CallIndirect with no table"
+            il.Append(il.Create(OpCodes.Calli, cs))
 
-            | GlobalGet (GlobalIdx idx) ->
-                let g = ctx.a_globals.[int idx]
-                match g with
-                | GlobalRefImported mf ->
-                    il.Append(il.Create(OpCodes.Ldsfld, mf.field))
-                | GlobalRefInternal mf ->
-                    il.Append(il.Create(OpCodes.Ldsfld, mf.field))
+        | GlobalGet (GlobalIdx idx) ->
+            let g = ctx.a_globals.[int idx]
+            match g with
+            | GlobalRefImported mf ->
+                il.Append(il.Create(OpCodes.Ldsfld, mf.field))
+            | GlobalRefInternal mf ->
+                il.Append(il.Create(OpCodes.Ldsfld, mf.field))
 
-            | GlobalSet (GlobalIdx idx) ->
-                let g = ctx.a_globals.[int idx]
-                match g with
-                | GlobalRefImported mf ->
-                    il.Append(il.Create(OpCodes.Stsfld, mf.field))
-                | GlobalRefInternal mf ->
-                    il.Append(il.Create(OpCodes.Stsfld, mf.field))
+        | GlobalSet (GlobalIdx idx) ->
+            let g = ctx.a_globals.[int idx]
+            match g with
+            | GlobalRefImported mf ->
+                il.Append(il.Create(OpCodes.Stsfld, mf.field))
+            | GlobalRefInternal mf ->
+                il.Append(il.Create(OpCodes.Stsfld, mf.field))
 
-            | LocalTee (LocalIdx i) -> 
-                il.Append(il.Create(OpCodes.Dup))
-                let loc = a_locals.[int i]
-                match loc with
-                | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
-                | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
+        | LocalTee (LocalIdx i) -> 
+            il.Append(il.Create(OpCodes.Dup))
+            let loc = a_locals.[int i]
+            match loc with
+            | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
+            | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
 
-            | LocalSet (LocalIdx i) -> 
-                let loc = a_locals.[int i]
-                match loc with
-                | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
-                | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
+        | LocalSet (LocalIdx i) -> 
+            let loc = a_locals.[int i]
+            match loc with
+            | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
+            | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
 
-            | LocalGet (LocalIdx i) -> 
-                let loc = a_locals.[int i]
-                match loc with
-                | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Ldarg, n))
-                | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Ldloc, n))
+        | LocalGet (LocalIdx i) -> 
+            let loc = a_locals.[int i]
+            match loc with
+            | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Ldarg, n))
+            | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Ldloc, n))
 
-            | I32Load m -> load m OpCodes.Ldind_I4
-            | I64Load m -> load m OpCodes.Ldind_I8
-            | F32Load m -> load m OpCodes.Ldind_R4
-            | F64Load m -> load m OpCodes.Ldind_R8
-            | I32Load8S m -> load m OpCodes.Ldind_I1
-            | I32Load8U m -> load m OpCodes.Ldind_U1
-            | I32Load16S m -> load m OpCodes.Ldind_I2
-            | I32Load16U m -> load m OpCodes.Ldind_U2
-            | I64Load8S m -> load m OpCodes.Ldind_I1
-            | I64Load8U m -> load m OpCodes.Ldind_U1
-            | I64Load16S m -> load m OpCodes.Ldind_I2
-            | I64Load16U m -> load m OpCodes.Ldind_U2
-            | I64Load32S m -> load m OpCodes.Ldind_I4
-            | I64Load32U m -> load m OpCodes.Ldind_U4
+        | I32Load m -> load m OpCodes.Ldind_I4
+        | I64Load m -> load m OpCodes.Ldind_I8
+        | F32Load m -> load m OpCodes.Ldind_R4
+        | F64Load m -> load m OpCodes.Ldind_R8
+        | I32Load8S m -> load m OpCodes.Ldind_I1
+        | I32Load8U m -> load m OpCodes.Ldind_U1
+        | I32Load16S m -> load m OpCodes.Ldind_I2
+        | I32Load16U m -> load m OpCodes.Ldind_U2
+        | I64Load8S m -> load m OpCodes.Ldind_I1
+        | I64Load8U m -> load m OpCodes.Ldind_U1
+        | I64Load16S m -> load m OpCodes.Ldind_I2
+        | I64Load16U m -> load m OpCodes.Ldind_U2
+        | I64Load32S m -> load m OpCodes.Ldind_I4
+        | I64Load32U m -> load m OpCodes.Ldind_U4
 
-            | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i32)
-            | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp ctx.bt.typ_i64)
-            | F32Store m -> store m OpCodes.Stind_R4 (f_make_tmp ctx.bt.typ_f32)
-            | F64Store m -> store m OpCodes.Stind_R8 (f_make_tmp ctx.bt.typ_f64)
-            | I32Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i32)
-            | I32Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i32)
-            | I64Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i64)
-            | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i64)
-            | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i64)
+        | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i32)
+        | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp ctx.bt.typ_i64)
+        | F32Store m -> store m OpCodes.Stind_R4 (f_make_tmp ctx.bt.typ_f32)
+        | F64Store m -> store m OpCodes.Stind_R8 (f_make_tmp ctx.bt.typ_f64)
+        | I32Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i32)
+        | I32Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i32)
+        | I64Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i64)
+        | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i64)
+        | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i64)
 
-            | I32Const i -> il.Append(il.Create(OpCodes.Ldc_I4, i))
-            | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
-            | F32Const i -> il.Append(il.Create(OpCodes.Ldc_R4, i))
-            | F64Const i -> il.Append(il.Create(OpCodes.Ldc_R8, i))
+        | I32Const i -> il.Append(il.Create(OpCodes.Ldc_I4, i))
+        | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
+        | F32Const i -> il.Append(il.Create(OpCodes.Ldc_R4, i))
+        | F64Const i -> il.Append(il.Create(OpCodes.Ldc_R8, i))
 
-            | I32Add | I64Add | F32Add | F64Add -> il.Append(il.Create(OpCodes.Add))
-            | I32Mul | I64Mul | F32Mul | F64Mul -> il.Append(il.Create(OpCodes.Mul))
-            | I32Sub | I64Sub | F32Sub | F64Sub -> il.Append(il.Create(OpCodes.Sub))
-            | I32DivS | I64DivS | F32Div | F64Div -> il.Append(il.Create(OpCodes.Div))
-            | I32DivU | I64DivU -> il.Append(il.Create(OpCodes.Div_Un))
+        | I32Add | I64Add | F32Add | F64Add -> il.Append(il.Create(OpCodes.Add))
+        | I32Mul | I64Mul | F32Mul | F64Mul -> il.Append(il.Create(OpCodes.Mul))
+        | I32Sub | I64Sub | F32Sub | F64Sub -> il.Append(il.Create(OpCodes.Sub))
+        | I32DivS | I64DivS | F32Div | F64Div -> il.Append(il.Create(OpCodes.Div))
+        | I32DivU | I64DivU -> il.Append(il.Create(OpCodes.Div_Un))
 
-            | F64Abs ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Sqrt ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Ceil ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Floor ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Trunc ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Nearest ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Min ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<double>; typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F64Max ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<double>; typeof<double> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
+        | F64Abs ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Sqrt ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Ceil ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Floor ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Trunc ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Nearest ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Min ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<double>; typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F64Max ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<double>; typeof<double> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
 
-            | F32Abs ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Sqrt ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Ceil ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Floor ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Trunc ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Nearest ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Min ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<float32>; typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
-            | F32Max ->
-                let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<float32>; typeof<float32> |] ))
-                il.Append(il.Create(OpCodes.Call, ext))
+        | F32Abs ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Sqrt ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Ceil ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Floor ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Trunc ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Nearest ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Min ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<float32>; typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
+        | F32Max ->
+            let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<float32>; typeof<float32> |] ))
+            il.Append(il.Create(OpCodes.Call, ext))
 
-            | I32Eqz ->
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
-                
-            | I64Eqz ->
-                il.Append(il.Create(OpCodes.Ldc_I8, 0L))
-                il.Append(il.Create(OpCodes.Ceq))
-                
-            | I32LtS | I64LtS | F32Lt | F64Lt -> il.Append(il.Create(OpCodes.Clt))
-            | I32LtU | I64LtU -> il.Append(il.Create(OpCodes.Clt_Un))
+        | I32Eqz ->
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
+            
+        | I64Eqz ->
+            il.Append(il.Create(OpCodes.Ldc_I8, 0L))
+            il.Append(il.Create(OpCodes.Ceq))
+            
+        | I32LtS | I64LtS | F32Lt | F64Lt -> il.Append(il.Create(OpCodes.Clt))
+        | I32LtU | I64LtU -> il.Append(il.Create(OpCodes.Clt_Un))
 
-            | I32GtS | I64GtS | F32Gt | F64Gt -> il.Append(il.Create(OpCodes.Cgt))
-            | I32GtU | I64GtU -> il.Append(il.Create(OpCodes.Cgt_Un))
+        | I32GtS | I64GtS | F32Gt | F64Gt -> il.Append(il.Create(OpCodes.Cgt))
+        | I32GtU | I64GtU -> il.Append(il.Create(OpCodes.Cgt_Un))
 
-            | F32Neg -> il.Append(il.Create(OpCodes.Neg))
-            | F64Neg -> il.Append(il.Create(OpCodes.Neg))
+        | F32Neg -> il.Append(il.Create(OpCodes.Neg))
+        | F64Neg -> il.Append(il.Create(OpCodes.Neg))
 
-            | I32Eq | I64Eq | F32Eq | F64Eq -> il.Append(il.Create(OpCodes.Ceq))
+        | I32Eq | I64Eq | F32Eq | F64Eq -> il.Append(il.Create(OpCodes.Ceq))
 
-            | I32And | I64And -> il.Append(il.Create(OpCodes.And))
-            | I32Or | I64Or -> il.Append(il.Create(OpCodes.Or))
-            | I32Xor | I64Xor -> il.Append(il.Create(OpCodes.Xor))
+        | I32And | I64And -> il.Append(il.Create(OpCodes.And))
+        | I32Or | I64Or -> il.Append(il.Create(OpCodes.Or))
+        | I32Xor | I64Xor -> il.Append(il.Create(OpCodes.Xor))
 
-            | I32Shl | I64Shl -> il.Append(il.Create(OpCodes.Shl))
-            | I32ShrS | I64ShrS -> il.Append(il.Create(OpCodes.Shr))
-            | I32ShrU | I64ShrU -> il.Append(il.Create(OpCodes.Shr_Un))
-            | I32RemS | I64RemS -> il.Append(il.Create(OpCodes.Rem))
-            | I32RemU | I64RemU -> il.Append(il.Create(OpCodes.Rem_Un))
+        | I32Shl | I64Shl -> il.Append(il.Create(OpCodes.Shl))
+        | I32ShrS | I64ShrS -> il.Append(il.Create(OpCodes.Shr))
+        | I32ShrU | I64ShrU -> il.Append(il.Create(OpCodes.Shr_Un))
+        | I32RemS | I64RemS -> il.Append(il.Create(OpCodes.Rem))
+        | I32RemU | I64RemU -> il.Append(il.Create(OpCodes.Rem_Un))
 
-            | F32ConvertI32S | F32ConvertI64S | F32DemoteF64 -> il.Append(il.Create(OpCodes.Conv_R4))
-            | F64ConvertI32S | F64ConvertI64S | F64PromoteF32 -> il.Append(il.Create(OpCodes.Conv_R8))
+        | F32ConvertI32S | F32ConvertI64S | F32DemoteF64 -> il.Append(il.Create(OpCodes.Conv_R4))
+        | F64ConvertI32S | F64ConvertI64S | F64PromoteF32 -> il.Append(il.Create(OpCodes.Conv_R8))
 
-            | F32ConvertI32U | F32ConvertI64U ->
-                il.Append(il.Create(OpCodes.Conv_R_Un))
-                il.Append(il.Create(OpCodes.Conv_R4))
+        | F32ConvertI32U | F32ConvertI64U ->
+            il.Append(il.Create(OpCodes.Conv_R_Un))
+            il.Append(il.Create(OpCodes.Conv_R4))
 
-            | F64ConvertI32U | F64ConvertI64U ->
-                il.Append(il.Create(OpCodes.Conv_R_Un))
-                il.Append(il.Create(OpCodes.Conv_R8))
+        | F64ConvertI32U | F64ConvertI64U ->
+            il.Append(il.Create(OpCodes.Conv_R_Un))
+            il.Append(il.Create(OpCodes.Conv_R8))
 
-            | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4))
-            | I64ExtendI32S | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8))
+        | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4))
+        | I64ExtendI32S | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8))
 
-            | I32TruncF32S | I32TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I4))
-            | I64TruncF32S | I64TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I8))
-            | I32TruncF32U | I32TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I4_Un))
-            | I64TruncF32U | I64TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I8_Un))
+        | I32TruncF32S | I32TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I4))
+        | I64TruncF32S | I64TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I8))
+        | I32TruncF32U | I32TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I4_Un))
+        | I64TruncF32U | I64TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I8_Un))
 
-            | I32Ne | I64Ne | F32Ne | F64Ne -> 
-                il.Append(il.Create(OpCodes.Ceq))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | I32Ne | I64Ne | F32Ne | F64Ne -> 
+            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | I32LeS | I64LeS ->
-                il.Append(il.Create(OpCodes.Cgt))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | I32LeS | I64LeS ->
+            il.Append(il.Create(OpCodes.Cgt))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | I32GeS | I64GeS ->
-                il.Append(il.Create(OpCodes.Clt))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | I32GeS | I64GeS ->
+            il.Append(il.Create(OpCodes.Clt))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | I32LeU | I64LeU ->
-                il.Append(il.Create(OpCodes.Cgt_Un))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | I32LeU | I64LeU ->
+            il.Append(il.Create(OpCodes.Cgt_Un))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | I32GeU | I64GeU ->
-                il.Append(il.Create(OpCodes.Clt_Un))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | I32GeU | I64GeU ->
+            il.Append(il.Create(OpCodes.Clt_Un))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | F32Le | F64Le ->
-                il.Append(il.Create(OpCodes.Cgt_Un))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | F32Le | F64Le ->
+            il.Append(il.Create(OpCodes.Cgt_Un))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | F32Ge | F64Ge ->
-                il.Append(il.Create(OpCodes.Clt_Un))
-                il.Append(il.Create(OpCodes.Ldc_I4_0))
-                il.Append(il.Create(OpCodes.Ceq))
+        | F32Ge | F64Ge ->
+            il.Append(il.Create(OpCodes.Clt_Un))
+            il.Append(il.Create(OpCodes.Ldc_I4_0))
+            il.Append(il.Create(OpCodes.Ceq))
 
-            | Drop -> il.Append(il.Create(OpCodes.Pop))
+        | Drop -> il.Append(il.Create(OpCodes.Pop))
 
-            | Unreachable -> todo op
-            | Select -> 
-                match result_type with
-                | Some t ->
-                    let var_c = f_make_tmp ctx.bt.typ_i32
-                    il.Append(il.Create(OpCodes.Stloc, var_c))
-                    let var_v2 = f_make_tmp (cecil_valtype ctx.bt t)
-                    il.Append(il.Create(OpCodes.Stloc, var_v2))
-                    let var_v1 = f_make_tmp (cecil_valtype ctx.bt t)
-                    il.Append(il.Create(OpCodes.Stloc, var_v1))
-
-                    let push_v1 = il.Create(OpCodes.Ldloc, var_v1);
-                    let push_v2 = il.Create(OpCodes.Ldloc, var_v2);
-                    let lab_done = il.Create(OpCodes.Nop);
-
-                    il.Append(il.Create(OpCodes.Ldloc, var_c)) // put c back
-                    il.Append(il.Create(OpCodes.Brtrue, push_v1))
-                    il.Append(push_v2);
-                    il.Append(il.Create(OpCodes.Br, lab_done));
-                    il.Append(push_v1);
-                    il.Append(lab_done);
-                | None -> failwith "should not happen"
-            | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
-            | MemoryGrow _ -> todo op
-            | I32Clz -> todo op
-            | I32Ctz -> todo op
-            | I32Popcnt -> todo op
-            | I32Rotl -> todo op
-            | I32Rotr -> todo op
-            | I64Clz -> todo op
-            | I64Ctz -> todo op
-            | I64Popcnt -> todo op
-            | I64Rotl -> todo op
-            | I64Rotr -> todo op
-            | F32Copysign -> todo op
-            | F64Copysign -> todo op
-            | I32ReinterpretF32 -> todo op
-            | I64ReinterpretF64 -> todo op
-            | F32ReinterpretI32 -> todo op
-            | F64ReinterpretI64 -> todo op
-
+        | Unreachable -> todo op
+        | Select -> 
             match result_type with
-            | Some t -> stack.Push(t)
+            | Some t ->
+                let var_c = f_make_tmp ctx.bt.typ_i32
+                il.Append(il.Create(OpCodes.Stloc, var_c))
+                let var_v2 = f_make_tmp (cecil_valtype ctx.bt t)
+                il.Append(il.Create(OpCodes.Stloc, var_v2))
+                let var_v1 = f_make_tmp (cecil_valtype ctx.bt t)
+                il.Append(il.Create(OpCodes.Stloc, var_v1))
+
+                let push_v1 = il.Create(OpCodes.Ldloc, var_v1);
+                let push_v2 = il.Create(OpCodes.Ldloc, var_v2);
+                let lab_done = il.Create(OpCodes.Nop);
+
+                il.Append(il.Create(OpCodes.Ldloc, var_c)) // put c back
+                il.Append(il.Create(OpCodes.Brtrue, push_v1))
+                il.Append(push_v2);
+                il.Append(il.Create(OpCodes.Br, lab_done));
+                il.Append(push_v1);
+                il.Append(lab_done);
+            | None -> failwith "should not happen"
+        | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
+        | MemoryGrow _ -> todo op
+        | I32Clz -> todo op
+        | I32Ctz -> todo op
+        | I32Popcnt -> todo op
+        | I32Rotl -> todo op
+        | I32Rotr -> todo op
+        | I64Clz -> todo op
+        | I64Ctz -> todo op
+        | I64Popcnt -> todo op
+        | I64Rotl -> todo op
+        | I64Rotr -> todo op
+        | F32Copysign -> todo op
+        | F64Copysign -> todo op
+        | I32ReinterpretF32 -> todo op
+        | I64ReinterpretF64 -> todo op
+        | F32ReinterpretI32 -> todo op
+        | F64ReinterpretI64 -> todo op
+
+    let post_gen blocks result_type =
+        match result_type with
+        | Some t ->
+            match try_peek blocks with
+            | Some cur_block ->
+                let bi = get_blockinfo cur_block
+                let cur_opstack = bi.opstack
+                push cur_opstack t
             | None -> ()
+        | None -> ()
+
+    let cecil_expr result (il: ILProcessor) ctx (f_make_tmp : TypeReference -> VariableDefinition) (a_locals : ParamOrVar[]) e =
+        let body = 
+            let opstack = new_stack_empty ()
+            let lab_end = il.Create(OpCodes.Nop)
+            { opstack = opstack; label = lab_end; result = result; stack_polymorphic = false; }
+
+        let blocks = body |> CB_Body |> new_stack_one
+
+        for op in e do
+
+            printfn "op: %A" op
+
+            // TODO unconditional transfers put us in stack_polymorphic mode
+            // until the end of the block.
+            // br, br_table, return and unreachable
+            // TOOD how to do deal with checking in stack_polymorphic mode?
+            // skip type checking but still gen?  how to do the instructions
+            // that need the result type, like callindirect and select?
+            // just ignore everything?  when gen code that is unreachable?
+            // but if the unreachable stuff contains more blocks, we need
+            // to do proper nesting.
+            // how does the result value of a block with an stack_polymorphic
+            // tail happen?  in the case of Br 0, for example, it still 
+            // needs to yield a value, right?  value needed to be one the
+            // stack when the Br happened?
+
+            let in_stack_polymorphic_mode =
+                let cur_block = peek blocks
+                let cur_blockinfo = get_blockinfo cur_block
+                cur_blockinfo.stack_polymorphic
+
+            if in_stack_polymorphic_mode then
+                // I am SO not interested in doing type checking
+                // on unreachable code
+                gen_unreachable ctx blocks il op
+            else
+                let result_type = check_instr ctx a_locals blocks op
+                gen_instr ctx a_locals blocks result_type body il f_make_tmp op
+                post_gen blocks result_type
 
     let create_global (gi : InternalGlobal) idx bt =
         let name = 
@@ -602,10 +773,9 @@ module wasm.cecil
             | None -> sprintf "func_%d" fidx
 
         let return_type =
-            match fi.typ.result.Length with
-            | 0 -> bt.typ_void
-            | 1 -> cecil_valtype bt (fi.typ.result.[0])
-            | _ -> failwith "not implemented"
+            match function_result_type fi.typ with
+            | Some t -> cecil_valtype bt t
+            | None -> bt.typ_void
 
         let access = if fi.exported then MethodAttributes.Public else MethodAttributes.Private
 
@@ -645,7 +815,7 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
-        cecil_expr il ctx f_make_tmp a_locals mi.func.code.expr
+        cecil_expr (function_result_type mi.func.typ) il ctx f_make_tmp a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
     let create_methods ndx bt (md : ModuleDefinition) assy =
@@ -755,7 +925,7 @@ module wasm.cecil
             // the destination pointer
             il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
             let f_make_tmp = make_tmp method
-            cecil_expr il ctx f_make_tmp Array.empty d.item.offset
+            cecil_expr (Some I32) il ctx f_make_tmp Array.empty d.item.offset
             il.Append(il.Create(OpCodes.Add))
 
             // and the length
@@ -801,7 +971,7 @@ module wasm.cecil
         method.Body.Variables.Add(tmp)
 
         for elem in elems do
-            cecil_expr il ctx f_make_tmp Array.empty elem.offset
+            cecil_expr (Some I32) il ctx f_make_tmp Array.empty elem.offset
             il.Append(il.Create(OpCodes.Stloc, tmp))
             for i = 0 to (elem.init.Length - 1) do
 
@@ -871,7 +1041,7 @@ module wasm.cecil
         for g in ctx.a_globals do
             match g with
             | GlobalRefInternal gi -> 
-                cecil_expr il ctx f_make_tmp Array.empty gi.glob.item.init
+                cecil_expr (Some gi.glob.item.globaltype.typ) il ctx f_make_tmp Array.empty gi.glob.item.init
                 il.Append(il.Create(OpCodes.Stsfld, gi.field))
             | GlobalRefImported _ -> ()
 

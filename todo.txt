@@ -1,23 +1,20 @@
 
-so actually, for validation purposes, each block
-should get its own stack
+stack cleanup around br and friends.  write failing
+test cases for this.
 
-is this invalid?
-    Block void
-    (whatever)
-    Br 0
-    (unreachable)
-    End
+things that are tricky could be implemented in C# in env
+and just import and call out to it.  but long term,
+it might be better to require env only for cases where
+something was imported.  a module that imports nothing
+should ideally result in an assembly that has no
+dependencies.
 
 want to eventually package this as a dotnet global tool
 
 need more tests of invalid wasm
 
-it would be nice to throw more specific exceptions
+it would be nice to throw even more specific exceptions
 so the tests can be more precise in error cases
-
-stack cleanup around br and friends.  write failing
-test cases for this.
 
 memory load/store operations are supposed to be
 range-checked
@@ -29,9 +26,6 @@ only one copy of memory, shared by all the tests?
 most tests need a private memory, not ref the
 imported one in env.  but can we reference an
 internal memory from a test?
-
-things that are tricky could be implemented in C# in env
-and just import and call out to it
 
 consider possibility of just using int everywhere
 a uint32 is used, because that's just how .NET

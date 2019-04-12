@@ -4,17 +4,17 @@ module wasm.instr_stack
     open wasm.def_instr
     let get_instruction_stack_info op =
         match op with
-        | Unreachable -> NoArgs (None)
+        | Unreachable -> SpecialCaseUnreachable
         | Nop -> NoArgs (None)
-        | Block t -> NoArgs t
-        | Loop t -> NoArgs t
-        | If t -> NoArgs t
-        | Else -> NoArgs (None)
-        | End -> NoArgs (None)
-        | Br _ -> NoArgs (None)
-        | BrIf _ -> NoArgs (None)
-        | BrTable _ -> NoArgs (None)
-        | Return -> NoArgs (None)
+        | Block t -> SpecialCaseBlock t
+        | Loop t -> SpecialCaseLoop t
+        | If t -> SpecialCaseIf t
+        | Else -> SpecialCaseElse
+        | End -> SpecialCaseEnd
+        | Br _ -> SpecialCaseBr
+        | BrIf _ -> OneArg { rtype = None; arg = I32; }
+        | BrTable _ -> SpecialCaseBrTable
+        | Return -> SpecialCaseReturn
         | Call i -> SpecialCaseCall i
         | CallIndirect i -> SpecialCaseCallIndirect i
         | Drop -> SpecialCaseDrop

@@ -13,6 +13,14 @@ module wasm.def
         result: ValType[]
         }
 
+    let function_result_type ftype =
+        if ftype.result.Length = 0 then
+            None
+        else if ftype.result.Length = 1 then
+            ftype.result.[0] |> Some
+        else
+            failwith "not implemented"
+
     type ElemType =
         | FuncRef
 

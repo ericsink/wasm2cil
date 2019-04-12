@@ -343,11 +343,18 @@ let write_function_instruction_stack_info path (immediates: Dictionary<string,Im
             | "GlobalSet" -> sprintf "        | %s i -> SpecialCaseGlobalSet i" op.name |> pr
             | "Drop" -> sprintf "        | %s -> SpecialCaseDrop" op.name |> pr
             | "Select" -> sprintf "        | %s -> SpecialCaseSelect" op.name |> pr
-            | "Block" -> sprintf "        | %s t -> NoArgs t" op.name |> pr
-            | "If" -> sprintf "        | %s t -> NoArgs t" op.name |> pr
-            | "Loop" -> sprintf "        | %s t -> NoArgs t" op.name |> pr
+            | "Block" -> sprintf "        | %s t -> SpecialCaseBlock t" op.name |> pr
+            | "If" -> sprintf "        | %s t -> SpecialCaseIf t" op.name |> pr
+            | "Else" -> sprintf "        | %s -> SpecialCaseElse" op.name |> pr
+            | "Loop" -> sprintf "        | %s t -> SpecialCaseLoop t" op.name |> pr
+            | "End" -> sprintf "        | %s -> SpecialCaseEnd" op.name |> pr
+            | "Br" -> sprintf "        | %s _ -> SpecialCaseBr" op.name |> pr
+            | "BrTable" -> sprintf "        | %s _ -> SpecialCaseBrTable" op.name |> pr
+            | "Return" -> sprintf "        | %s -> SpecialCaseReturn" op.name |> pr
+            | "Unreachable" -> sprintf "        | %s -> SpecialCaseUnreachable" op.name |> pr
             
             // er, the following rows in opcode.def are incorrect, so fix them here
+            | "BrIf" -> sprintf "        | %s _ -> OneArg { rtype = None; arg = I32; }" op.name |> pr
             | "F32Sqrt" -> sprintf "        | %s -> OneArg { rtype = Some F32; arg = F32; }" op.name |> pr
             | "F64Sqrt" -> sprintf "        | %s -> OneArg { rtype = Some F64; arg = F64; }" op.name |> pr
             | "F32Abs" -> sprintf "        | %s -> OneArg { rtype = Some F32; arg = F32; }" op.name |> pr

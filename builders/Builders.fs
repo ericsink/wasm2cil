@@ -10,6 +10,60 @@ open wasm.write
 open wasm.cecil
 open wasm.builder
 
+let build_function_simple_loop_optimized_out name =
+    (*
+
+int foo(int x)
+{
+    int r = 0;
+    for (int i=0; i<x; i++)
+    {
+        r += i;
+    }
+    return r;
+}
+
+    *)
+
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+
+    fb.Add (Block (Some I32))
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I32Const 1)
+    fb.Add (I32LtS)
+    fb.Add (BrIf (LabelIdx 0u))
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I32Const -1)
+    fb.Add (I32Add)
+    fb.Add (I64ExtendI32U)
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I32Const -2)
+    fb.Add (I32Add)
+    fb.Add (I64ExtendI32U)
+    fb.Add (I64Mul)
+    fb.Add (I64Const 1L)
+    fb.Add (I64ShrU)
+    fb.Add (I32WrapI64)
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I32Add)
+    fb.Add (I32Const -1)
+    fb.Add (I32Add)
+    fb.Add (Return)
+    fb.Add (End)
+    fb.Add (I32Const 0)
+    fb.Add (End)
+    fb
+
+let build_module_simple_loop_optimized_out name =
+    let fb = build_function_simple_loop_optimized_out name
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+    let m = b.CreateModule()
+    m
+
 let build_function_block_stack_underflow =
     let fb = FunctionBuilder()
     let name = "block_stack_underflow"
@@ -78,6 +132,29 @@ let build_function_invalid_block_type =
 
 let build_module_invalid_block_type =
     let fb = build_function_invalid_block_type
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+    let m = b.CreateModule()
+    m
+
+let build_function_add_value_from_block =
+    let fb = FunctionBuilder()
+    let name = "add_value_from_block"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.AddParam I32
+
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (Block (Some I32))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (End)
+    fb.Add (I32Add)
+    fb.Add (End)
+    fb
+
+let build_module_add_value_from_block =
+    let fb = build_function_add_value_from_block
     let b = ModuleBuilder()
     b.AddFunction(fb)
     let m = b.CreateModule()

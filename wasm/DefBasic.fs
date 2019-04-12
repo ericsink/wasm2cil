@@ -59,6 +59,15 @@ module wasm.def_basic
         | NoArgs of ValType option
         | OneArg of OpcodeStack1
         | TwoArgs of OpcodeStack2
+        | SpecialCaseBlock of ValType option
+        | SpecialCaseIf of ValType option
+        | SpecialCaseElse
+        | SpecialCaseLoop of ValType option
+        | SpecialCaseEnd
+        | SpecialCaseBr
+        | SpecialCaseBrTable
+        | SpecialCaseReturn
+        | SpecialCaseUnreachable
         | SpecialCaseDrop
         | SpecialCaseSelect
         | SpecialCaseCall of FuncIdx

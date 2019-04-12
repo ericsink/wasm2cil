@@ -5,6 +5,7 @@ open wasm.read_basic
 open wasm.read
 open wasm.write
 open wasm.cecil
+open wasm.builder
 open Builders
 
 [<EntryPoint>]
@@ -15,7 +16,7 @@ let main argv =
     let m =
         match argv.[0] with
         | "build" ->
-            build_module_block_stack_underflow
+            build_module_simple_loop_optimized_out "foo"
         | filename ->
             printfn "Reading %s" filename
             let br = BinaryWasmStream(System.IO.File.ReadAllBytes(filename))
