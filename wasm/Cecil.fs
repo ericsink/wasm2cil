@@ -165,8 +165,8 @@ module wasm.cecil
         let cur_opstack = cur_blockinfo.opstack
 
         let stack_info = get_instruction_stack_info op
-        printfn "    stack_info: %A" stack_info
-        printfn "    cur_opstack : %A" cur_opstack
+        //printfn "    stack_info: %A" stack_info
+        //printfn "    cur_opstack : %A" cur_opstack
 
         let type_check should actual =
             if actual <> should then
@@ -221,14 +221,14 @@ module wasm.cecil
             let bi = get_blockinfo cur_block
             match bi.result with
             | Some t ->
-                printfn "    block type is %A" t
+                //printfn "    block type is %A" t
                 let arg = pop cur_opstack
-                printfn "    after pop block result, opstack is %A" cur_opstack
+                //printfn "    after pop block result, opstack is %A" cur_opstack
                 type_check arg t
             | None -> ()
             match try_peek cur_opstack with
             | Some _ -> raise (ExtraBlockResult "TODO")
-            | None -> printfn "    end of block stack is fine"
+            | None -> ()
             bi.result
         | SpecialCaseDrop ->
             pop cur_opstack |> ignore
@@ -717,7 +717,7 @@ module wasm.cecil
 
         for op in e do
 
-            printfn "op: %A" op
+            //printfn "op: %A" op
 
             // TODO unconditional transfers put us in stack_polymorphic mode
             // until the end of the block.
@@ -1142,13 +1142,16 @@ module wasm.cecil
         container.Fields.Add(tbl)
 
         let tbl_lookup = 
-            // TODO this needs to deal with an imported table
-            match ndx.Table with
-            | Some _ ->
+            let has_table =
+                match (ndx.Table, ndx.TableImport) with
+                | (Some _, None) -> true
+                | (None, Some _) -> true
+                | _ -> false
+            if has_table then
                 let m = gen_tbl_lookup ndx bt tbl
                 container.Methods.Add(m)
                 Some m
-            | None -> None
+            else None
 
         let types =
             match ndx.Type with
@@ -1168,14 +1171,19 @@ module wasm.cecil
             }
 
         let tbl_setup =
-            // TODO this needs to deal with an imported table
-            match (ndx.Table, ndx.Element) with
-            | (Some st, Some se) ->
+            match (ndx.Table, ndx.TableImport, ndx.Element) with
+            | (Some st, None, Some se) ->
                 let lim = st.tables.[0].limits
                 let m = gen_tbl_setup ndx ctx tbl lim se.elems
                 container.Methods.Add(m)
                 Some m
-            | (None, None) ->
+            | (None, Some st, Some se) ->
+                // TODO for now, just ignore the fact that this tbl is imported
+                let lim = st.tbl.limits
+                let m = gen_tbl_setup ndx ctx tbl lim se.elems
+                container.Methods.Add(m)
+                Some m
+            | (None, None, None) ->
                 None
 
         gen_code_for_methods ctx

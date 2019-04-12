@@ -4,6 +4,12 @@ module wasm.module_index
     open wasm.def
     open wasm.def_basic
 
+    type ImportedTable = {
+        m : string
+        name : string
+        tbl : TableType
+        }
+
     type ImportedFunc = {
         m : string
         name : string
@@ -60,6 +66,7 @@ module wasm.module_index
         FuncLookup : FuncLookupItem[]
         GlobalLookup : GlobalLookupItem[]
         MemoryImport : ImportedMemory option
+        TableImport : ImportedTable option
         }
 
     let count_function_imports ndx =
@@ -192,6 +199,19 @@ module wasm.module_index
             else
                 failwith "not supported"
 
+        let table_import =
+            let a = 
+                match s_import with
+                | Some si ->
+                    (Array.choose (fun i -> match i.desc with | ImportTable gt -> Some {m = i.m; name = i.name; tbl = gt;} | _ -> None) si.imports)
+                | None -> [| |]
+            if a.Length = 0 then
+                None
+            else if a.Length = 1 then
+                Some (a.[0])
+            else
+                failwith "not supported"
+
         {
             Import = s_import
             Function = s_function
@@ -207,6 +227,7 @@ module wasm.module_index
             FuncLookup = flookup
             GlobalLookup = glookup
             MemoryImport = memory_import
+            TableImport = table_import
         }
 
     let is_function_exported ndx i =
