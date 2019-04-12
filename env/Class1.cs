@@ -75,6 +75,14 @@ public static class env
     {
         throw new NotImplementedException();
     }
+    public static int gmtime(int a)
+    {
+        throw new NotImplementedException();
+    }
+    public static int strftime(int a, int b, int c, int d)
+    {
+        throw new NotImplementedException();
+    }
     public static int memcpy(int dest, int src, int n)
     {
         throw new NotImplementedException();

@@ -1,4 +1,18 @@
 
+problem with sqlite compile:
+    Body i32
+        Loop i32
+            if something
+                i32
+                Return
+            Br 0
+        End (here)
+    End
+
+    even though the Loop.End is unreachable, it
+    needs to push I32 onto its parent's validation
+    stack.
+
 stack cleanup around br and friends.  write failing
 test cases for this.
 
@@ -60,8 +74,6 @@ instead of Cecil ?
 --
 
 how to make clang not generate refs to soft fp functions?
-
-why doesn't clang mark exports ?
 
 how to deal with non-mut globals?
 

@@ -154,6 +154,22 @@ module wasm.cecil
         | CB_If b -> b
         | CB_Else b -> b
 
+    let get_block_string blk =
+        let k =
+            match blk with
+            | CB_Body b -> "body"
+            | CB_Block b -> "block"
+            | CB_Loop b -> "loop"
+            | CB_If b -> "if"
+            | CB_Else b -> "else"
+        let bi = get_blockinfo blk
+        let t = 
+            match bi.result with
+            | Some vt -> (vt.ToString())
+            | None -> "void"
+        let poly = if bi.stack_polymorphic then " - unreachable" else ""
+        sprintf "%s %s%s"k t poly
+
     let make_tmp (method : MethodDefinition) (t : TypeReference) =
         let v = new VariableDefinition(t)
         method.Body.Variables.Add(v)
@@ -166,7 +182,6 @@ module wasm.cecil
 
         let stack_info = get_instruction_stack_info op
         //printfn "    stack_info: %A" stack_info
-        //printfn "    cur_opstack : %A" cur_opstack
 
         let type_check should actual =
             if actual <> should then
@@ -197,7 +212,8 @@ module wasm.cecil
             cur_blockinfo.stack_polymorphic <- true
             None
         | SpecialCaseBrTable ->
-            // TODO needs to pop the int ?
+            let arg1 = pop cur_opstack
+            type_check arg1 I32
             cur_blockinfo.stack_polymorphic <- true
             None
         | SpecialCaseReturn ->
@@ -302,15 +318,18 @@ module wasm.cecil
             let lab = il.Create(OpCodes.Nop)
             let blk = CB_Block { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
             push blocks blk
+            None
         | Loop t -> 
             let lab = il.Create(OpCodes.Nop)
             let blk = CB_Loop { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
             push blocks blk
             il.Append(lab)
+            None
         | If t -> 
             let lab = il.Create(OpCodes.Nop)
             let blk = CB_If { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
             push blocks blk
+            None
         | Else -> 
             // first, end the if block
             let blk_typ =
@@ -323,26 +342,30 @@ module wasm.cecil
             let lab = il.Create(OpCodes.Nop)
             let blk = CB_Else { label = lab; opstack = new_stack_empty (); result = blk_typ; stack_polymorphic = true; }
             push blocks blk
+            None
         | End -> 
-            match pop blocks with
+            let b = pop blocks
+            let bi = get_blockinfo b
+            match b with
             | CB_Body { label = lab } -> il.Append(lab) // TODO only gen this if it is needed ?
             | CB_Block { label = lab } -> il.Append(lab)
             | CB_Loop _ -> () // loop label was at the top
             | CB_If { label = lab } -> il.Append(lab)
             | CB_Else { label = lab } -> il.Append(lab)
-        | _ -> ()
+            bi.result
+        | _ -> None
 
     let gen_instr ctx (a_locals : ParamOrVar[]) blocks result_type body (il : ILProcessor) f_make_tmp op =
+        let get_label_from_block blk =
+            match blk with
+            | CB_Body _ -> failwith "branch not allowed outside block"
+            | CB_Block { label = s } -> s
+            | CB_Loop { label = s } -> s
+            | CB_If { label = s } -> s
+            | CB_Else { label = s } -> s
+
         let find_branch_target i =
             //printfn "find_branch_target"
-
-            let get_label_from_block blk =
-                match blk with
-                | CB_Body _ -> failwith "branch not allowed outside block"
-                | CB_Block { label = s } -> s
-                | CB_Loop { label = s } -> s
-                | CB_If { label = s } -> s
-                | CB_Else { label = s } -> s
 
             let (LabelIdx i) = i
             let i = int i
@@ -412,14 +435,11 @@ module wasm.cecil
         | BrIf i ->
             let lab = find_branch_target i
             il.Append(il.Create(OpCodes.Brtrue, lab))
-        | BrTable m -> todo op
-            (*
-            let a = blocks.ToArray()
-            let q = Array.map (fun i -> get_label a i) m.v
+        | BrTable m ->
+            let q = Array.map (fun i -> find_branch_target i) m.v
             il.Append(il.Create(OpCodes.Switch, q))
-            let lab = get_label a m.other
+            let lab = find_branch_target m.other
             il.Append(il.Create(OpCodes.Br, lab))
-            *)
 
         | Call (FuncIdx fidx) ->
             let fn = ctx.a_methods.[int fidx]
@@ -715,9 +735,22 @@ module wasm.cecil
 
         let blocks = body |> CB_Body |> new_stack_one
 
+        let dump s =
+(*
+            printfn "    %s" s
+            printfn "        blocks : %A" (List.map (fun b -> get_block_string b) blocks.top)
+            match try_peek blocks with
+            | Some cur_block ->
+                let bi = get_blockinfo cur_block
+                let cur_opstack = bi.opstack
+                printfn "        opstack: %A" cur_opstack
+            | None -> ()
+*)
+            ()
+
         for op in e do
 
-            //printfn "op: %A" op
+            //printfn "op: %A" op // (wasm.instr_name.get_instruction_name op)
 
             // TODO unconditional transfers put us in stack_polymorphic mode
             // until the end of the block.
@@ -733,6 +766,8 @@ module wasm.cecil
             // needs to yield a value, right?  value needed to be one the
             // stack when the Br happened?
 
+            dump "before"
+
             let in_stack_polymorphic_mode =
                 let cur_block = peek blocks
                 let cur_blockinfo = get_blockinfo cur_block
@@ -741,11 +776,14 @@ module wasm.cecil
             if in_stack_polymorphic_mode then
                 // I am SO not interested in doing type checking
                 // on unreachable code
-                gen_unreachable ctx blocks il op
+                let result_type = gen_unreachable ctx blocks il op
+                post_gen blocks result_type
             else
                 let result_type = check_instr ctx a_locals blocks op
                 gen_instr ctx a_locals blocks result_type body il f_make_tmp op
                 post_gen blocks result_type
+
+            dump "after"
 
     let create_global (gi : InternalGlobal) idx bt =
         let name = 
@@ -815,6 +853,14 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
+        begin
+            let name =
+                match mi.func.name with
+                | Some s -> s
+                | None -> "unexported"
+            //printfn "function: %s" name
+            ()
+            end
         cecil_expr (function_result_type mi.func.typ) il ctx f_make_tmp a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
