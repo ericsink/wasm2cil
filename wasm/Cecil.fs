@@ -675,7 +675,11 @@ module wasm.cecil
 
         | Drop -> il.Append(il.Create(OpCodes.Pop))
 
-        | Unreachable -> todo op
+        | Unreachable ->
+            let ref_typ_e = ctx.md.ImportReference(typeof<System.Exception>.GetConstructor([| |]))
+            il.Append(il.Create(OpCodes.Newobj, ref_typ_e))
+            il.Append(il.Create(OpCodes.Throw))
+            
         | Select -> 
             match result_type with
             | Some t ->
