@@ -23,7 +23,9 @@ module wasm.import
             |> Array.map valtype_to_basic_type
         let method = typ.GetMethod(s.name, parms)
         if method = null then
-            failwith (sprintf "import method not found: %s.%s" s.m s.name)
+            // TODO throw a more specific exception
+            failwith (sprintf "import method not found: %s.%s(%A)" s.m s.name s.typ.parms)
+        // TODO fail if the return type is wrong
         let mref = md.ImportReference(method)
         mref
 
