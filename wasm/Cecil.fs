@@ -1269,6 +1269,9 @@ module wasm.cecil
                 let m = gen_tbl_setup ndx ctx tbl lim se.elems
                 container.Methods.Add(m)
                 Some m
+            | (Some st, None, None) ->
+                // module declares a table but not elements
+                None
             | (None, None, None) ->
                 None
 

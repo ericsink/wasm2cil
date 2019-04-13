@@ -3,6 +3,26 @@
 public static class env
 {
     public static int __stack_pointer;
+    public static double pow(double x, double y)
+    {
+        return Math.Pow(x, y);
+    }
+    public static double atan2(double x, double y)
+    {
+        return Math.Atan2(x, y);
+    }
+    public static double sqrt(double x)
+    {
+        return Math.Sqrt(x);
+    }
+    public static double cos(double x)
+    {
+        return Math.Cos(x);
+    }
+    public static double sin(double x)
+    {
+        return Math.Sin(x);
+    }
     public static int __extenddftf2(int n, double f)
     {
         throw new NotImplementedException();
@@ -125,6 +145,24 @@ public static class env
     public static IntPtr __my_mem;
 
     public static IntPtr __linear_memory;
+
+    static System.IO.Stream _stdout;
+
+    static void ensure()
+    {
+        if (_stdout == null)
+        {
+            _stdout = System.Console.OpenStandardOutput();
+        }
+    }
+
+    public static int putchar(int i)
+    {
+        ensure();
+        var ba = new byte[] { (byte) i };
+        _stdout.Write(ba, 0, 1);
+        return i;
+    }
 
     public static int puts(int x)
     {
