@@ -915,3 +915,49 @@ let f32_conv_i64_u () =
     check (int64 System.Int32.MaxValue)
     check System.Int64.MaxValue
 
+[<Fact>]
+let f64_conv_i32_s () =
+    let check = make_conv_check "f64_conv_i32_s" I32 F64 F64ConvertI32S double
+
+    check 728
+    check 999
+    check -1234
+    check 0
+    check System.Int32.MaxValue
+    check System.Int32.MinValue
+
+[<Fact>]
+let f64_conv_i32_u () =
+    let check = make_conv_check "f64_conv_i32_u" I32 F64 F64ConvertI32U double
+
+    check 728
+    check 999
+    check 1234
+    check 0
+    check System.Int32.MaxValue
+
+
+[<Fact>]
+let f64_conv_i64_s () =
+    let check = make_conv_check "f64_conv_i64_s" I64 F64 F64ConvertI64S double
+
+    check 728L
+    check 999L
+    check -1234L
+    check 0L
+    check (int64 System.Int32.MaxValue)
+    check (int64 System.Int32.MinValue)
+    check System.Int64.MaxValue
+    check System.Int64.MinValue
+
+[<Fact>]
+let f64_conv_i64_u () =
+    let check = make_conv_check "f64_conv_i64_u" I64 F64 F64ConvertI64U double
+
+    check 728L
+    check 999L
+    check 1234L
+    check 0L
+    check (int64 System.Int32.MaxValue)
+    check System.Int64.MaxValue
+
