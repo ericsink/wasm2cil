@@ -1,4 +1,9 @@
 
+sqlite docs say the OMIT defines don't work for the
+amalgamation
+
+sqlite compile needs i64ctlz
+
 some combinations of compare/BrIf could probably
 be merged into CIL like Beq.  like a peephole
 optimization.
@@ -13,8 +18,6 @@ something was imported.  a module that imports nothing
 should ideally result in an assembly that has no
 dependencies.
 
-want to eventually package this as a dotnet global tool
-
 need more tests of invalid wasm
 
 it would be nice to throw even more specific exceptions
@@ -23,8 +26,8 @@ so the tests can be more precise in error cases
 memory load/store operations are supposed to be
 range-checked
 
-should use the short form of CIL instructions like
-Ldc_I4 0
+should use the short form of more CIL instructions,
+like Ldloc
 
 only one copy of memory, shared by all the tests?
 most tests need a private memory, not ref the
@@ -37,6 +40,8 @@ does things, with array indexes and such being
 int instead of unsigned
 
 --
+
+want to eventually package this as a dotnet global tool
 
 maybe we need a func to emit an expression for init cases, 
 more limited
