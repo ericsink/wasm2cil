@@ -26,30 +26,6 @@ let build_function_conv name t_from t_to op =
     fb.Add (End)
     fb
 
-let build_function_f32_conv_i32_s name =
-    build_function_conv name I32 F32 F32ConvertI32S
-
-let build_function_f32_conv_i32_u name =
-    build_function_conv name I32 F32 F32ConvertI32U
-
-let build_function_f32_conv_i64_s name =
-    build_function_conv name I64 F32 F32ConvertI64S
-
-let build_function_f32_conv_i64_u name =
-    build_function_conv name I64 F32 F32ConvertI64U
-
-let build_function_f64_conv_i32_s name =
-    build_function_conv name I32 F64 F64ConvertI32S
-
-let build_function_f64_conv_i32_u name =
-    build_function_conv name I32 F64 F64ConvertI32U
-
-let build_function_f64_conv_i64_s name =
-    build_function_conv name I64 F64 F64ConvertI64S
-
-let build_function_f64_conv_i64_u name =
-    build_function_conv name I64 F64 F64ConvertI64U
-
 let build_function_f32_load name =
     let fb = FunctionBuilder()
     fb.Name <- Some name
