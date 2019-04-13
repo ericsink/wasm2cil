@@ -857,4 +857,61 @@ let f64_load_store () =
     check 32 -3.14159
     check 80 1000.0
 
+let make_conv_check name t_from t_to op fs =
+    let m = build_function_conv name t_from t_to op |> build_module
+    let a = prep_assembly m
+    let mi = get_method a name
+    let impl v =
+        fs v
+
+    let check =
+        check_1 mi impl
+
+    check
+
+[<Fact>]
+let f32_conv_i32_s () =
+    let check = make_conv_check "f32_conv_i32_s" I32 F32 F32ConvertI32S float32
+
+    check 728
+    check 999
+    check -1234
+    check 0
+    check System.Int32.MaxValue
+    check System.Int32.MinValue
+
+[<Fact>]
+let f32_conv_i32_u () =
+    let check = make_conv_check "f32_conv_i32_u" I32 F32 F32ConvertI32U float32
+
+    check 728
+    check 999
+    check 1234
+    check 0
+    check System.Int32.MaxValue
+
+
+[<Fact>]
+let f32_conv_i64_s () =
+    let check = make_conv_check "f32_conv_i64_s" I64 F32 F32ConvertI64S float32
+
+    check 728L
+    check 999L
+    check -1234L
+    check 0L
+    check (int64 System.Int32.MaxValue)
+    check (int64 System.Int32.MinValue)
+    check System.Int64.MaxValue
+    check System.Int64.MinValue
+
+[<Fact>]
+let f32_conv_i64_u () =
+    let check = make_conv_check "f32_conv_i64_u" I64 F32 F32ConvertI64U float32
+
+    check 728L
+    check 999L
+    check 1234L
+    check 0L
+    check (int64 System.Int32.MaxValue)
+    check System.Int64.MaxValue
 
