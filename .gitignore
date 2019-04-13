@@ -6,4 +6,7 @@ hello_clang/hello.dll
 hello_clang/hello.wasm
 hello_clang/hola.exe
 hello_clang/env.dll
+t/*.wasm
+t/*.wat
+t/*.wast
 
