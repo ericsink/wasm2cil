@@ -1,21 +1,4 @@
 
-problem with sqlite compile:
-    Body i32
-        Loop i32
-            if something
-                i32
-                Return
-            Br 0
-        End (here)
-    End
-
-    even though the Loop.End is unreachable, it
-    needs to push I32 onto its parent's validation
-    stack.
-
-the fix for the above (for the sqlite build) broke
-the optimized_out test.
-
 stack cleanup around br and friends.  write failing
 test cases for this.
 
