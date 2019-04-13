@@ -13,6 +13,9 @@ problem with sqlite compile:
     needs to push I32 onto its parent's validation
     stack.
 
+the fix for the above (for the sqlite build) broke
+the optimized_out test.
+
 stack cleanup around br and friends.  write failing
 test cases for this.
 

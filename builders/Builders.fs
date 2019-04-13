@@ -30,7 +30,7 @@ int foo(int x)
     fb.ReturnType <- Some I32
     fb.AddParam I32
 
-    fb.Add (Block (Some I32))
+    fb.Add (Block None)
     fb.Add (LocalGet (LocalIdx 0u))
     fb.Add (I32Const 1)
     fb.Add (I32LtS)
