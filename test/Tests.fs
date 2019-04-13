@@ -600,3 +600,43 @@ let simple_loop_optimized_out () =
     check -5
     check 22
 
+(*
+let invoke_2 (mi : System.Reflection.MethodInfo) x y =
+    let args = [| box x; box y |]
+    let r = mi.Invoke(null, args)
+    let result = unbox<'b> r
+    result
+
+[<Fact>]
+let i32rotl () =
+    let fb = FunctionBuilder()
+    let name = "i32rotl"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (I32Rotl)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl v c =
+        (v <<< c) ||| (v >>> (32 - c))
+
+    let q = invoke_2 mi 7 32
+    Assert.Equal(7, q)
+
+    let check =
+        check_2 mi impl
+
+    check 17 4
+    check 5 1
+*)
+
