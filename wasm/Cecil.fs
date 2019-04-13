@@ -713,7 +713,7 @@ module wasm.cecil
             let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
             il.Append(il.Create(OpCodes.Stloc, var_count))
             let var_v = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_count))
+            il.Append(il.Create(OpCodes.Stloc, var_v))
 
             il.Append(il.Create(OpCodes.Ldloc, var_v))
             il.Append(il.Create(OpCodes.Ldloc, var_count))

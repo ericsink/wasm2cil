@@ -600,7 +600,6 @@ let simple_loop_optimized_out () =
     check -5
     check 22
 
-(*
 let invoke_2 (mi : System.Reflection.MethodInfo) x y =
     let args = [| box x; box y |]
     let r = mi.Invoke(null, args)
@@ -627,16 +626,27 @@ let i32rotl () =
     let a = prep_assembly m
     let mi = get_method a name
 
-    let impl v c =
-        (v <<< c) ||| (v >>> (32 - c))
+    let impl (v : int32) c =
+        let v = uint32 v
+        let q = (v <<< c) ||| (v >>> (32 - c))
+        int q
 
-    let q = invoke_2 mi 7 32
-    Assert.Equal(7, q)
+    let check_wrap_all_the_way_around (n : int32) =
+        let q = invoke_2 mi n 32
+        Assert.Equal(n, q)
+
+    check_wrap_all_the_way_around 284
+    check_wrap_all_the_way_around 1
+    check_wrap_all_the_way_around 1995
 
     let check =
         check_2 mi impl
 
     check 17 4
     check 5 1
-*)
+    check 8675309 0
+    check 8675309 1
+    check 8675309 4
+    check 8675309 8
+    check 8675309 19
 
