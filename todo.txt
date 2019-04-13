@@ -1,4 +1,8 @@
 
+some combinations of compare/BrIf could probably
+be merged into CIL like Beq.  like a peephole
+optimization.
+
 stack cleanup around br and friends.  write failing
 test cases for this.
 

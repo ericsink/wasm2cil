@@ -486,6 +486,7 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Stsfld, mf.field))
 
         | LocalTee (LocalIdx i) -> 
+            // TODO want to use Stloc_0 and the like, when we can.
             il.Append(il.Create(OpCodes.Dup))
             let loc = a_locals.[int i]
             match loc with
@@ -493,12 +494,15 @@ module wasm.cecil
             | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
 
         | LocalSet (LocalIdx i) -> 
+            // TODO want to use Stloc_0 and the like, when we can.
             let loc = a_locals.[int i]
             match loc with
             | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
             | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
 
         | LocalGet (LocalIdx i) -> 
+            // TODO want to use Ldarg_0 and the like, when we can.
+            // any chance Cecil is already doing this behind the scenes?
             let loc = a_locals.[int i]
             match loc with
             | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Ldarg, n))
@@ -529,7 +533,19 @@ module wasm.cecil
         | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i64)
         | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i64)
 
-        | I32Const i -> il.Append(il.Create(OpCodes.Ldc_I4, i))
+        | I32Const i -> 
+            match i with
+            | -1 -> il.Append(il.Create(OpCodes.Ldc_I4_M1))
+            | 0 -> il.Append(il.Create(OpCodes.Ldc_I4_0))
+            | 1 -> il.Append(il.Create(OpCodes.Ldc_I4_1))
+            | 2 -> il.Append(il.Create(OpCodes.Ldc_I4_2))
+            | 3 -> il.Append(il.Create(OpCodes.Ldc_I4_3))
+            | 4 -> il.Append(il.Create(OpCodes.Ldc_I4_4))
+            | 5 -> il.Append(il.Create(OpCodes.Ldc_I4_5))
+            | 6 -> il.Append(il.Create(OpCodes.Ldc_I4_6))
+            | 7 -> il.Append(il.Create(OpCodes.Ldc_I4_7))
+            | 8 -> il.Append(il.Create(OpCodes.Ldc_I4_8))
+            | _ -> il.Append(il.Create(OpCodes.Ldc_I4, i))
         | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
         | F32Const i -> il.Append(il.Create(OpCodes.Ldc_R4, i))
         | F64Const i -> il.Append(il.Create(OpCodes.Ldc_R8, i))
