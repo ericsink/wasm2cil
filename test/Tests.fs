@@ -961,3 +961,26 @@ let f64_conv_i64_u () =
     check (int64 System.Int32.MaxValue)
     check System.Int64.MaxValue
 
+[<Fact>]
+let f32_conv_f64 () =
+    let check = make_conv_check "f32_conv_f64" F64 F32 F32DemoteF64 float32
+
+    check 3.14159
+    check 0.0
+    check -4.0
+    check 1.414
+    check System.Double.MinValue
+    check System.Double.MaxValue
+
+[<Fact>]
+let f64_conv_f32 () =
+    let check = make_conv_check "f64_conv_f32" F32 F64 F64PromoteF32 double
+
+    check 3.14159f
+    check 0.0f
+    check -4.0f
+    check 1.414f
+    check System.Single.MinValue
+    check System.Single.MaxValue
+
+
