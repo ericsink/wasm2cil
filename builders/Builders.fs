@@ -10,6 +10,50 @@ open wasm.write
 open wasm.cecil
 open wasm.builder
 
+let build_function_f32_load name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some F32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (F32Load { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
+let build_function_f32_store name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- None
+    fb.AddParam I32
+    fb.AddParam F32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (F32Store { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
+let build_function_f64_load name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some F64
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (F64Load { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
+let build_function_f64_store name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- None
+    fb.AddParam I32
+    fb.AddParam F64
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (F64Store { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
 let build_function_simple_loop_optimized_out name =
     (*
 

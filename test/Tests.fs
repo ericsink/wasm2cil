@@ -600,6 +600,12 @@ let simple_loop_optimized_out () =
     check -5
     check 22
 
+let invoke_1 (mi : System.Reflection.MethodInfo) x =
+    let args = [| box x |]
+    let r = mi.Invoke(null, args)
+    let result = unbox<'b> r
+    result
+
 let invoke_2 (mi : System.Reflection.MethodInfo) x y =
     let args = [| box x; box y |]
     let r = mi.Invoke(null, args)
@@ -794,5 +800,61 @@ let f64_sub () =
 let f64_div () =
     let check = make_simple_binop_check F64 F64Div (/)
     check_binop_f64 check
+
+[<Fact>]
+let f32_load_store () =
+    let name_load = "f32_load"
+    let name_store = "f32_store"
+
+    let b = ModuleBuilder()
+    b.AddFunction(build_function_f32_load name_load)
+    b.AddFunction(build_function_f32_store name_store)
+
+    let m = b.CreateModule()
+    let a = prep_assembly m
+    let mi_load = get_method a name_load
+    let mi_store = get_method a name_store
+
+    let load = invoke_1 mi_load
+    let store = invoke_2 mi_store
+
+    let check (addr : int32) (x : float32) =
+        store addr x
+        let q = load addr
+        Assert.Equal(x, q)
+
+    check 64 1.414f
+    check 72 0.0f
+    check 40 1.0f
+    check 32 -3.14159f
+    check 80 1000.0f
+
+[<Fact>]
+let f64_load_store () =
+    let name_load = "f64_load"
+    let name_store = "f64_store"
+
+    let b = ModuleBuilder()
+    b.AddFunction(build_function_f64_load name_load)
+    b.AddFunction(build_function_f64_store name_store)
+
+    let m = b.CreateModule()
+    let a = prep_assembly m
+    let mi_load = get_method a name_load
+    let mi_store = get_method a name_store
+
+    let load = invoke_1 mi_load
+    let store = invoke_2 mi_store
+
+    let check (addr : int32) (x : double) =
+        store addr x
+        let q = load addr
+        Assert.Equal(x, q)
+
+    check 64 1.414
+    check 72 0.0
+    check 40 1.0
+    check 32 -3.14159
+    check 80 1000.0
 
 
