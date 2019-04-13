@@ -650,3 +650,149 @@ let i32rotl () =
     check 8675309 8
     check 8675309 19
 
+let make_simple_binop_func name t op =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some t
+    fb.AddParam t
+    fb.AddParam t
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add op
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+    m
+
+let make_simple_binop_check t wasm_op fs_op =
+    let name = "binop"
+    let m = make_simple_binop_func name t wasm_op
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl a b =
+        fs_op a b
+
+    let check =
+        check_2 mi impl
+
+    check
+
+let check_binop_f32 check =
+    check 27.0f 32.0f
+    check -3.0f 29.0f
+    check 3.14f 3.14f
+    check 3.0f 2.0f
+    check 3.14f 3.15f
+    check 3.14f 3.13f
+
+[<Fact>]
+let f32_add () =
+    let check = make_simple_binop_check F32 F32Add (+)
+    check_binop_f32 check
+
+[<Fact>]
+let f32_mul () =
+    let check = make_simple_binop_check F32 F32Mul (*)
+    check_binop_f32 check
+
+[<Fact>]
+let f32_sub () =
+    let check = make_simple_binop_check F32 F32Sub (-)
+    check_binop_f32 check
+
+[<Fact>]
+let f32_div () =
+    let check = make_simple_binop_check F32 F32Div (/)
+    check_binop_f32 check
+
+let check_cmpop_f32 check =
+    check 3.14f 3.14f
+    check 3.0f 2.0f
+    check 3.14f 3.15f
+    check 3.14f 3.13f
+    check 0.0f 0.0f
+    check -0.01f 0.0f
+    check 0.01f 0.0f
+
+[<Fact>]
+let f32_le () =
+    let check = make_simple_compare_check F32 F32Le (<=)
+    check_cmpop_f32 check
+
+[<Fact>]
+let f32_ge () =
+    let check = make_simple_compare_check F32 F32Ge (>=)
+    check_cmpop_f32 check
+
+[<Fact>]
+let f32_lt () =
+    let check = make_simple_compare_check F32 F32Lt (<)
+    check_cmpop_f32 check
+
+[<Fact>]
+let f32_gt () =
+    let check = make_simple_compare_check F32 F32Gt (>)
+    check_cmpop_f32 check
+
+let check_cmpop_f64 check =
+    check 3.14 3.14
+    check 3.0 2.0
+    check 3.14 3.15
+    check 3.14 3.13
+    check 0.0 0.0
+    check -0.01 0.0
+    check 0.01 0.0
+
+[<Fact>]
+let f64_le () =
+    let check = make_simple_compare_check F64 F64Le (<=)
+    check_cmpop_f64 check
+
+[<Fact>]
+let f64_ge () =
+    let check = make_simple_compare_check F64 F64Ge (>=)
+    check_cmpop_f64 check
+
+[<Fact>]
+let f64_lt () =
+    let check = make_simple_compare_check F64 F64Lt (<)
+    check_cmpop_f64 check
+
+[<Fact>]
+let f64_gt () =
+    let check = make_simple_compare_check F64 F64Gt (>)
+    check_cmpop_f64 check
+
+let check_binop_f64 check =
+    check 27.0 32.0
+    check -3.0 29.0
+    check 3.14 3.14
+    check 3.0 2.0
+    check 3.14 3.15
+    check 3.14 3.13
+
+[<Fact>]
+let f64_add () =
+    let check = make_simple_binop_check F64 F64Add (+)
+    check_binop_f64 check
+
+[<Fact>]
+let f64_mul () =
+    let check = make_simple_binop_check F64 F64Mul (*)
+    check_binop_f64 check
+
+[<Fact>]
+let f64_sub () =
+    let check = make_simple_binop_check F64 F64Sub (-)
+    check_binop_f64 check
+
+[<Fact>]
+let f64_div () =
+    let check = make_simple_binop_check F64 F64Div (/)
+    check_binop_f64 check
+
+

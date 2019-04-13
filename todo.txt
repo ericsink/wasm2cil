@@ -1,4 +1,6 @@
 
+xunit theory instead of fact
+
 sqlite docs say the OMIT defines don't work for the
 amalgamation
 
