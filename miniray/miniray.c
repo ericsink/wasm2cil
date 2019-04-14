@@ -14,20 +14,6 @@ v G(f x, f y, f z) {
 #endif
     return n; 
     }
-v S(v a, f s) { 
-#if 0
-  dumpf(__LINE__, a.x);
-  dumpf(__LINE__, a.y);
-  dumpf(__LINE__, a.z);
-#endif
-    v r = G(a.x*s, a.y*s, a.z*s); 
-#if 0
-  dumpf(__LINE__, r.x);
-  dumpf(__LINE__, r.y);
-  dumpf(__LINE__, r.z);
-#endif
-    return r;
-    }
 
 v R(v o) {
 
@@ -53,7 +39,7 @@ v R(v o) {
 int miniray() {
 
       //checkpoint(__LINE__);
-      v p = S( R( G(-2,4,25)), 255 );
+      v p = R( G(-2,4,25));
 
   return 0;
 
