@@ -208,7 +208,7 @@ f D(v p) {
 
 v R(v o, v d, f z) {
 
-#if 0
+#if 1
   checkpoint(__LINE__);
 
   dumpf(__LINE__, o.x);
@@ -225,78 +225,11 @@ v R(v o, v d, f z) {
   f u=0, l=0, i=0, a=1, k=d.z*d.z;
   v p, n;
 
+  // TODO whoa, delete the loop (leave its guts) and the problem goes away
   while (u<97) {
     //checkpoint(__LINE__);
-    f t1 = (l=D(p = A(o,d,u+=l)));
+    //f t1 = (l=D(p = A(o,d,u+=l)));
     //dumpf(__LINE__, t1);
-    if (t1*l<.001) {
-      
-      p=M;
-      n=_(N);
-          
-      // Ok, we have intersected! Now compute lighting, which consists
-      // of three terms: a Lambertian term, a specular term, and ambient
-      // occlusion.
-          
-      // update o to put it at the point of intersection
-      o=A(o,d,u);
-          
-      // It's time to compute ambient occlusion now. At this point it
-      // would be instructive to look at the linked PDF here:
-      //
-      //   http://iquilezles.org/www/material/nvscene2008/nvscene2008.htm
-      //
-      // Basically, we're going to use the distance function D to get an
-      // idea of how much "clutter" there is as we march away from the 
-      // intersecting point along the normal n.  
-      //
-      // Take 5 steps along the normal:
-      while (++i<6)  
-
-        // OK, we are comparing two distances here:
-        //
-        //   .2*i is the distance along the normal from the point of
-        //   intersection.
-        //
-        //   The D(...) subexpression is the distance to closest point
-        //   in the scene. 
-        //
-        // If the point of intersection was the closest thing, then
-        // the difference below should be zero and there is no
-        // occlusion happening.
-        //
-        // However, if there's non-convex geometry in that region, the
-        // D(...) thing will be less than the .2*i thing and we end up
-        // contributing to a. Each time we take a step along the
-        // normal, we reduce the "importance" of the AO computation by
-        // a factor of 2 (occlusion at larger distances matter
-        // exponentially less).
-        //
-        a -= U(i/5-D(A(o,n,i/5)))/pow(2,i);
-
-      // Do all the lighting now:
-      //
-      //   v(m,m,1) is the color (white or blue)
-      //
-      //   U(n%L)/3+.65 is a blend of 0.33 Lambertian and 0.65
-      //   ambient, and modulates the color.
-      //
-      //   Finally we take that entire thing and darken it up with
-      //   the ambient occlusion term that we computed above.
-      p = S(p,(U(O(n,L))*Z+Y)*a);
-      
-      p = z?A(S(p,Y),R(A(o,n,.1),A(d,n,-2*O(d,n)),z-1),Z):p;
-
-      // Compute a specular term and use it to linearly interpolate
-      // between the surface color and white; this is physically
-      // implausible, but doesn't require clamping (as does, for
-      // instance, the Phong shading model).
-      u=pow(U(O(n,_(A(L,d,-1)))),40);
-
-      //checkpoint(__LINE__);
-      return A(S(p,1-u),W,u);
-
-    }
   }
   
   //checkpoint(__LINE__);
@@ -307,39 +240,17 @@ v R(v o, v d, f z) {
 int miniray() {
 
   // Set up the lighting direction and material
-  L=_(G(-1,1,2));
-  F=G(Y,Y,1);
+  //L=_(G(-1,1,2));
+  //F=G(Y,Y,1);
   
-  // Output the portable pixmap header (binary version).
-  {
-    char *p = "P6 600 220 255";
-    while (*p)
-    {
-        putchar(*p);
-        p++;
-    }
-    putchar(10);
-  }
-  
-  // For each row:
-  // y holds the vertical pixel coordinate
-  while (++y<110) 
-    
-    // For each column:
-    // x holds the horizontal pixel coordinate
-    for (x=-300;x<300;++x) {
-      
+      x = -300;
+
       //checkpoint(__LINE__);
       v p = S( R( G(-2,4,25),
                   _( A( G(10.25,-2,-25) ,
                         A( S( _(G(5,0,2)), x ), 
                            _(G(-2,73,0)),-y), .034) ),
                   2 ), 255 );
-      putchar((int) p.x);
-      putchar((int) p.y);
-      putchar((int) p.z);
-
-    }
 
   return 0;
 
