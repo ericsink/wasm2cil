@@ -1,4 +1,7 @@
 
+ouch.  results vary from run to run, even without
+a rebuild.
+
 dump first arg to R, it's wrong
 it comes from a simple call to G with constants
 
