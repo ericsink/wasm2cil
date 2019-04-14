@@ -1,5 +1,5 @@
 //#include <stdio.h>
-#define M_PI 3.141592653589
+#define M_PI 3.1415926535897932384
 //#include <math.h>
 
 extern int putchar(int);
@@ -9,6 +9,9 @@ extern double sqrt(double);
 extern double pow(double, double);
 extern double atan2(double, double);
 
+extern void checkpoint(int n);
+extern void dumpf(int n, float f);
+
 #define E return
 
 typedef float f;
@@ -17,21 +20,106 @@ typedef struct { f x,y,z; } v;
 f H=.5, Z=.33, Y=.66, I, x, y=-111;
 v L, W={1,1,1}, F, P, C, M, N;
 
-v G(f x, f y, f z) { v n={x,y,z}; return n; }
-v A(v a, v b, f c) { return G(a.x+b.x*c, a.y+b.y*c, a.z+b.z*c); }
-f O(v a, v b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
-v S(v a, f s) { return G(a.x*s, a.y*s, a.z*s); }
-v _(v a) { return S(a, 1/sqrt(O(a,a))); }
+v G(f x, f y, f z) { 
+    v n={x,y,z}; 
+#if 0
+  dumpf(__LINE__, n.x);
+  dumpf(__LINE__, n.y);
+  dumpf(__LINE__, n.z);
+#endif
+    return n; 
+    }
+v A(v a, v b, f c) { 
+#if 0
+  dumpf(__LINE__, a.x);
+  dumpf(__LINE__, a.y);
+  dumpf(__LINE__, a.z);
+
+  dumpf(__LINE__, b.x);
+  dumpf(__LINE__, b.y);
+  dumpf(__LINE__, b.z);
+
+  dumpf(__LINE__, c);
+#endif
+    v r = G(a.x+b.x*c, a.y+b.y*c, a.z+b.z*c); 
+#if 0
+  dumpf(__LINE__, r.x);
+  dumpf(__LINE__, r.y);
+  dumpf(__LINE__, r.z);
+#endif
+    return r;
+    }
+f O(v a, v b) { 
+#if 0
+  dumpf(__LINE__, a.x);
+  dumpf(__LINE__, a.y);
+  dumpf(__LINE__, a.z);
+  dumpf(__LINE__, b.x);
+  dumpf(__LINE__, b.y);
+  dumpf(__LINE__, b.z);
+#endif
+    f r = a.x*b.x+a.y*b.y+a.z*b.z; 
+#if 0
+  dumpf(__LINE__, r);
+#endif
+    return r;
+    }
+v S(v a, f s) { 
+#if 0
+  dumpf(__LINE__, a.x);
+  dumpf(__LINE__, a.y);
+  dumpf(__LINE__, a.z);
+#endif
+    v r = G(a.x*s, a.y*s, a.z*s); 
+#if 0
+  dumpf(__LINE__, r.x);
+  dumpf(__LINE__, r.y);
+  dumpf(__LINE__, r.z);
+#endif
+    return r;
+    }
+v _(v a) { 
+#if 0
+  dumpf(__LINE__, a.x);
+  dumpf(__LINE__, a.y);
+  dumpf(__LINE__, a.z);
+#endif
+  v r = S(a, 1/sqrt(O(a,a))); 
+#if 0
+  dumpf(__LINE__, r.x);
+  dumpf(__LINE__, r.y);
+  dumpf(__LINE__, r.z);
+#endif
+    return r;
+    }
 
 f U(f a) { return a<0?0:a>1?1:a; }
 
 f Q(v c, v m) {
+#if 0
+  dumpf(__LINE__, c.x);
+  dumpf(__LINE__, c.y);
+  dumpf(__LINE__, c.z);
+  dumpf(__LINE__, m.x);
+  dumpf(__LINE__, m.y);
+  dumpf(__LINE__, m.z);
+#endif
   v D = A(P,c,-1); 
+#if 0
+  dumpf(__LINE__, D.x);
+  dumpf(__LINE__, D.y);
+  dumpf(__LINE__, D.z);
+#endif
   f d = O(D,D);
   return d<I ? C=c,M=m,I=d:d;
 }
 
 f D(v p) {
+#if 0
+  dumpf(__LINE__, p.x);
+  dumpf(__LINE__, p.y);
+  dumpf(__LINE__, p.z);
+#endif
 
   f x=0;
 
@@ -113,17 +201,35 @@ f D(v p) {
 
   N=A(P,C,-1);
 
+  //dumpf(__LINE__, I);
   return sqrt(I)-.45;
 
 }
 
 v R(v o, v d, f z) {
 
+#if 0
+  checkpoint(__LINE__);
+
+  dumpf(__LINE__, o.x);
+  dumpf(__LINE__, o.y);
+  dumpf(__LINE__, o.z);
+
+  dumpf(__LINE__, d.x);
+  dumpf(__LINE__, d.y);
+  dumpf(__LINE__, d.z);
+
+  dumpf(__LINE__, z);
+#endif
+
   f u=0, l=0, i=0, a=1, k=d.z*d.z;
   v p, n;
 
-  while (u<97) 
-    if ((l=D(p = A(o,d,u+=l)))*l<.001) {
+  while (u<97) {
+    //checkpoint(__LINE__);
+    f t1 = (l=D(p = A(o,d,u+=l)));
+    //dumpf(__LINE__, t1);
+    if (t1*l<.001) {
       
       p=M;
       n=_(N);
@@ -187,10 +293,13 @@ v R(v o, v d, f z) {
       // instance, the Phong shading model).
       u=pow(U(O(n,_(A(L,d,-1)))),40);
 
+      //checkpoint(__LINE__);
       return A(S(p,1-u),W,u);
 
     }
+  }
   
+  //checkpoint(__LINE__);
   return G(k,k,1);
 
 }
@@ -220,6 +329,7 @@ int miniray() {
     // x holds the horizontal pixel coordinate
     for (x=-300;x<300;++x) {
       
+      //checkpoint(__LINE__);
       v p = S( R( G(-2,4,25),
                   _( A( G(10.25,-2,-25) ,
                         A( S( _(G(5,0,2)), x ), 

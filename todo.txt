@@ -1,4 +1,19 @@
 
+dump first arg to R, it's wrong
+it comes from a simple call to G with constants
+
+weird: compile to wasm with different O settings
+    O3 -- ppm file correct size, all pixels white
+    O2 -- same
+    O1 -- exp2() call unresolved, fix, then ppm file wrong size
+       -- compiles, but ppm file wrong size
+
+are promote and demote actually working?
+
+why is atan2 always getting NaNs ?
+
+test min and max?
+
 xunit theory instead of fact
 
 sqlite docs say the OMIT defines don't work for the

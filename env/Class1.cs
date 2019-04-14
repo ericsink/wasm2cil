@@ -3,24 +3,41 @@
 public static class env
 {
     public static int __stack_pointer;
+    public static void dumpf(int n, float f)
+    {
+        System.Console.Error.WriteLine("dumpf: {0} -- {1}", n, f.ToString("0.0000"));
+    }
+    public static void checkpoint(int n)
+    {
+        System.Console.Error.WriteLine("checkpoint: {0}", n);
+    }
+    public static double exp2(double x)
+    {
+        return Math.Pow(2, x);
+    }
     public static double pow(double x, double y)
     {
+        //System.Console.Error.WriteLine("pow: {0}, {1}", x, y);
         return Math.Pow(x, y);
     }
     public static double atan2(double x, double y)
     {
+        //System.Console.Error.WriteLine("atan2: {0}, {1}", x, y);
         return Math.Atan2(x, y);
     }
     public static double sqrt(double x)
     {
+        System.Console.Error.WriteLine("sqrt: {0}", x);
         return Math.Sqrt(x);
     }
     public static double cos(double x)
     {
+        //System.Console.Error.WriteLine("cos: {0}", x);
         return Math.Cos(x);
     }
     public static double sin(double x)
     {
+        //System.Console.Error.WriteLine("sin: {0}", x);
         return Math.Sin(x);
     }
     public static int __extenddftf2(int n, double f)
