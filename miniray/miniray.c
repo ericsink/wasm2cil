@@ -40,8 +40,7 @@ v R(v o) {
 
 #endif
 
-  f u=0, l=0, i=0, a=1;
-  v p, n;
+  f u=0;
 
   while (u<97) {
   }
