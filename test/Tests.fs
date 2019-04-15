@@ -983,4 +983,48 @@ let f64_conv_f32 () =
     check System.Single.MinValue
     check System.Single.MaxValue
 
+[<Fact>]
+let weird_store_i32_load_f32 () =
+    let name_load = "f32_load"
+    let name_store = "i32_store"
+
+    let b = ModuleBuilder()
+    b.AddFunction(build_function_f32_load name_load)
+    b.AddFunction(build_function_i32_store name_store)
+
+    let m = b.CreateModule()
+    let a = prep_assembly m
+    let mi_load = get_method a name_load
+    let mi_store = get_method a name_store
+
+    let load = invoke_1 mi_load
+    let store = invoke_2 mi_store
+
+    store 0 1103626240
+    let f = load 0
+    Assert.Equal(25.0f, f)
+
+[<Fact>]
+let weird_store_i64_load_two_f32 () =
+    let name_load = "f32_load"
+    let name_store = "i64_store"
+
+    let b = ModuleBuilder()
+    b.AddFunction(build_function_f32_load name_load)
+    b.AddFunction(build_function_i64_store name_store)
+
+    let m = b.CreateModule()
+    let a = prep_assembly m
+    let mi_load = get_method a name_load
+    let mi_store = get_method a name_store
+
+    let load = invoke_1 mi_load
+    let store = invoke_2 mi_store
+
+    store 0 4647714818667577344L
+    let f = load 0
+    Assert.Equal(-2.0f, f)
+    let g = load 4
+    Assert.Equal(4.0f, g)
+
 

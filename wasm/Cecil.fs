@@ -1095,7 +1095,7 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-        let mem_size_in_pages = 1
+        let mem_size_in_pages = 4 // TODO temporary
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
         il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))

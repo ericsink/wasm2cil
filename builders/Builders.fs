@@ -48,6 +48,30 @@ let build_function_f32_store name =
     fb.Add (End)
     fb
 
+let build_function_i32_store name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- None
+    fb.AddParam I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (I32Store { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
+let build_function_i64_store name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- None
+    fb.AddParam I32
+    fb.AddParam I64
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (I64Store { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
 let build_function_f64_load name =
     let fb = FunctionBuilder()
     fb.Name <- Some name
