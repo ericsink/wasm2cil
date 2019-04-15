@@ -36,6 +36,16 @@ let build_function_f32_load name =
     fb.Add (End)
     fb
 
+let build_function_u8_load name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I32Load8U { align=0u; offset=0u; })
+    fb.Add (End)
+    fb
+
 let build_function_f32_store name =
     let fb = FunctionBuilder()
     fb.Name <- Some name

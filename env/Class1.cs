@@ -3,6 +3,10 @@
 public static class env
 {
     public static int __stack_pointer;
+    public static void dumpb(int n, int b)
+    {
+        System.Console.Error.WriteLine("dumpb: {0} -- {1}", n, b.ToString("x"));
+    }
     public static void dumpf(int n, float f)
     {
         System.Console.Error.WriteLine("dumpf: {0} -- {1}", n, f.ToString("0.0000"));

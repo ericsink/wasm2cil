@@ -1,4 +1,9 @@
 
+the i64 stored for the first two floats would
+seem to be wrong.  but ocaml interpreter got the
+right answer.  how?  and the code seems to work
+when run in the test suite.  how?
+
 miniray seems to be accessing memory outside the
 range of a page.  65536 is a page.  add 1024
 to get 66560, which is the number given.

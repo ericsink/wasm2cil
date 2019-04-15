@@ -40,22 +40,22 @@ module wasm.read_basic
         else
             read_var_signed br (count + 1) result
 
-    let rec private read_var_unsigned br count (value: uint32) =
+    let rec private read_var_unsigned br count (value: uint64) =
         let b = read_byte br
-        let result = value ||| (uint32 (b &&& 0x7Fuy) <<< (count * 7))
+        let result = value ||| (uint64 (b &&& 0x7Fuy) <<< (count * 7))
         if (b &&& 0x80uy) = 0uy then
             result
         else
             read_var_unsigned br (count + 1) result
 
     let read_var_u32 br =
-        read_var_unsigned br 0 0u
+        read_var_unsigned br 0 0uL |> uint32
 
     let read_var_i32 br =
         read_var_signed br 0 0L |> int32
 
     let read_var_i64 br =
-        read_var_signed br 0 0L
+        read_var_unsigned br 0 0uL |> int64
 
     let read_f32 br =
         let ba = read_bytes br 4u

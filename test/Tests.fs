@@ -138,6 +138,7 @@ let drop_empty () =
 
     Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly m |> ignore)
 
+(*
 [<Fact>]
 let memory_size () =
     let fb = FunctionBuilder()
@@ -159,6 +160,7 @@ let memory_size () =
         1
 
     check_0 mi impl
+*)
 
 [<Fact>]
 let import_memory_store () =
@@ -1006,25 +1008,36 @@ let weird_store_i32_load_f32 () =
 
 [<Fact>]
 let weird_store_i64_load_two_f32 () =
-    let name_load = "f32_load"
+    let name_f32_load = "f32_load"
+    let name_u8_load = "u8_load"
     let name_store = "i64_store"
 
     let b = ModuleBuilder()
-    b.AddFunction(build_function_f32_load name_load)
+    b.AddFunction(build_function_u8_load name_u8_load)
+    b.AddFunction(build_function_f32_load name_f32_load)
     b.AddFunction(build_function_i64_store name_store)
 
     let m = b.CreateModule()
     let a = prep_assembly m
-    let mi_load = get_method a name_load
+    let mi_u8_load = get_method a name_u8_load
+    let mi_f32_load = get_method a name_f32_load
     let mi_store = get_method a name_store
 
-    let load = invoke_1 mi_load
+    let u8_load = invoke_1 mi_u8_load
+    let f32_load = invoke_1 mi_f32_load
     let store = invoke_2 mi_store
 
     store 0 4647714818667577344L
-    let f = load 0
-    Assert.Equal(-2.0f, f)
-    let g = load 4
-    Assert.Equal(4.0f, g)
+    Assert.Equal(-2.0f, f32_load 0)
+    Assert.Equal(4.0f, f32_load 4)
+
+    Assert.Equal(0, u8_load 0)
+    Assert.Equal(0, u8_load 1)
+    Assert.Equal(0, u8_load 2)
+    Assert.Equal(0xc0, u8_load 3)
+    Assert.Equal(0, u8_load 4)
+    Assert.Equal(0, u8_load 5)
+    Assert.Equal(0x80, u8_load 6)
+    Assert.Equal(0x40, u8_load 7)
 
 
