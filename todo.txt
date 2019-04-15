@@ -1,28 +1,9 @@
 
-the i64 stored for the first two floats would
-seem to be wrong.  but ocaml interpreter got the
-right answer.  how?  and the code seems to work
-when run in the test suite.  how?
-
 miniray seems to be accessing memory outside the
 range of a page.  65536 is a page.  add 1024
-to get 66560, which is the number given.
-
+to get 66560, which is the number given. maybe related:
 ouch.  results vary from run to run, even without
 a rebuild.
-
-dump first arg to R, it's wrong
-it comes from a simple call to G with constants
-
-weird: compile to wasm with different O settings
-    O3 -- ppm file correct size, all pixels white
-    O2 -- same
-    O1 -- exp2() call unresolved, fix, then ppm file wrong size
-       -- compiles, but ppm file wrong size
-
-are promote and demote actually working?
-
-why is atan2 always getting NaNs ?
 
 test min and max?
 
@@ -119,4 +100,6 @@ def and read and write and cecil could be in separate assemblies?
 
 review naming of def record fields.  compare to spec.
 and conventions, lower case, etc.
+
+chg assembly write to use a stream ?
 
