@@ -1,4 +1,8 @@
 
+miniray seems to be accessing memory outside the
+range of a page.  65536 is a page.  add 1024
+to get 66560, which is the number given.
+
 ouch.  results vary from run to run, even without
 a rebuild.
 
