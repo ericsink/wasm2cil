@@ -15,31 +15,25 @@ v G(f x, f y, f z) {
     return n; 
     }
 
-v R(v o) {
+void R(v o) {
 
 #if 1
-  checkpoint(__LINE__);
-
   dumpf(__LINE__, o.x);
   dumpf(__LINE__, o.y);
   dumpf(__LINE__, o.z);
-
 #endif
 
   f u=0;
 
   while (u<97) {
   }
-  
-  //checkpoint(__LINE__);
-  return G(4,4,1);
 
 }
 
 int miniray() {
 
       //checkpoint(__LINE__);
-      v p = R( G(-2,4,25));
+      R( G(-2,4,25));
 
   return 0;
 
