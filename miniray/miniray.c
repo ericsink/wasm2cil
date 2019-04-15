@@ -7,6 +7,9 @@ extern double cos(double);
 extern double sqrt(double);
 extern double pow(double, double);
 extern double atan2(double, double);
+extern long get_ms(void);
+extern void checkpoint(int n);
+extern void dump_i32(int n, long v);
 
 #define E return
 
@@ -196,6 +199,8 @@ v R(v o, v d, f z) {
 
 int miniray() {
 
+  long t1 = get_ms();
+
   // Set up the lighting direction and material
   L=_(G(-1,1,2));
   F=G(Y,Y,1);
@@ -229,6 +234,9 @@ int miniray() {
       putchar((int) p.z);
 
     }
+
+  long t2 = get_ms();
+  dump_i32(__LINE__, (int) (t2 - t1));
 
   return 0;
 

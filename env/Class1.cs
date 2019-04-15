@@ -3,9 +3,14 @@
 public static class env
 {
     public static int __stack_pointer;
-    public static void dumpb(int n, int b)
+    public static long get_ms()
     {
-        System.Console.Error.WriteLine("dumpb: {0} -- {1}", n, b.ToString("x"));
+        TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
+        return (long) (t.TotalMilliseconds);
+    }
+    public static void dump_i32(int n, int b)
+    {
+        System.Console.Error.WriteLine("dumpb: {0} -- {1}", n, b.ToString());
     }
     public static void dumpf(int n, float f)
     {

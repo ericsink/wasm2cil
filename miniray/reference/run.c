@@ -1,5 +1,17 @@
 
 #include <stdio.h>
+#include <sys/time.h>
+
+long get_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    long s = (long) (tv.tv_sec);
+    long us = (long) (tv.tv_usec);
+    long ms = us / 1000;
+    long total = s * 1000 + ms;
+    return total;
+}
 
 void checkpoint(int n)
 {
@@ -11,9 +23,9 @@ void dumpf(int n, float f)
     fprintf(stderr, "dumpf: %d -- %3.4f\n", n, f);
 }
 
-void dumpb(int n, int b)
+void dump_i32(int n, int v)
 {
-    fprintf(stderr, "dumpf: %d -- %02x\n", n, b);
+    fprintf(stderr, "dump_i32: %d -- %d\n", n, v);
 }
 
 int main()
