@@ -1229,9 +1229,9 @@ module wasm.cecil
 
         let tbl_lookup = 
             let has_table =
-                match (ndx.Table, ndx.TableImport) with
-                | (Some _, None) -> true
-                | (None, Some _) -> true
+                match (ndx.Table, ndx.TableImport, ndx.Element) with
+                | (Some _, None, Some _) -> true
+                | (None, Some _, Some _) -> true
                 | _ -> false
             if has_table then
                 let m = gen_tbl_lookup ndx bt tbl

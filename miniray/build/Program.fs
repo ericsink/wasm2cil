@@ -8,7 +8,6 @@ open wasm.cecil
 
 [<EntryPoint>]
 let main argv =
-    printfn "Args: (filename|build)  [assembly|None] [wasm|filename]"
     let assy = System.Reflection.Assembly.GetAssembly(typeof<env>)
 
     let m =
