@@ -155,7 +155,7 @@ public static class env
     }
     public static int malloc(int a)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException($"malloc {a}");
     }
     public static int free(int a)
     {
