@@ -99,12 +99,15 @@ public static class env
     }
     public static int sqlite3_os_init()
     {
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
+        return 0;
     }
     public static int sqlite3_os_end()
     {
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
+        return 0;
     }
+#if true
     public static int strcmp(int a, int c)
     {
         throw new NotImplementedException();
@@ -114,18 +117,6 @@ public static class env
         throw new NotImplementedException();
     }
     public static int memset(int p, int c, int sz)
-    {
-        throw new NotImplementedException();
-    }
-    public static int localtime(int a)
-    {
-        throw new NotImplementedException();
-    }
-    public static int gmtime(int a)
-    {
-        throw new NotImplementedException();
-    }
-    public static int strftime(int a, int b, int c, int d)
     {
         throw new NotImplementedException();
     }
@@ -141,6 +132,19 @@ public static class env
     {
         throw new NotImplementedException();
     }
+#endif
+    public static int localtime(int a)
+    {
+        throw new NotImplementedException();
+    }
+    public static int gmtime(int a)
+    {
+        throw new NotImplementedException();
+    }
+    public static int strftime(int a, int b, int c, int d)
+    {
+        throw new NotImplementedException();
+    }
     public static int strncmp(int a, int b, int c)
     {
         throw new NotImplementedException();
@@ -153,13 +157,16 @@ public static class env
     {
         throw new NotImplementedException();
     }
+    static int curmem = 1024;
     public static int malloc(int a)
     {
-        throw new NotImplementedException($"malloc {a}");
+        var x = curmem;
+        curmem += a;
+        return x;
     }
-    public static int free(int a)
+    public static void free(int a)
     {
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
     }
     public static int realloc(int a, int b)
     {
