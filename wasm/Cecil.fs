@@ -77,6 +77,7 @@ module wasm.cecil
         md : ModuleDefinition
         mem : FieldReference
         mem_size : FieldReference
+        mem_grow : MethodReference
         tbl_lookup : MethodDefinition option
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
@@ -392,7 +393,13 @@ module wasm.cecil
             il.Append(il.Create(op))
 
         let todo q =
-            printfn "TODO: %A" q
+            let msg = sprintf "TODO %A" q
+            printfn "%s" msg
+            let ref_typ_e = ctx.md.ImportReference(typeof<System.Exception>.GetConstructor([| typeof<string> |]))
+            il.Append(il.Create(OpCodes.Ldstr, msg))
+            il.Append(il.Create(OpCodes.Newobj, ref_typ_e))
+            il.Append(il.Create(OpCodes.Throw))
+
         match op with
         | Block t -> 
             let lab = il.Create(OpCodes.Nop)
@@ -718,7 +725,7 @@ module wasm.cecil
                 il.Append(lab_done);
             | None -> failwith "should not happen"
         | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
-        | MemoryGrow _ -> todo op
+        | MemoryGrow _ -> il.Append(il.Create(OpCodes.Call, ctx.mem_grow))
         | I32Clz -> todo op
         | I32Ctz -> todo op
         | I32Popcnt -> todo op
@@ -1041,6 +1048,7 @@ module wasm.cecil
 
         il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
         // TODO where is this freed?
+        // TODO the docs say the param to AllocHGlobal is an IntPtr
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
         il.Append(il.Create(OpCodes.Stsfld, tbl))
@@ -1095,7 +1103,7 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-        let mem_size_in_pages = 4 // TODO temporary
+        let mem_size_in_pages = 16 // TODO temporary
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
         il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))
@@ -1103,6 +1111,7 @@ module wasm.cecil
 
         il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
         // TODO where is this freed?
+        // TODO the docs say the param to AllocHGlobal is an IntPtr
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
         il.Append(il.Create(OpCodes.Call, ext))
         il.Append(il.Create(OpCodes.Stsfld, ctx.mem))
@@ -1131,6 +1140,59 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Stsfld, gi.field))
             | GlobalRefImported _ -> ()
 
+        il.Append(il.Create(OpCodes.Ret))
+
+        method
+
+    let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt =
+        let method = 
+            new MethodDefinition(
+                "__grow_mem",
+                MethodAttributes.Private ||| MethodAttributes.Static,
+                bt.typ_i32
+                )
+        let parm = new ParameterDefinition(bt.typ_i32)
+        method.Parameters.Add(parm)
+
+        let v_old_size = new VariableDefinition(bt.typ_i32)
+        method.Body.Variables.Add(v_old_size)
+
+        let il = method.Body.GetILProcessor()
+
+        il.Append(il.Create(OpCodes.Ldsfld, mem))
+
+        il.Append(il.Create(OpCodes.Ldsfld, mem_size))
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Stloc, v_old_size))
+        il.Append(il.Create(OpCodes.Ldarg, parm))
+        il.Append(il.Create(OpCodes.Add))
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Stsfld, mem_size))
+
+        il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
+        il.Append(il.Create(OpCodes.Mul))
+
+        let method_realloc = typeof<System.Runtime.InteropServices.Marshal>.GetMethod("ReAllocHGlobal", [| typeof<nativeint>; typeof<nativeint> |] )
+        if method_realloc = null then
+            failwith "ReAllocHGlobal not found"
+
+        // TODO this should do try/catch and return -1 if it fails
+
+        // TODO where is this freed?
+        let ext = mem.Module.ImportReference(method_realloc)
+        il.Append(il.Create(OpCodes.Call, ext))
+
+        il.Append(il.Create(OpCodes.Stsfld, mem))
+
+(* TODO
+        // memset 0
+        il.Append(il.Create(OpCodes.Ldsfld, mem))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0))
+        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
+        il.Append(il.Create(OpCodes.Initblk))
+*)
+
+        il.Append(il.Create(OpCodes.Ldloc, v_old_size))
         il.Append(il.Create(OpCodes.Ret))
 
         method
@@ -1244,6 +1306,10 @@ module wasm.cecil
             | Some s -> s.types
             | None -> [| |]
 
+        let mem_grow =
+            gen_grow_mem mem mem_size bt
+        container.Methods.Add(mem_grow)
+
         let ctx =
             {
                 types = types
@@ -1253,6 +1319,7 @@ module wasm.cecil
                 a_methods = a_methods
                 mem = mem
                 mem_size = mem_size
+                mem_grow = mem_grow
                 tbl_lookup = tbl_lookup
             }
 

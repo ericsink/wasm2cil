@@ -1,8 +1,136 @@
 ﻿using System;
 
+public static class wasi_unstable
+{
+    public static int path_open(
+		int dirfd,
+		int dirflags,
+		int path,
+		int path_len,
+		int oflags,
+		long fs_rights_base,
+		long fs_rights_inheriting,
+		int fs_flags,
+		int fd
+		)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static int fd_prestat_dir_name(int a, int b, int c)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_prestat_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static int environ_sizes_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static int environ_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static int args_sizes_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static int args_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static void proc_exit(int a)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_filestat_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static int clock_time_get(int a, long b, int c)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_close(int a)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_sync(int a)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_seek(int a, long b, int c, int d)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_read(int a, int b, int c, int d)
+    {
+        throw new NotImplementedException();
+    }
+    public static int poll_oneoff(int a, int b, int c, int d)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_write(int a, int b, int c, int d)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_fdstat_get(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_filestat_get(int a, int b, int c, int d, int e)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_rename(int a, int b, int c, int d, int e, int f)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_unlink_file(int a, int b, int c)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_remove_directory(int a, int b, int c)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_link(int a, int b, int c, int d, int e, int f, int g)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_create_directory(int a, int b, int c)
+    {
+        throw new NotImplementedException();
+    }
+    public static int fd_readdir(int a, int b, int c, long d, int e)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_readlink(int a, int b, int c, int d, int e, int f)
+    {
+        throw new NotImplementedException();
+    }
+    public static int path_symlink(int a, int b, int c, int d, int e)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 public static class env
 {
     public static int __stack_pointer;
+    public static int main(int a, int b)
+    {
+        // TODO this shouldn't be here
+        throw new NotImplementedException();
+    }
+    public static int getcwd(int a, int b)
+    {
+        throw new NotImplementedException();
+    }
     public static long get_ms()
     {
         TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
@@ -94,81 +222,6 @@ public static class env
         throw new NotImplementedException();
     }
     public static int __floatditf(int a, long b)
-    {
-        throw new NotImplementedException();
-    }
-    public static int sqlite3_os_init()
-    {
-        //throw new NotImplementedException();
-        return 0;
-    }
-    public static int sqlite3_os_end()
-    {
-        //throw new NotImplementedException();
-        return 0;
-    }
-#if true
-    public static int strcmp(int a, int c)
-    {
-        throw new NotImplementedException();
-    }
-    public static int strlen(int a)
-    {
-        throw new NotImplementedException();
-    }
-    public static int memset(int p, int c, int sz)
-    {
-        throw new NotImplementedException();
-    }
-    public static int memcpy(int dest, int src, int n)
-    {
-        throw new NotImplementedException();
-    }
-    public static int memmove(int dest, int src, int n)
-    {
-        throw new NotImplementedException();
-    }
-    public static int memcmp(int a, int b, int c)
-    {
-        throw new NotImplementedException();
-    }
-#endif
-    public static int localtime(int a)
-    {
-        throw new NotImplementedException();
-    }
-    public static int gmtime(int a)
-    {
-        throw new NotImplementedException();
-    }
-    public static int strftime(int a, int b, int c, int d)
-    {
-        throw new NotImplementedException();
-    }
-    public static int strncmp(int a, int b, int c)
-    {
-        throw new NotImplementedException();
-    }
-    public static int strcspn(int a, int b)
-    {
-        throw new NotImplementedException();
-    }
-    public static int strrchr(int a, int b)
-    {
-        throw new NotImplementedException();
-    }
-    static int curmem = 1024;
-    public static int malloc(int a)
-    {
-        var x = curmem;
-        curmem += a;
-        return x;
-    }
-    public static void free(int a)
-    {
-        //throw new NotImplementedException();
-    }
-    public static int realloc(int a, int b)
     {
         throw new NotImplementedException();
     }

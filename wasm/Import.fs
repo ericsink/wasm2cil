@@ -18,13 +18,19 @@ module wasm.import
 
     let import_function (md : ModuleDefinition) (s : ImportedFunc) (a : System.Reflection.Assembly) =
         let typ = a.GetType(s.m)
+        if typ = null then
+            // TODO throw a more specific exception
+            failwith (sprintf "import module not found: %s" s.m)
         let parms = 
             s.typ.parms
             |> Array.map valtype_to_basic_type
-        let method = typ.GetMethod(s.name, parms)
-        if method = null then
-            // TODO throw a more specific exception
-            failwith (sprintf "import method not found: %s.%s(%A)" s.m s.name s.typ.parms)
+        let method =
+            let method = typ.GetMethod(s.name, parms)
+            if method <> null then
+                method
+            else
+                // TODO throw a more specific exception
+                failwith (sprintf "import method not found: %A %s.%s(%A)" s.typ.result s.m s.name s.typ.parms)
         // TODO fail if the return type is wrong
         let mref = md.ImportReference(method)
         mref

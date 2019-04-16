@@ -2,16 +2,6 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-int sqlite3_os_init()
-{
-    return 0;
-}
-
-int sqlite3_os_end()
-{
-    return 0;
-}
-
 long get_ms(void)
 {
     struct timeval tv;
@@ -40,7 +30,7 @@ void dump_i32(int n, int v)
 
 int main()
 {
-    int x = test1();
+    int x = test2();
     fprintf(stderr, "test1: %d\n", x);
 }
 
