@@ -13,21 +13,6 @@ long get_ms(void)
     return total;
 }
 
-void checkpoint(int n)
-{
-    fprintf(stderr, "checkpoint: %d\n", n);
-}
-
-void dumpf(int n, float f)
-{
-    fprintf(stderr, "dumpf: %d -- %3.4f\n", n, f);
-}
-
-void dump_i32(int n, int v)
-{
-    fprintf(stderr, "dump_i32: %d -- %d\n", n, v);
-}
-
 int main()
 {
     miniray();
