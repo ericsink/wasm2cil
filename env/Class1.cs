@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 
 public static class wasi_unstable
 {
+    public static int __mem_size;
+    public static IntPtr __mem;
+
     public static int path_open(
 		int dirfd,
 		int dirflags,
@@ -59,7 +62,7 @@ public static class wasi_unstable
                 var ms = (long) (t.TotalMilliseconds);
                 var ns = ms * 1000 * 1000;
                 var ia = new long[] { ns };
-                Marshal.Copy(ia, 0, env.__mem + addr_result, 1);
+                Marshal.Copy(ia, 0, __mem + addr_result, 1);
                 return 0;
             default: throw new NotImplementedException();
         }
@@ -110,7 +113,7 @@ public static class wasi_unstable
         }
 
         var a_iovecs = new int[num_iovecs * 2];
-        Marshal.Copy(env.__mem + p_a_iovecs, a_iovecs, 0, num_iovecs * 2);
+        Marshal.Copy(__mem + p_a_iovecs, a_iovecs, 0, num_iovecs * 2);
 
         int total_len = 0;
         for (int i=0; i<num_iovecs; i++)
@@ -118,13 +121,13 @@ public static class wasi_unstable
             var addr = a_iovecs[i * 2];
             var len = a_iovecs[i * 2 + 1];
             var ba = new byte[len];
-            Marshal.Copy(env.__mem + addr, ba, 0, len);
+            Marshal.Copy(__mem + addr, ba, 0, len);
             strm.Write(ba, 0, len);
             total_len += len;
         }
 
         var ia = new int[] { total_len };
-        Marshal.Copy(ia, 0, env.__mem + p_written, 1);
+        Marshal.Copy(ia, 0, __mem + p_written, 1);
 
         return 0;
     }
@@ -188,9 +191,7 @@ public static class env
         throw new NotImplementedException();
     }
 
-    public static int __mem_size;
-    public static IntPtr __mem;
-
+    // TODO rm this
     public static IntPtr __mem_only_imported_in_one_test;
 
     public static IntPtr __my_mem;

@@ -29,20 +29,32 @@ type AssemblyStuff = {
     classname : string
     }
 
-let prep_assembly m =
+let prep_assembly_with_target target m =
     let id = newid ()
     let ns = "test_namespace"
     let classname = "foo"
     let ver = new System.Version(1, 0, 0, 0)
     let ba = 
-        // TODO mv this above to a static field?
-        let assy = System.Reflection.Assembly.GetAssembly(typeof<env>)
         use ms = new System.IO.MemoryStream()
-        gen_assembly assy m id ns classname ver ms
+        gen_assembly target m id ns classname ver ms
         ms.ToArray()
     let a = System.Reflection.Assembly.Load(ba)
     Assert.NotNull(a)
     { a = a; classname = classname; ns = ns; }
+
+let prep_assembly_with (assembly : System.Reflection.Assembly) m =
+    let target = Other (Some assembly)
+    prep_assembly_with_target target m
+
+let prep_assembly_env m =
+    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env>)
+    let target = Other (Some env_assembly)
+    prep_assembly_with_target target m
+
+let prep_assembly_none m =
+    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env>)
+    let target = Other None
+    prep_assembly_with_target target m
 
 let get_method a name =
     let fullname = sprintf "%s.%s" a.ns a.classname
@@ -80,7 +92,7 @@ let empty_module () =
         sections = Array.empty
         }
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     Assert.NotNull(a.a)
 
 [<Fact>]
@@ -96,7 +108,7 @@ let empty_method () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
     mi.Invoke(null, null) |> ignore
     Assert.True(true)
@@ -116,7 +128,7 @@ let int_constant () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl n =
@@ -138,9 +150,8 @@ let drop_empty () =
 
     let m = b.CreateModule()
 
-    Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly_none m |> ignore)
 
-(*
 
 [<Fact>]
 let memory_size () =
@@ -156,7 +167,7 @@ let memory_size () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl n =
@@ -177,13 +188,14 @@ let import_memory_store () =
     let b = ModuleBuilder()
     b.AddFunction(fb)
 
+    // TODO this should just create its own env module right here
     b.AddImport({ m = "env"; name = "__mem_only_imported_in_one_test"; desc = ImportMem { limits = Min 1u }; })
 
     let m = b.CreateModule()
 
     Assert.Equal(IntPtr.Zero, env.__mem_only_imported_in_one_test)
 
-    let a = prep_assembly m
+    let a = prep_assembly_env m
     let mi = get_method a name
 
     let impl n =
@@ -234,7 +246,7 @@ let test_memory_load () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_env m
 
     let mi_k = get_method a name_k
 
@@ -262,8 +274,6 @@ let test_memory_load () =
     check 77
     check 7632
 
-*)
-
 let GetResource (a : System.Reflection.Assembly) (name : string) =
     use strm = a.GetManifestResourceStream(name)
     use ms = new System.IO.MemoryStream()
@@ -279,7 +289,7 @@ let test_data () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
 
     let ba = GetResource a.a "data_0"
 
@@ -307,7 +317,7 @@ let test_memory_load_data () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
 
     let mi_fetch = get_method a name_fetch
 
@@ -337,7 +347,7 @@ let simple_add () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl n =
@@ -366,30 +376,30 @@ let add_with_incorrect_types () =
 
     let m = b.CreateModule()
 
-    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<WrongOperandType>(fun () -> prep_assembly_none m |> ignore)
 
 [<Fact>]
 let test_invalid_block_type () =
     let m = build_module_invalid_block_type
-    Assert.Throws<WrongOperandType>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<WrongOperandType>(fun () -> prep_assembly_none m |> ignore)
 
 [<Fact>]
 let test_too_many_block_results () =
     let m = build_module_too_many_block_results
     // TODO review exception type here
-    Assert.Throws<ExtraBlockResult>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<ExtraBlockResult>(fun () -> prep_assembly_none m |> ignore)
 
 [<Fact>]
 let test_too_many_func_results () =
     let m = build_module_too_many_func_results
     // TODO review exception type here
-    Assert.Throws<ExtraBlockResult>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<ExtraBlockResult>(fun () -> prep_assembly_none m |> ignore)
 
 [<Fact>]
 let test_block_stack_underflow () =
     let m = build_module_block_stack_underflow
     // TODO review exception type here
-    Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly m |> ignore)
+    Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly_none m |> ignore)
 
 (* TODO
 [<Fact>]
@@ -415,7 +425,7 @@ let simple_add_with_block () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl n =
@@ -473,7 +483,7 @@ let simple_two_funcs () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a "calc"
 
     let impl n =
@@ -495,7 +505,7 @@ let simple_callindirect () =
     let mulnum = 7
     let m = build_simple_callindirect addnum mulnum
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a "calc"
 
     let impl w n =
@@ -516,7 +526,7 @@ let simple_callindirect () =
 let add_value_from_block () =
 
     let m = build_module_add_value_from_block
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a "add_value_from_block"
 
     let impl x y = x + y
@@ -547,7 +557,7 @@ let make_simple_compare_func name t op =
 let make_simple_compare_check t wasm_op fs_op =
     let name = "compare"
     let m = make_simple_compare_func name t wasm_op
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl a b =
@@ -594,7 +604,7 @@ let simple_loop_optimized_out () =
     b.AddFunction(fb)
     let m = b.CreateModule()
 
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl x =
@@ -641,7 +651,7 @@ let i32rotl () =
     b.AddFunction(fb)
 
     let m = b.CreateModule()
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl (v : int32) c =
@@ -688,7 +698,7 @@ let make_simple_binop_func name t op =
 let make_simple_binop_check t wasm_op fs_op =
     let name = "binop"
     let m = make_simple_binop_func name t wasm_op
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl a b =
@@ -823,7 +833,7 @@ let f32_load_store () =
     b.AddFunction(build_function_f32_store name_store)
 
     let m = b.CreateModule()
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi_load = get_method a name_load
     let mi_store = get_method a name_store
 
@@ -851,7 +861,7 @@ let f64_load_store () =
     b.AddFunction(build_function_f64_store name_store)
 
     let m = b.CreateModule()
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi_load = get_method a name_load
     let mi_store = get_method a name_store
 
@@ -871,7 +881,7 @@ let f64_load_store () =
 
 let make_conv_check name t_from t_to op fs =
     let m = build_function_conv name t_from t_to op |> build_module
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
     let impl v =
         fs v
@@ -1005,7 +1015,7 @@ let weird_store_i32_load_f32 () =
     b.AddFunction(build_function_i32_store name_store)
 
     let m = b.CreateModule()
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi_load = get_method a name_load
     let mi_store = get_method a name_store
 
@@ -1028,7 +1038,7 @@ let weird_store_i64_load_two_f32 () =
     b.AddFunction(build_function_i64_store name_store)
 
     let m = b.CreateModule()
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi_u8_load = get_method a name_u8_load
     let mi_f32_load = get_method a name_f32_load
     let mi_store = get_method a name_store
@@ -1063,7 +1073,7 @@ type O8 =
 let f64_reinterpret_i64 () =
     let name = "f64_reinterpret_i64"
     let m = build_function_conv name I64 F64 F64ReinterpretI64 |> build_module
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl v =
@@ -1083,7 +1093,7 @@ let f64_reinterpret_i64 () =
 let i64_reinterpret_f64 () =
     let name = "i64_reinterpret_f64"
     let m = build_function_conv name F64 I64 I64ReinterpretF64 |> build_module
-    let a = prep_assembly m
+    let a = prep_assembly_none m
     let mi = get_method a name
 
     let impl v =

@@ -8,7 +8,7 @@ open wasm.cecil
 
 [<EntryPoint>]
 let main argv =
-    let assy = System.Reflection.Assembly.GetAssembly(typeof<env>)
+    let assy = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
 
     let m =
         let filename = "..\\miniray.wasm"
@@ -30,7 +30,7 @@ let main argv =
         let ns = id
         let classname = "foo"
         let ver = new System.Version(1, 0, 0, 0)
-        gen_assembly assy m id ns classname ver ms
+        gen_assembly (Wasi assy) m id ns classname ver ms
         ms.ToArray()
     System.IO.File.WriteAllBytes(destname, ba)
 

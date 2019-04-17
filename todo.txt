@@ -1,4 +1,11 @@
 
+currently, the memory section of the module is ignored.
+if there is no memory import, one is defined, whether
+the module had a memory section or not.  do we need 
+a way to specify a module which has no memory at all?
+
+Target.Nothing should probably be folded into Target.Other
+
 should probably lookup all references in a ns2.0 reference
 assembly
 

@@ -920,13 +920,16 @@ module wasm.cecil
         cecil_expr (function_result_type mi.func.typ) il ctx f_make_tmp a_locals mi.func.code.expr
         il.Append(il.Create(OpCodes.Ret))
 
-    let create_methods ndx bt (md : ModuleDefinition) assy =
+    let create_methods ndx bt (md : ModuleDefinition) env_assembly =
         let count_imports = count_function_imports ndx
         let prep_func i fi =
             match fi with
             | ImportedFunc s ->
-                let method = import_function md s assy
-                MethodRefImported { MethodRefImported.func = s; method = method }
+                match env_assembly with
+                | Some assy ->
+                    let method = import_function md s assy
+                    MethodRefImported { MethodRefImported.func = s; method = method }
+                | None -> failwith "no imports"
             | InternalFunc q ->
                 let method = create_method q (count_imports + i) bt
                 MethodRefInternal { func = q; method = method; }
@@ -940,14 +943,17 @@ module wasm.cecil
             | MethodRefInternal mi -> gen_function_code ctx mi
             | MethodRefImported _ -> ()
 
-    let create_globals ndx bt (md : ModuleDefinition) assy =
+    let create_globals ndx bt (md : ModuleDefinition) env_assembly =
         let count_imports = count_global_imports ndx
 
         let prep i gi =
             match gi with
             | ImportedGlobal s ->
-                let field = import_global md s assy
-                GlobalRefImported { GlobalRefImported.glob = s; field = field; }
+                match env_assembly with
+                | Some assy ->
+                    let field = import_global md s assy
+                    GlobalRefImported { GlobalRefImported.glob = s; field = field; }
+                | None -> failwith "no imports"
             | InternalGlobal q ->
                 let field = create_global q (count_imports + i) bt
                 GlobalRefInternal { glob = q; field = field; }
@@ -1004,8 +1010,6 @@ module wasm.cecil
         // also need to import Marshal.Copy
 
         let ref_mcopy = ctx.md.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("Copy", [| typeof<byte[]>; typeof<int32>; typeof<nativeint>; typeof<int32> |]))
-
-        // grab GetResource from env
 
         for d in a_datas do
             // the 4 args to Marshal.Copy...
@@ -1106,7 +1110,7 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-        let mem_size_in_pages = 16 // TODO temporary
+        let mem_size_in_pages = 1
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
         il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))
@@ -1319,9 +1323,7 @@ module wasm.cecil
     let create_data_resources ctx sd =
         let f i d =
             let name = sprintf "data_%d" i
-            // public because
-            // (1) env.GetResource is in a separate assembly
-            // (2) so tests can load the resource manually
+            // public so tests can load the resource manually
             let flags = ManifestResourceAttributes.Public
             let r = EmbeddedResource(name, flags, d.init)
             { item = d; name = name; resource = r; }
@@ -1329,9 +1331,10 @@ module wasm.cecil
 
     type Target =
     | Wasi of System.Reflection.Assembly
-    | Plain of System.Reflection.Assembly
+    | Other of System.Reflection.Assembly option
+    | InternalMemoryNoImport
 
-    let gen_assembly (env : System.Reflection.Assembly) m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
+    let gen_assembly target m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
                 new AssemblyNameDefinition(
@@ -1366,43 +1369,85 @@ module wasm.cecil
 
         let ndx = get_module_index m
 
-(*
-        let mem_size =
-            let f =
-                new FieldDefinition(
-                    "__mem_size",
-                    FieldAttributes.Public ||| FieldAttributes.Static, 
-                    main_module.TypeSystem.Int32
-                    )
-            container.Fields.Add(f)
-            f :> FieldReference
+        let (mem, mem_size) =
+            match target with
+            | Wasi assembly ->
+                // when targeting wasi, we ignore what the module says about
+                // memory and import the one from our wasi implementation.
 
-        let mem =
-            match ndx.MemoryImport with
-            | Some mi ->
-                import_memory main_module mi env
-            | None ->
-                let f =
-                    new FieldDefinition(
-                        "__mem",
-                        FieldAttributes.Public ||| FieldAttributes.Static, 
-                        main_module.TypeSystem.IntPtr
-                        )
-                container.Fields.Add(f)
-                f :> FieldReference
-*)
+                let mem_size = import_field main_module "wasi_unstable" "__mem_size" assembly
+                let mem = import_field main_module "wasi_unstable" "__mem" assembly
+                (mem, mem_size)
+            | Other maybe_assembly ->
+                // in this case, we accept an optional assembly for looking
+                // up imports, and we respect whatever the module says about
+                // memory.  if there is no import assembly but the module
+                // tries to import a memory, it will fail.
 
-        let mem_size = import_field main_module "env" "__mem_size" env
-        let mem = import_field main_module "env" "__mem" env
+                let mem_size =
+                    let f =
+                        new FieldDefinition(
+                            "__mem_size",
+                            FieldAttributes.Public ||| FieldAttributes.Static, 
+                            main_module.TypeSystem.Int32
+                            )
+                    container.Fields.Add(f)
+                    f :> FieldReference
 
-        let a_globals = create_globals ndx bt main_module env
+                let mem =
+                    match ndx.MemoryImport with
+                    | Some mi ->
+                        match maybe_assembly with
+                        | Some assembly -> import_memory main_module mi assembly
+                        | None -> failwith "no imports"
+                    | None ->
+                        let f =
+                            new FieldDefinition(
+                                "__mem",
+                                FieldAttributes.Public ||| FieldAttributes.Static, 
+                                main_module.TypeSystem.IntPtr
+                                )
+                        container.Fields.Add(f)
+                        f :> FieldReference
+                (mem, mem_size)
+            | InternalMemoryNoImport ->
+                // ignore what the module says about memory and define one.
+                // no import assembly, so all other imports will fail.
+
+                let mem_size =
+                    let f =
+                        new FieldDefinition(
+                            "__mem_size",
+                            FieldAttributes.Public ||| FieldAttributes.Static, 
+                            main_module.TypeSystem.Int32
+                            )
+                    container.Fields.Add(f)
+                    f :> FieldReference
+                let mem =
+                    let f =
+                        new FieldDefinition(
+                            "__mem",
+                            FieldAttributes.Public ||| FieldAttributes.Static, 
+                            main_module.TypeSystem.IntPtr
+                            )
+                    container.Fields.Add(f)
+                    f :> FieldReference
+                (mem, mem_size)
+
+        let env_assembly =
+            match target with
+            | Wasi assembly -> Some assembly
+            | Other maybe_assembly -> maybe_assembly
+            | InternalMemoryNoImport -> None
+
+        let a_globals = create_globals ndx bt main_module env_assembly
 
         for m in a_globals do
             match m with
             | GlobalRefInternal mi -> container.Fields.Add(mi.field)
             | GlobalRefImported _ -> ()
 
-        let a_methods = create_methods ndx bt main_module env
+        let a_methods = create_methods ndx bt main_module env_assembly
 
         for m in a_methods do
             match m with
