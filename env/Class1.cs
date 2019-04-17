@@ -75,6 +75,7 @@ public static class wasi_unstable
         throw new NotImplementedException();
     }
     static System.IO.Stream _stdout;
+    static System.IO.Stream _stderr;
     public static int fd_write(int fd, int p_a_iovecs, int num_iovecs, int p_written)
     {
         System.IO.Stream strm;
@@ -86,6 +87,13 @@ public static class wasi_unstable
                     _stdout = System.Console.OpenStandardOutput();
                 }
                 strm = _stdout;
+                break;
+            case 2:
+                if (_stderr == null)
+                {
+                    _stderr = System.Console.OpenStandardError();
+                }
+                strm = _stderr;
                 break;
             default:
                 throw new NotImplementedException();
@@ -170,47 +178,6 @@ public static class env
         TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
         return (long) (t.TotalMilliseconds);
     }
-    public static void dump_i32(int n, int b)
-    {
-        System.Console.Error.WriteLine("dumpb: {0} -- {1}", n, b.ToString());
-    }
-    public static void dumpf(int n, float f)
-    {
-        System.Console.Error.WriteLine("dumpf: {0} -- {1}", n, f.ToString("0.0000"));
-    }
-    public static void checkpoint(int n)
-    {
-        System.Console.Error.WriteLine("checkpoint: {0}", n);
-    }
-    public static double exp2(double x)
-    {
-        return Math.Pow(2, x);
-    }
-    public static double pow(double x, double y)
-    {
-        //System.Console.Error.WriteLine("pow: {0}, {1}", x, y);
-        return Math.Pow(x, y);
-    }
-    public static double atan2(double x, double y)
-    {
-        //System.Console.Error.WriteLine("atan2: {0}, {1}", x, y);
-        return Math.Atan2(x, y);
-    }
-    public static double sqrt(double x)
-    {
-        System.Console.Error.WriteLine("sqrt: {0}", x);
-        return Math.Sqrt(x);
-    }
-    public static double cos(double x)
-    {
-        //System.Console.Error.WriteLine("cos: {0}", x);
-        return Math.Cos(x);
-    }
-    public static double sin(double x)
-    {
-        //System.Console.Error.WriteLine("sin: {0}", x);
-        return Math.Sin(x);
-    }
     public static int __extenddftf2(int n, double f)
     {
         throw new NotImplementedException();
@@ -268,36 +235,6 @@ public static class env
     public static IntPtr __my_mem;
 
     public static IntPtr __linear_memory;
-
-    // TODO rm
-    static System.IO.Stream _stdout;
-
-    // TODO rm
-    static void ensure()
-    {
-        if (_stdout == null)
-        {
-            _stdout = System.Console.OpenStandardOutput();
-        }
-    }
-
-    // TODO rm
-    public static int putchar(int i)
-    {
-        ensure();
-        var ba = new byte[] { (byte) i };
-        _stdout.Write(ba, 0, 1);
-        return i;
-    }
-
-    // TODO rm
-    public static int puts(int x)
-    {
-        // TODO use x as the offset within mem, grab until a zero,
-        // marshal.copy, convert to string, and write to console.
-        System.Console.WriteLine("{0}", x);
-        return 0;
-    }
 
 }
 

@@ -1,17 +1,8 @@
 
 #include <stdio.h>
-
-#define M_PI 3.1415926535897932384
-
-extern double sin(double);
-extern double cos(double);
-extern double sqrt(double);
-extern double pow(double, double);
-extern double atan2(double, double);
+#include <math.h>
 
 extern long get_ms(void);
-extern void checkpoint(int n);
-extern void dump_i32(int n, long v);
 
 #define E return
 
@@ -232,7 +223,7 @@ int miniray() {
     }
 
   long t2 = get_ms();
-  dump_i32(__LINE__, (int) (t2 - t1));
+  fprintf(stderr, "elapsed: %d ms\n", (int) (t2 - t1));
 
   // TODO fflush(stdout);
 
