@@ -176,9 +176,6 @@ public static class wasi_unstable
 
 public static class env
 {
-    public static int __stack_pointer; // TODO what is this for?
-    public static IntPtr __linear_memory; // TODO what is this for?
-
     public static int main(int a, int b)
     {
         // TODO this shouldn't be here
