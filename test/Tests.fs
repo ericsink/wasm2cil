@@ -188,12 +188,11 @@ let import_memory_store () =
     let b = ModuleBuilder()
     b.AddFunction(fb)
 
-    // TODO this should just create its own env module right here
-    b.AddImport({ m = "env"; name = "__mem_only_imported_in_one_test"; desc = ImportMem { limits = Min 1u }; })
+    b.AddImport({ m = "env"; name = "__mem_1"; desc = ImportMem { limits = Min 1u }; })
 
     let m = b.CreateModule()
 
-    Assert.Equal(IntPtr.Zero, env.__mem_only_imported_in_one_test)
+    Assert.Equal(IntPtr.Zero, env.__mem_1)
 
     let a = prep_assembly_env m
     let mi = get_method a name
@@ -203,13 +202,13 @@ let import_memory_store () =
 
     check_0 mi impl
 
-    Assert.NotEqual(IntPtr.Zero, env.__mem_only_imported_in_one_test)
+    Assert.NotEqual(IntPtr.Zero, env.__mem_1)
 
     let size = 64 * 1024
-    // TODO Assert.Equal(size, env.__mem_only_imported_in_one_test.Length)
+    // TODO Assert.Equal(size, env.__mem_1.Length)
     let (za : byte[]) = Array.zeroCreate (64 * 1024)
     let (ta : byte[]) = Array.zeroCreate (64 * 1024)
-    System.Runtime.InteropServices.Marshal.Copy(env.__mem_only_imported_in_one_test, ta, 0, size);
+    System.Runtime.InteropServices.Marshal.Copy(env.__mem_1, ta, 0, size);
     Assert.Equal<byte[]>(za, ta)
 
 [<Fact>]
@@ -240,9 +239,7 @@ let test_memory_load () =
     b.AddFunction(fb_k)
     b.AddFunction(fb_fetch)
 
-    // TODO note that all tests share the same instance of env.__my_mem
-
-    b.AddImport({ m = "env"; name = "__my_mem"; desc = ImportMem { limits = Min 1u }; })
+    b.AddImport({ m = "env"; name = "__mem_2"; desc = ImportMem { limits = Min 1u }; })
 
     let m = b.CreateModule()
 
@@ -259,13 +256,13 @@ let test_memory_load () =
 
     let store_byte (off : int32) (b : byte) =
         let ba = [| b |]
-        System.Runtime.InteropServices.Marshal.Copy(ba, 0, env.__my_mem + (nativeint off), 1);
+        System.Runtime.InteropServices.Marshal.Copy(ba, 0, env.__mem_2 + (nativeint off), 1);
 
     store_byte 77 89uy
 
     let impl_fetch (off : int32) =
         let ba = [| 0uy |]
-        System.Runtime.InteropServices.Marshal.Copy(env.__my_mem + (nativeint off), ba, 0, 1);
+        System.Runtime.InteropServices.Marshal.Copy(env.__mem_2 + (nativeint off), ba, 0, 1);
         ba.[0] |> int
 
     let check =
