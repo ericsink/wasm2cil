@@ -15,6 +15,52 @@ open wasm.builder
 open wasm.errors
 open Builders
 
+open Mono.Cecil
+
+let gen_custom_env_assembly assembly_name ns classname (ver : System.Version) name_mem name_mem_size (dest : System.IO.Stream) =
+    let assembly = 
+        AssemblyDefinition.CreateAssembly(
+            new AssemblyNameDefinition(
+                assembly_name, 
+                ver
+                ), 
+            assembly_name, 
+            ModuleKind.Dll
+            )
+
+    let main_module = assembly.MainModule
+
+    let container = 
+        new TypeDefinition(
+            ns,
+            classname,
+            TypeAttributes.Class ||| TypeAttributes.Public ||| TypeAttributes.Abstract ||| TypeAttributes.Sealed, 
+            main_module.TypeSystem.Object
+            )
+
+    main_module.Types.Add(container);
+
+    let mem =
+        let f =
+            new FieldDefinition(
+                name_mem,
+                FieldAttributes.Public ||| FieldAttributes.Static, 
+                main_module.TypeSystem.IntPtr
+                )
+        container.Fields.Add(f)
+        f :> FieldReference
+
+    let mem_size =
+        let f =
+            new FieldDefinition(
+                name_mem_size,
+                FieldAttributes.Public ||| FieldAttributes.Static, 
+                main_module.TypeSystem.Int32
+                )
+        container.Fields.Add(f)
+        f :> FieldReference
+
+    assembly.Write(dest);
 let newid () =
     Guid
         .NewGuid()
@@ -188,22 +234,43 @@ let import_memory_store () =
     let b = ModuleBuilder()
     b.AddFunction(fb)
 
-    // TODO this should just create its own env module right here
-    b.AddImport({ m = "env"; name = "__mem_only_imported_in_one_test"; desc = ImportMem { limits = Min 1u }; })
+    let env_ns_name = "my_ns"
+    let env_class_name = "my_env"
+    let env_mem_name = "__my_mem"
+    let env_mem_size_name = "__my_mem_size"
+    let my_env_assembly =
+        let env_assembly_name = "my_env_assembly"
+        let ver = new System.Version(1, 0, 0, 0)
+        let ba = 
+            use ms = new System.IO.MemoryStream()
+            gen_custom_env_assembly env_assembly_name env_ns_name env_class_name ver env_mem_name env_mem_size_name ms
+            ms.ToArray()
+        let a = System.Reflection.Assembly.Load(ba)
+        Assert.NotNull(a)
+        a
+
+    let env_class_fullname = sprintf "%s.%s" env_ns_name env_class_name
+
+    b.AddImport({ m = env_class_fullname; name = env_mem_name; desc = ImportMem { limits = Min 1u }; })
 
     let m = b.CreateModule()
 
-    Assert.Equal(IntPtr.Zero, env.__mem_only_imported_in_one_test)
+    let env_class = my_env_assembly.GetType(env_class_fullname)
+    let f_mem = env_class.GetField(env_mem_name)
 
-    let a = prep_assembly_env m
+    Assert.Equal(IntPtr.Zero, f_mem.GetValue(null) |> unbox<nativeint>)
+
+    let a = prep_assembly_with my_env_assembly m
+    Assert.NotNull(a)
     let mi = get_method a name
+    Assert.NotNull(mi)
 
     let impl n =
         num
 
     check_0 mi impl
 
-    Assert.NotEqual(IntPtr.Zero, env.__mem_only_imported_in_one_test)
+    Assert.NotEqual(IntPtr.Zero, f_mem.GetValue(null) |> unbox<nativeint>)
 
     let size = 64 * 1024
     // TODO Assert.Equal(size, env.__mem_only_imported_in_one_test.Length)
