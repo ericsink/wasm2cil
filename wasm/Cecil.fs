@@ -1332,7 +1332,6 @@ module wasm.cecil
     type Target =
     | Wasi of System.Reflection.Assembly
     | Other of System.Reflection.Assembly option
-    | InternalMemoryNoImport
 
     let gen_assembly target m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
         let assembly = 
@@ -1410,35 +1409,11 @@ module wasm.cecil
                         container.Fields.Add(f)
                         f :> FieldReference
                 (mem, mem_size)
-            | InternalMemoryNoImport ->
-                // ignore what the module says about memory and define one.
-                // no import assembly, so all other imports will fail.
-
-                let mem_size =
-                    let f =
-                        new FieldDefinition(
-                            "__mem_size",
-                            FieldAttributes.Public ||| FieldAttributes.Static, 
-                            main_module.TypeSystem.Int32
-                            )
-                    container.Fields.Add(f)
-                    f :> FieldReference
-                let mem =
-                    let f =
-                        new FieldDefinition(
-                            "__mem",
-                            FieldAttributes.Public ||| FieldAttributes.Static, 
-                            main_module.TypeSystem.IntPtr
-                            )
-                    container.Fields.Add(f)
-                    f :> FieldReference
-                (mem, mem_size)
 
         let env_assembly =
             match target with
             | Wasi assembly -> Some assembly
             | Other maybe_assembly -> maybe_assembly
-            | InternalMemoryNoImport -> None
 
         let a_globals = create_globals ndx bt main_module env_assembly
 
