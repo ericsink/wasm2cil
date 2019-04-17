@@ -3,12 +3,12 @@
 
 #define M_PI 3.1415926535897932384
 
-extern int putchar(int);
 extern double sin(double);
 extern double cos(double);
 extern double sqrt(double);
 extern double pow(double, double);
 extern double atan2(double, double);
+
 extern long get_ms(void);
 extern void checkpoint(int n);
 extern void dump_i32(int n, long v);
@@ -210,15 +210,7 @@ int miniray() {
   F=G(Y,Y,1);
   
   // Output the portable pixmap header (binary version).
-  {
-    char *p = "P6 600 220 255";
-    while (*p)
-    {
-        putchar(*p);
-        p++;
-    }
-    putchar(10);
-  }
+  puts("P6 600 220 255");
   
   // For each row:
   // y holds the vertical pixel coordinate
@@ -233,9 +225,9 @@ int miniray() {
                         A( S( _(G(5,0,2)), x ), 
                            _(G(-2,73,0)),-y), .034) ),
                   2 ), 255 );
-      putchar((int) p.x);
-      putchar((int) p.y);
-      putchar((int) p.z);
+      putchar(p.x);
+      putchar(p.y);
+      putchar(p.z);
 
     }
 

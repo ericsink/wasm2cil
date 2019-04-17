@@ -980,7 +980,7 @@ module wasm.cecil
 
         method
 
-    let gen_data_setup ndx ctx (a_env : System.Reflection.Assembly) (a_datas : DataStuff[]) =
+    let gen_data_setup ndx ctx (ref_getresource : MethodReference) (a_datas : DataStuff[]) =
         let method = 
             new MethodDefinition(
                 "__data_setup",
@@ -1006,12 +1006,6 @@ module wasm.cecil
         let ref_mcopy = ctx.md.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("Copy", [| typeof<byte[]>; typeof<int32>; typeof<nativeint>; typeof<int32> |]))
 
         // grab GetResource from env
-
-        let ref_getresource =
-            let typ = a_env.GetType("env")
-            let method = typ.GetMethod("GetResource")
-            let mref = ctx.md.ImportReference(method)
-            mref
 
         for d in a_datas do
             // the 4 args to Marshal.Copy...
@@ -1210,14 +1204,14 @@ module wasm.cecil
 
 *)
 
-(*
-    let gen_load_resource (main_mod : ModuleDefinition) bt =
+    let gen_load_resource (main_mod : ModuleDefinition) =
         let method = 
             new MethodDefinition(
                 "__load_resource",
                 MethodAttributes.Private ||| MethodAttributes.Static,
                 main_mod.ImportReference(typeof<byte[]>)
                 )
+
         let parm_a = new ParameterDefinition(main_mod.ImportReference(typeof<System.Reflection.Assembly>))
         method.Parameters.Add(parm_a)
 
@@ -1235,51 +1229,39 @@ module wasm.cecil
 
         let il = method.Body.GetILProcessor()
 
-        il.Append(il.Create(OpCodes.Ldarg_0))
-        il.Append(il.Create(OpCodes.Ldarg_1))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<>.GetMethod("GetManifestResourceStream", [| typeof<string> |]))))
-        il.Append(il.Create(OpCodes.Stloc_0))
+        il.Append(il.Create(OpCodes.Ldarg, parm_a))
+        il.Append(il.Create(OpCodes.Ldarg, parm_name))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.Reflection.Assembly>.GetMethod("GetManifestResourceStream", [| typeof<string> |]))))
+        il.Append(il.Create(OpCodes.Stloc, v_strm))
 
-        // begin try
+        il.Append(il.Create(OpCodes.Newobj, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetConstructor([| |]))))
+        il.Append(il.Create(OpCodes.Stloc, v_ms))
 
-        let trystart = il.Create(OpCodes.Newobj, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetConstructor([| |])))
-        il.Append(trystart)
-        il.Append(il.Create(OpCodes.Stloc_1))
-        il.Append(il.Create(OpCodes.Ldloc_0))
-        il.Append(il.Create(OpCodes.Ldloc_1))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.Stream>.GetMethod("CopyTo", TODO))))
+        il.Append(il.Create(OpCodes.Ldloc, v_strm))
+        il.Append(il.Create(OpCodes.Ldloc, v_ms))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.Stream>.GetMethod("CopyTo", [| typeof<System.IO.Stream> |]))))
 
-        il.Append(il.Create(OpCodes.Ldloc_1))
+        il.Append(il.Create(OpCodes.Ldloc, v_ms))
         il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetMethod("ToArray", [| |]))))
-        il.Append(il.Create(OpCodes.Stloc_2))
+        il.Append(il.Create(OpCodes.Stloc, v_result))
 
-        // end try
+        il.Append(il.Create(OpCodes.Ldloc, v_strm))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IDisposable>.GetMethod("Dispose", [| |]))))
 
-        // ----
-
-        // begin finally
-
-        let endfinally = il.Create(OpCodes.Endfinally)
-        il.Append(il.Create(OpCodes.Ldloc_0))
-        il.Append(il.Create(OpCodes.Brfalse, endfinally))
-        il.Append(il.Create(OpCodes.Ldloc_0))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.Disposable>.GetMethod("Dispose", [| |]))))
-        il.Append(endfinally)
-
-        // end finally
-
-        il.Append(il.Create(OpCodes.Ret))
-
+(* TODO
         let handler = ExceptionHandler(ExceptionHandlerType.Finally)
-        handler.TryStart <- trystart
-        handler.TryEnd <- tryend
-        handler.FinallyStart <- finallystart
-        handler.FinallyEnd <- endfinally
+        handler.TryStart <- begin_try
+        handler.TryEnd <- end_try
+        handler.HandlerStart <- begin_finally
+        handler.HandlerEnd <- end_finally
         handler.CatchType <- main_mod.ImportReference(typeof<System.Exception>)
         method.Body.ExceptionHandlers.Add(handler)
+*)
+
+        il.Append(il.Create(OpCodes.Ldloc, v_result))
+        il.Append(il.Create(OpCodes.Ret))
 
         method
-*)
 
     let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt =
         let method = 
@@ -1494,9 +1476,11 @@ module wasm.cecil
             match ndx.Data with
             | Some sd -> 
                 let a_datas = create_data_resources ctx sd
+                let load_data = gen_load_resource main_module
+                container.Methods.Add(load_data)
                 for d in a_datas do
                     main_module.Resources.Add(d.resource)
-                let m = gen_data_setup ndx ctx env a_datas
+                let m = gen_data_setup ndx ctx load_data a_datas
                 container.Methods.Add(m)
                 Some m
             | None -> None

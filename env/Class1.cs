@@ -299,15 +299,5 @@ public static class env
         return 0;
     }
 
-    // TODO this should be in IL
-    public static byte[] GetResource(System.Reflection.Assembly a, string name)
-    {
-        using (var strm = a.GetManifestResourceStream(name))
-        {
-            var ms = new System.IO.MemoryStream();
-            strm.CopyTo(ms);
-            return ms.ToArray();
-        }
-    }
 }
 

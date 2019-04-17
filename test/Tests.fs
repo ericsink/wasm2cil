@@ -264,6 +264,12 @@ let test_memory_load () =
 
 *)
 
+let GetResource (a : System.Reflection.Assembly) (name : string) =
+    use strm = a.GetManifestResourceStream(name)
+    use ms = new System.IO.MemoryStream()
+    strm.CopyTo(ms)
+    ms.ToArray()
+
 [<Fact>]
 let test_data () =
     let b = ModuleBuilder()
@@ -275,7 +281,7 @@ let test_data () =
 
     let a = prep_assembly m
 
-    let ba = env.GetResource(a.a, "data_0")
+    let ba = GetResource a.a "data_0"
 
     Assert.Equal<byte[]>(data, ba)
 
