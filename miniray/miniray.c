@@ -192,8 +192,6 @@ v R(v o, v d, f z) {
 
 int miniray() {
 
-  setbuf(stdout, NULL); // TODO do fflush(stdout) below instead
-
   long t1 = get_ms();
 
   // Set up the lighting direction and material
@@ -225,7 +223,7 @@ int miniray() {
   long t2 = get_ms();
   fprintf(stderr, "elapsed: %d ms\n", (int) (t2 - t1));
 
-  // TODO fflush(stdout);
+  fflush(stdout);
 
   return 0;
 
