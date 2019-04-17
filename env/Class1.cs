@@ -178,51 +178,7 @@ public static class env
         TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
         return (long) (t.TotalMilliseconds);
     }
-    public static int __extenddftf2(int n, double f)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __subtf3(int a, long b, long c, long d, long e)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __addtf3(int a, long b, long c, long d, long e)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __trunctfdf2(long a, long b)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __gttf2(long a,long b, long c, long d)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __multf3(int a, long b, long c, long d, long e)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __getf2(long a, long b, long c, long d)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __divtf3(int a, long b, long c, long d, long e)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __lttf2(long a,long b, long c, long d)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __fixtfsi(long a, long b)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __floatsitf(int a, int b)
-    {
-        throw new NotImplementedException();
-    }
-    public static int __floatditf(int a, long b)
+    public static int localtime(int n)
     {
         throw new NotImplementedException();
     }
