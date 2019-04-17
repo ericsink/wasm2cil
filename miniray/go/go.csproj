@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\env\env.csproj" />
+    <ProjectReference Include="..\..\wasi\wasi.csproj" />
   </ItemGroup>
 
 </Project>

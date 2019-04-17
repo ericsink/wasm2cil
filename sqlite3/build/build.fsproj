@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\wasm\wasm.fsproj" />
-    <ProjectReference Include="..\..\env\env.csproj" />
+    <ProjectReference Include="..\..\wasi\wasi.csproj" />
   </ItemGroup>
 
 </Project>
