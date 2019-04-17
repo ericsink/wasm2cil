@@ -1,6 +1,8 @@
 module Tests
 
 open System
+open System.Runtime.InteropServices
+
 open Xunit
 
 open wasm.def_basic
@@ -139,6 +141,7 @@ let drop_empty () =
     Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly m |> ignore)
 
 (*
+
 [<Fact>]
 let memory_size () =
     let fb = FunctionBuilder()
@@ -160,7 +163,6 @@ let memory_size () =
         1
 
     check_0 mi impl
-*)
 
 [<Fact>]
 let import_memory_store () =
@@ -259,6 +261,8 @@ let test_memory_load () =
 
     check 77
     check 7632
+
+*)
 
 [<Fact>]
 let test_data () =
@@ -1040,4 +1044,52 @@ let weird_store_i64_load_two_f32 () =
     Assert.Equal(0x80, u8_load 6)
     Assert.Equal(0x40, u8_load 7)
 
+[<Struct; StructLayout(LayoutKind.Explicit)>]
+type O8 =
+    [<DefaultValue; FieldOffset 0>] 
+    val mutable R : double
+    [<DefaultValue; FieldOffset 0>] 
+    val mutable I : int64
+    static member MakeI(a:int64) = O8(I=a)
+    static member MakeR(f:double) = O8(R=f)
+
+[<Fact>]
+let f64_reinterpret_i64 () =
+    let name = "f64_reinterpret_i64"
+    let m = build_function_conv name I64 F64 F64ReinterpretI64 |> build_module
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl v =
+        let o = O8.MakeI(v)
+        o.R
+
+    let check =
+        check_1 mi impl
+
+    check 8675309L
+    check 0L
+    check 25L
+    check -400L
+    check -1L
+
+[<Fact>]
+let i64_reinterpret_f64 () =
+    let name = "i64_reinterpret_f64"
+    let m = build_function_conv name F64 I64 I64ReinterpretF64 |> build_module
+    let a = prep_assembly m
+    let mi = get_method a name
+
+    let impl v =
+        let o = O8.MakeR(v)
+        o.I
+
+    let check =
+        check_1 mi impl
+
+    check 3.14159
+    check 0.0
+    check 1.0
+    check -1.0
+    check 1.4142135
 

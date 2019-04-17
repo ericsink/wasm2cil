@@ -1,4 +1,57 @@
 
+should probably lookup all references in a ns2.0 reference
+assembly
+
+when mem is imported because wasi, the field(s) should
+be in the wasi class.
+
+wasi would end up being a compile option of ours.
+when it is set, the wasi assembly is made available,
+and the memory import/export is ignored in favor of
+using the one in the wasi core class.
+
+separate out the wasi stuff into its own thing.  and
+call it wasi core.
+
+what else is in wasi sysroot?  math stuff like pow() ?
+is it a problem if those funcs get used instead of the
+ones in System.Math?
+
+or perhaps the code could have special knowledge
+of the wasi module and do some initialization of it?
+
+the problem is that funcs like fd_write get
+addresses that need to be looked up in mem.
+so whenever wasi is used, --import-memory must
+be used as well.
+
+consider --import-memory
+
+how to do mem_size ?  should the memory be a struct
+instead of just an IntPtr ?
+
+only one copy of memory, shared by all the tests?
+most tests need a private memory, not ref the
+imported one in env.  but can we reference an
+internal memory from a test?
+
+does the env code need access to the mem size?
+
+or maybe just insist that if the memory is
+imported then the mem_size must be there to import
+as well?
+
+it would still be kind of better to just always have
+memory imported, but the problem is the test suite,
+where all tests share the same memory.
+
+--
+
+is the sysroot libc buffering?  why is ppm file
+missing the last 350 bytes?
+
+need tests for f64/i64 reinterpret
+
 miniray seems to be accessing memory outside the
 range of a page.  65536 is a page.  add 1024
 to get 66560, which is the number given. maybe related:
@@ -38,11 +91,6 @@ range-checked
 
 should use the short form of more CIL instructions,
 like Ldloc
-
-only one copy of memory, shared by all the tests?
-most tests need a private memory, not ref the
-imported one in env.  but can we reference an
-internal memory from a test?
 
 consider possibility of just using int everywhere
 a uint32 is used, because that's just how .NET

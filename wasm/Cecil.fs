@@ -759,9 +759,18 @@ module wasm.cecil
         | F32Copysign -> todo op
         | F64Copysign -> todo op
         | I32ReinterpretF32 -> todo op
-        | I64ReinterpretF64 -> todo op
+        | I64ReinterpretF64 ->
+            let v = f_make_tmp (cecil_valtype ctx.bt F64)
+            il.Append(il.Create(OpCodes.Stloc, v))
+            il.Append(il.Create(OpCodes.Ldloca, v))
+            il.Append(il.Create(OpCodes.Ldind_I8))
+            
         | F32ReinterpretI32 -> todo op
-        | F64ReinterpretI64 -> todo op
+        | F64ReinterpretI64 ->
+            let v = f_make_tmp (cecil_valtype ctx.bt I64)
+            il.Append(il.Create(OpCodes.Stloc, v))
+            il.Append(il.Create(OpCodes.Ldloca, v))
+            il.Append(il.Create(OpCodes.Ldind_R8))
 
     let post_gen blocks result_type =
         match result_type with
@@ -1144,6 +1153,134 @@ module wasm.cecil
 
         method
 
+(*
+
+    public static byte[] GetResource(System.Reflection.Assembly a, string name)
+    {
+        using (var strm = a.GetManifestResourceStream(name))
+        {
+            var ms = new System.IO.MemoryStream();
+            strm.CopyTo(ms);
+            return ms.ToArray();
+        }
+    }
+
+  .method public hidebysig static uint8[]
+          GetResource(class [netstandard]System.Reflection.Assembly a,
+                      string name) cil managed
+  {
+    // Code size       46 (0x2e)
+    .maxstack  2
+    .locals init (class [netstandard]System.IO.Stream V_0,
+             class [netstandard]System.IO.MemoryStream V_1,
+             uint8[] V_2)
+    IL_0000:  nop
+    IL_0001:  ldarg.0
+    IL_0002:  ldarg.1
+    IL_0003:  callvirt   instance class [netstandard]System.IO.Stream [netstandard]System.Reflection.Assembly::GetManifestResourceStream(string)
+    IL_0008:  stloc.0
+    .try
+    {
+      IL_0009:  nop
+      IL_000a:  newobj     instance void [netstandard]System.IO.MemoryStream::.ctor()
+      IL_000f:  stloc.1
+      IL_0010:  ldloc.0
+      IL_0011:  ldloc.1
+      IL_0012:  callvirt   instance void [netstandard]System.IO.Stream::CopyTo(class [netstandard]System.IO.Stream)
+      IL_0017:  nop
+      IL_0018:  ldloc.1
+      IL_0019:  callvirt   instance uint8[] [netstandard]System.IO.MemoryStream::ToArray()
+      IL_001e:  stloc.2
+      IL_001f:  leave.s    IL_002c
+
+    }  // end .try
+    finally
+    {
+      IL_0021:  ldloc.0
+      IL_0022:  brfalse.s  IL_002b
+
+      IL_0024:  ldloc.0
+      IL_0025:  callvirt   instance void [netstandard]System.IDisposable::Dispose()
+      IL_002a:  nop
+      IL_002b:  endfinally
+    }  // end handler
+    IL_002c:  ldloc.2
+    IL_002d:  ret
+  } // end of method env::GetResource
+
+*)
+
+(*
+    let gen_load_resource (main_mod : ModuleDefinition) bt =
+        let method = 
+            new MethodDefinition(
+                "__load_resource",
+                MethodAttributes.Private ||| MethodAttributes.Static,
+                main_mod.ImportReference(typeof<byte[]>)
+                )
+        let parm_a = new ParameterDefinition(main_mod.ImportReference(typeof<System.Reflection.Assembly>))
+        method.Parameters.Add(parm_a)
+
+        let parm_name = new ParameterDefinition(main_mod.ImportReference(typeof<string>))
+        method.Parameters.Add(parm_name)
+
+        let v_strm = new VariableDefinition(main_mod.ImportReference(typeof<System.IO.Stream>))
+        method.Body.Variables.Add(v_strm)
+
+        let v_ms = new VariableDefinition(main_mod.ImportReference(typeof<System.IO.MemoryStream>))
+        method.Body.Variables.Add(v_ms)
+
+        let v_result = new VariableDefinition(main_mod.ImportReference(typeof<byte[]>))
+        method.Body.Variables.Add(v_result)
+
+        let il = method.Body.GetILProcessor()
+
+        il.Append(il.Create(OpCodes.Ldarg_0))
+        il.Append(il.Create(OpCodes.Ldarg_1))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<>.GetMethod("GetManifestResourceStream", [| typeof<string> |]))))
+        il.Append(il.Create(OpCodes.Stloc_0))
+
+        // begin try
+
+        let trystart = il.Create(OpCodes.Newobj, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetConstructor([| |])))
+        il.Append(trystart)
+        il.Append(il.Create(OpCodes.Stloc_1))
+        il.Append(il.Create(OpCodes.Ldloc_0))
+        il.Append(il.Create(OpCodes.Ldloc_1))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.Stream>.GetMethod("CopyTo", TODO))))
+
+        il.Append(il.Create(OpCodes.Ldloc_1))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetMethod("ToArray", [| |]))))
+        il.Append(il.Create(OpCodes.Stloc_2))
+
+        // end try
+
+        // ----
+
+        // begin finally
+
+        let endfinally = il.Create(OpCodes.Endfinally)
+        il.Append(il.Create(OpCodes.Ldloc_0))
+        il.Append(il.Create(OpCodes.Brfalse, endfinally))
+        il.Append(il.Create(OpCodes.Ldloc_0))
+        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.Disposable>.GetMethod("Dispose", [| |]))))
+        il.Append(endfinally)
+
+        // end finally
+
+        il.Append(il.Create(OpCodes.Ret))
+
+        let handler = ExceptionHandler(ExceptionHandlerType.Finally)
+        handler.TryStart <- trystart
+        handler.TryEnd <- tryend
+        handler.FinallyStart <- finallystart
+        handler.FinallyEnd <- endfinally
+        handler.CatchType <- main_mod.ImportReference(typeof<System.Exception>)
+        method.Body.ExceptionHandlers.Add(handler)
+
+        method
+*)
+
     let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt =
         let method = 
             new MethodDefinition(
@@ -1208,6 +1345,10 @@ module wasm.cecil
             { item = d; name = name; resource = r; }
         Array.mapi f sd.datas
 
+    type Target =
+    | Wasi of System.Reflection.Assembly
+    | Plain of System.Reflection.Assembly
+
     let gen_assembly (env : System.Reflection.Assembly) m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
@@ -1243,6 +1384,7 @@ module wasm.cecil
 
         let ndx = get_module_index m
 
+(*
         let mem_size =
             let f =
                 new FieldDefinition(
@@ -1266,6 +1408,10 @@ module wasm.cecil
                         )
                 container.Fields.Add(f)
                 f :> FieldReference
+*)
+
+        let mem_size = import_field main_module "env" "__mem_size" env
+        let mem = import_field main_module "env" "__mem" env
 
         let a_globals = create_globals ndx bt main_module env
 

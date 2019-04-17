@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+
 #define M_PI 3.1415926535897932384
 
 extern int putchar(int);
@@ -199,6 +201,8 @@ v R(v o, v d, f z) {
 
 int miniray() {
 
+  setbuf(stdout, NULL); // TODO do fflush(stdout) below instead
+
   long t1 = get_ms();
 
   // Set up the lighting direction and material
@@ -237,6 +241,8 @@ int miniray() {
 
   long t2 = get_ms();
   dump_i32(__LINE__, (int) (t2 - t1));
+
+  // TODO fflush(stdout);
 
   return 0;
 

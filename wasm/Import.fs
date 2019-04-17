@@ -35,7 +35,17 @@ module wasm.import
         let mref = md.ImportReference(method)
         mref
 
+    let import_field (md : ModuleDefinition) (type_name : string) (field_name : string) (a : System.Reflection.Assembly) =
+        let typ = a.GetType(type_name)
+        let f = typ.GetField(field_name)
+        // TODO complain if the field is not intptr ?
+        if f = null then
+            failwith (sprintf "import field not found: %s.%s" type_name field_name)
+        let mref = md.ImportReference(f)
+        mref
+
     let import_memory (md : ModuleDefinition) (s : ImportedMemory) (a : System.Reflection.Assembly) =
+        // TODO use import_field
         let typ = a.GetType(s.m)
         let f = typ.GetField(s.name)
         // TODO complain if the field is not intptr ?
@@ -45,6 +55,7 @@ module wasm.import
         mref
 
     let import_global (md : ModuleDefinition) (s : ImportedGlobal) (a : System.Reflection.Assembly) =
+        // TODO use import_field
         let typ = a.GetType(s.m)
         let f = typ.GetField(s.name)
         // TODO complain if the field type is wrong ?

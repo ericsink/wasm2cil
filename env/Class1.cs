@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 
 public static class wasi_unstable
 {
@@ -73,13 +74,46 @@ public static class wasi_unstable
     {
         throw new NotImplementedException();
     }
-    public static int fd_write(int a, int b, int c, int d)
+    static System.IO.Stream _stdout;
+    public static int fd_write(int fd, int p_a_iovecs, int num_iovecs, int p_written)
     {
-        throw new NotImplementedException();
+        System.IO.Stream strm;
+        switch (fd)
+        {
+            case 1:
+                if (_stdout == null)
+                {
+                    _stdout = System.Console.OpenStandardOutput();
+                }
+                strm = _stdout;
+                break;
+            default:
+                throw new NotImplementedException();
+        }
+
+        var a_iovecs = new int[num_iovecs * 2];
+        Marshal.Copy(env.__mem + p_a_iovecs, a_iovecs, 0, num_iovecs * 2);
+
+        int total_len = 0;
+        for (int i=0; i<num_iovecs; i++)
+        {
+            var addr = a_iovecs[i * 2];
+            var len = a_iovecs[i * 2 + 1];
+            var ba = new byte[len];
+            Marshal.Copy(env.__mem + addr, ba, 0, len);
+            strm.Write(ba, 0, len);
+            total_len += len;
+        }
+
+        var ia = new int[] { total_len };
+        Marshal.Copy(ia, 0, env.__mem + p_written, 1);
+
+        return 0;
     }
     public static int fd_fdstat_get(int a, int b)
     {
-        throw new NotImplementedException();
+        // TODO what is this supposed to do?
+        return 0;
     }
     public static int path_filestat_get(int a, int b, int c, int d, int e)
     {
@@ -226,14 +260,19 @@ public static class env
         throw new NotImplementedException();
     }
 
+    public static int __mem_size;
+    public static IntPtr __mem;
+
     public static IntPtr __mem_only_imported_in_one_test;
 
     public static IntPtr __my_mem;
 
     public static IntPtr __linear_memory;
 
+    // TODO rm
     static System.IO.Stream _stdout;
 
+    // TODO rm
     static void ensure()
     {
         if (_stdout == null)
@@ -242,6 +281,7 @@ public static class env
         }
     }
 
+    // TODO rm
     public static int putchar(int i)
     {
         ensure();
@@ -250,6 +290,7 @@ public static class env
         return i;
     }
 
+    // TODO rm
     public static int puts(int x)
     {
         // TODO use x as the offset within mem, grab until a zero,
@@ -258,6 +299,7 @@ public static class env
         return 0;
     }
 
+    // TODO this should be in IL
     public static byte[] GetResource(System.Reflection.Assembly a, string name)
     {
         using (var strm = a.GetManifestResourceStream(name))
