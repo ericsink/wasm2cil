@@ -50,9 +50,19 @@ public static class wasi_unstable
     {
         throw new NotImplementedException();
     }
-    public static int clock_time_get(int a, long b, int c)
+    public static int clock_time_get(int clock_id, long precision, int addr_result)
     {
-        throw new NotImplementedException();
+        switch (clock_id)
+        {
+            case 0:
+                TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
+                var ms = (long) (t.TotalMilliseconds);
+                var ns = ms * 1000 * 1000;
+                var ia = new long[] { ns };
+                Marshal.Copy(ia, 0, env.__mem + addr_result, 1);
+                return 0;
+            default: throw new NotImplementedException();
+        }
     }
     public static int fd_close(int a)
     {
@@ -172,11 +182,6 @@ public static class env
     public static int getcwd(int a, int b)
     {
         throw new NotImplementedException();
-    }
-    public static long get_ms()
-    {
-        TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
-        return (long) (t.TotalMilliseconds);
     }
     public static int localtime(int n)
     {
