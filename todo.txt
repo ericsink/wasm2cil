@@ -1,4 +1,12 @@
 
+about 30-50 % of the time, sqlite3/to_wasm.sh hangs
+
+sqlite3/reference prints NOTADB lots of times and
+then succeeds.  the cil version gets NOTADB once
+and stops with a failure.
+
+--
+
 currently, the memory section of the module is ignored.
 if there is no memory import, one is defined, whether
 the module had a memory section or not.  do we need 
