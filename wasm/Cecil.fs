@@ -1307,13 +1307,23 @@ module wasm.cecil
 
         il.Append(il.Create(OpCodes.Stsfld, mem))
 
-(* TODO
         // memset 0
+
         il.Append(il.Create(OpCodes.Ldsfld, mem))
+        il.Append(il.Create(OpCodes.Ldloc, v_old_size))
+        il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
+        il.Append(il.Create(OpCodes.Mul))
+        il.Append(il.Create(OpCodes.Add))
+
         il.Append(il.Create(OpCodes.Ldc_I4, 0))
-        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
+
+        il.Append(il.Create(OpCodes.Ldarg, parm))
+        il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
+        il.Append(il.Create(OpCodes.Mul))
+
         il.Append(il.Create(OpCodes.Initblk))
-*)
+
+        // return value
 
         il.Append(il.Create(OpCodes.Ldloc, v_old_size))
         il.Append(il.Create(OpCodes.Ret))

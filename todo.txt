@@ -1,5 +1,9 @@
 
-about 30-50 % of the time, sqlite3/to_wasm.sh hangs
+peverify shows lots of problems
+
+need test for GrowMemory
+
+about half the time, sqlite3/to_wasm.sh hangs
 
 sqlite3/reference prints NOTADB lots of times and
 then succeeds.  the cil version gets NOTADB once
