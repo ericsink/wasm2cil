@@ -176,7 +176,9 @@ public static class wasi_unstable
 
 public static class env
 {
-    public static int __stack_pointer;
+    public static int __stack_pointer; // TODO what is this for?
+    public static IntPtr __linear_memory; // TODO what is this for?
+
     public static int main(int a, int b)
     {
         // TODO this shouldn't be here
@@ -188,15 +190,9 @@ public static class env
     }
     public static int localtime(int n)
     {
+        // TODO why isn't this found in wasi sysroot?
         throw new NotImplementedException();
     }
-
-    // TODO rm this
-    public static IntPtr __mem_only_imported_in_one_test;
-
-    public static IntPtr __my_mem;
-
-    public static IntPtr __linear_memory;
 
 }
 
