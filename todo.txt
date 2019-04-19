@@ -1,4 +1,17 @@
 
+most wasi methods still have no implementation.
+weird that we're getting so far with just fd_write.
+
+--
+
+about time to remove hello_clang
+
+and tc
+
+--
+
+explicitly add /usr/lib/llvm-8/bin to the path
+
 --export-all instead of --export=main makes tracing
 easier because the functions have visible names
 

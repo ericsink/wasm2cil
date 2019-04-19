@@ -235,5 +235,16 @@ public static class env
         }
         return count;
     }
+    public static int ctz_i32(int i)
+    {
+        // TODO this is such a dreadful hack
+        var s = Convert.ToString(i, 2);
+        int count = 0;
+        while (s[s.Length - 1 - count] == '0')
+        {
+            count++;
+        }
+        return count;
+    }
 }
 

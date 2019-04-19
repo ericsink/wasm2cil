@@ -87,6 +87,7 @@ module wasm.cecil
         clz_i64 : MethodReference
         ctz_i64 : MethodReference
         clz_i32 : MethodReference
+        ctz_i32 : MethodReference
         }
 
     type DataStuff = {
@@ -733,7 +734,8 @@ module wasm.cecil
         | MemoryGrow _ -> il.Append(il.Create(OpCodes.Call, ctx.mem_grow))
         | I32Clz ->
             il.Append(il.Create(OpCodes.Call, ctx.clz_i32))
-        | I32Ctz -> todo op
+        | I32Ctz ->
+            il.Append(il.Create(OpCodes.Call, ctx.ctz_i32))
         | I32Popcnt -> todo op
         | I32Rotl ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
@@ -1549,6 +1551,16 @@ module wasm.cecil
                     null
             | None -> null
 
+        let ctz_i32 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("ctz_i32", [| typeof<int32> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
         let ctx =
             {
                 types = types
@@ -1565,6 +1577,7 @@ module wasm.cecil
                 clz_i64 = clz_i64
                 ctz_i64 = ctz_i64
                 clz_i32 = clz_i32
+                ctz_i32 = ctz_i32
             }
 
         let tbl_setup =
