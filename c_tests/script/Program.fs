@@ -52,7 +52,7 @@ let main argv =
 
         let (build_rc, build_result) = exec_capture "dotnet" "build" dir_run
         if build_rc <> 0 then
-            failwith "build failed: %A" build_result
+            failwith (sprintf "build failed: %A" build_result)
 
         let (rc, result) = exec_capture "dotnet" "run --no-build" dir_run
 

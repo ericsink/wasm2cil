@@ -22,6 +22,7 @@ let main argv =
 
     //printfn "%A" m
 
+    // TODO arguably this should always just write to ..\run_test\test.dll
     let destname = argv.[1]
     printfn "Generating assembly %s" destname
     let ba = 

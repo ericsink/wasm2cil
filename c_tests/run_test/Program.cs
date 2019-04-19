@@ -3,7 +3,16 @@ public static class go
 {
     public static int Main(string[] args)
     {
-        return test.foo.main(0, 0);
+        int rc = 0;
+        try
+        {
+            test.foo._start();
+        }
+        catch (ProcExitException e)
+        {
+            rc = e.ReturnCode;
+        }
+        return rc;
     }
 }
 

@@ -1,6 +1,15 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
+public class ProcExitException : Exception
+{
+    public int ReturnCode { get; private set; }
+    public ProcExitException(int rc)
+    {
+        ReturnCode = rc;
+    }
+}
+
 public static class wasi_unstable
 {
     public static int __mem_size;
@@ -21,25 +30,35 @@ public static class wasi_unstable
         throw new NotImplementedException();
     }
 
-    public static int fd_prestat_dir_name(int a, int b, int c)
+    public static int fd_prestat_dir_name(int fd, int addr_path, int len)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException(string.Format("fd {0}", fd));
     }
-    public static int fd_prestat_get(int a, int b)
+    public static int fd_prestat_get(int fd, int addr)
     {
-        throw new NotImplementedException();
+        // there is a loop that tries preopened file descriptors
+        // starting at 3 until it finds a bad one.
+        return 8; // EBADF
+        //throw new NotImplementedException(string.Format("fd {0}", fd));
     }
-    public static int environ_sizes_get(int a, int b)
+    public static int environ_sizes_get(int addr_environ_count, int addr_environ_buf_size)
     {
-        throw new NotImplementedException();
+        // TODO for now, no environment variables
+        Marshal.WriteInt32(__mem + addr_environ_count, 0);
+        Marshal.WriteInt32(__mem + addr_environ_buf_size, 0);
+        return 0;
     }
     public static int environ_get(int a, int b)
     {
         throw new NotImplementedException();
     }
-    public static int args_sizes_get(int a, int b)
+    public static int args_sizes_get(int addr_argc, int addr_argv_buf_size)
     {
-        throw new NotImplementedException();
+        // TODO this is a weird way to get cmdline args.
+        // for now, none.
+        Marshal.WriteInt32(__mem + addr_argc, 0);
+        Marshal.WriteInt32(__mem + addr_argv_buf_size, 0);
+        return 0;
     }
     public static int args_get(int a, int b)
     {
@@ -47,7 +66,7 @@ public static class wasi_unstable
     }
     public static void proc_exit(int a)
     {
-        throw new NotImplementedException();
+        throw new ProcExitException(a);
     }
     public static int fd_filestat_get(int a, int b)
     {

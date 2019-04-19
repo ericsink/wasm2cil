@@ -1,6 +1,8 @@
 
-most wasi methods still have no implementation.
-weird that we're getting so far with just fd_write.
+failing 187, presumably because fopen of a file
+
+failing 204 because wasi sysroot has formatting of long
+double disabled
 
 --
 
@@ -15,7 +17,8 @@ explicitly add /usr/lib/llvm-8/bin to the path
 --export-all instead of --export=main makes tracing
 easier because the functions have visible names
 
-sqlite3 demo vfs is weak.  it doesn't even have locking
+sqlite3 demo vfs is weak.  it doesn't even have locking.
+need to use the regular vfs, but without pthreads.
 
 env_testing doesn't have the clz/ctz hacks
 
@@ -35,22 +38,6 @@ behavior of 00056.  default to a higher value?
 respect the definition in the wasm file?
 
 --
-
-what should call fflush stdout?  return from main
-is supposed to call exit, and exit is supposed
-to flush all stream buffers.  but since clang is
-wrapping main as original main, shouldn't it
-do the exit call?  can we somehow find fflush(stdout)
-and insert it into main?
-
-calling exit(0) instead of return 0 in main does
-cause a flush.
-
-and it also ends up calling wasi proc_exit, which
-is not implemented yet, so it throws.
-
---
-
 
 any chance exceptions from wasi methods are
 getting swallowed?
