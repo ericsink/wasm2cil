@@ -19,6 +19,7 @@ easier because the functions have visible names
 
 sqlite3 demo vfs is weak.  it doesn't even have locking.
 need to use the regular vfs, but without pthreads.
+and mmap.
 
 env_testing doesn't have the clz/ctz hacks
 
