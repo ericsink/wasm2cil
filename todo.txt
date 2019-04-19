@@ -1,14 +1,10 @@
 
-failing 187, presumably because fopen of a file
+failing 187, presumably because fopen of a file.
+but why no exceptions thrown from unimplemented
+wasi methods?
 
 failing 204 because wasi sysroot has formatting of long
 double disabled
-
---
-
-about time to remove hello_clang
-
-and tc
 
 --
 
@@ -24,13 +20,6 @@ and mmap.
 env_testing doesn't have the clz/ctz hacks
 
 proper impl of clz and ctx
-
-the read wasm binary format routines, including the
-leb128 stuff, gets much less testing, as the xunit
-cases don't test them
-
-range checking on all mem operations would help
-catch problems earlier
 
 does cctor init of globals/data respect mem size?
 
