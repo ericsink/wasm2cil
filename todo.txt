@@ -1,13 +1,44 @@
 
+proper impl of clz and ctx
+
+the read wasm binary format routines, including the
+leb128 stuff, gets much less testing, as the xunit
+cases don't test them
+
+range checking on all mem operations would help
+catch problems earlier
+
+does cctor init of globals/data respect mem size?
+
+initial mem size does make a difference in the
+behavior of 00056.  default to a higher value?
+respect the definition in the wasm file?
+
+what should call fflush stdout?
+
+any chance exceptions from wasi methods are
+getting swallowed?
+
+instead of calling Marshal.Copy, use Cpblk
+
+get another wasm runtime going for comparison
+purposes.  wasmer.  doesn't seem to run stuff
+from clang 8.  can't tell if wasm is wrong or
+wasmer has problems.
+
 peverify shows lots of problems
+
+f64/i64 reinterp causes peverify type problems?
+bitconverter.
+
+tests for bit shifts?
+
+why do shifts get [found Long][expected Native Int]
 
 need test for GrowMemory
 
 about half the time, sqlite3/to_wasm.sh hangs
-
-sqlite3/reference prints NOTADB lots of times and
-then succeeds.  the cil version gets NOTADB once
-and stops with a failure.
+-Wl,--no-threads
 
 --
 
@@ -31,8 +62,6 @@ Wasi we just ignore memory import anyway
 test min and max?
 
 xunit theory instead of fact
-
-sqlite compile needs i64ctlz
 
 some combinations of compare/BrIf could probably
 be merged into CIL like Beq.  like a peephole

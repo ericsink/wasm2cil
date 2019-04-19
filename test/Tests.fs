@@ -153,6 +153,8 @@ let drop_empty () =
     Assert.Throws<OperandStackUnderflow>(fun () -> prep_assembly_none m |> ignore)
 
 
+#if not
+
 [<Fact>]
 let memory_size () =
     let fb = FunctionBuilder()
@@ -174,6 +176,8 @@ let memory_size () =
         1
 
     check_0 mi impl
+
+#endif
 
 [<Fact>]
 let import_memory_store () =

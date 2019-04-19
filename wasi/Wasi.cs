@@ -91,6 +91,7 @@ public static class wasi_unstable
     static System.IO.Stream _stderr;
     public static int fd_write(int fd, int p_a_iovecs, int num_iovecs, int p_written)
     {
+        //System.Console.WriteLine("fd_write: {0} {1} {2} {3}", fd, p_a_iovecs, num_iovecs, p_written);
         System.IO.Stream strm;
         switch (fd)
         {
@@ -129,12 +130,18 @@ public static class wasi_unstable
         var ia = new int[] { total_len };
         Marshal.Copy(ia, 0, __mem + p_written, 1);
 
+        //System.Console.WriteLine("  done fd_write");
+
         return 0;
     }
     public static int fd_fdstat_get(int a, int b)
     {
         // TODO what is this supposed to do?
         return 0;
+    }
+    public static int fd_fdstat_set_flags(int a, int b)
+    {
+        throw new NotImplementedException();
     }
     public static int path_filestat_get(int a, int b, int c, int d, int e)
     {
@@ -191,5 +198,42 @@ public static class env
         throw new NotImplementedException();
     }
 
+    public static void Trace(string s)
+    {
+        System.Console.WriteLine("{0}", s);
+    }
+
+    public static void Trace2(object v, string s)
+    {
+        if (v is null)
+        {
+            System.Console.WriteLine("{0} NULL", s);
+        }
+        else
+        {
+            System.Console.WriteLine("{0} : {1}", s, v);
+        }
+    }
+    public static int clz_i64(long i)
+    {
+        // TODO this is such a dreadful hack
+        return 64 - Convert.ToString(i, 2).Length;
+    }
+    public static int clz_i32(int i)
+    {
+        // TODO this is such a dreadful hack
+        return 32 - Convert.ToString(i, 2).Length;
+    }
+    public static int ctz_i64(long i)
+    {
+        // TODO this is such a dreadful hack
+        var s = Convert.ToString(i, 2);
+        int count = 0;
+        while (s[s.Length - 1 - count] == '0')
+        {
+            count++;
+        }
+        return count;
+    }
 }
 

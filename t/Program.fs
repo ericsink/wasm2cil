@@ -38,7 +38,7 @@ let main argv =
                 let ns = id
                 let classname = "foo"
                 let ver = new System.Version(1, 0, 0, 0)
-                gen_assembly assy m id ns classname ver ms
+                gen_assembly (Other (Some assy)) m id ns classname ver ms
                 ms.ToArray()
             System.IO.File.WriteAllBytes(name, ba)
         else

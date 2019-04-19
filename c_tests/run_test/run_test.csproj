@@ -6,13 +6,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Program.fs" />
+    <Reference Include="MyAssembly">
+      <HintPath>.\test.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\wasm\wasm.fsproj" />
-    <ProjectReference Include="..\builders\builders.fsproj" />
-    <ProjectReference Include="..\env_testing\env_testing.csproj" />
+    <ProjectReference Include="..\..\wasi\wasi.csproj" />
   </ItemGroup>
 
 </Project>

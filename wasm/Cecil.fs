@@ -82,6 +82,11 @@ module wasm.cecil
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
+        trace : MethodReference
+        trace2 : MethodReference
+        clz_i64 : MethodReference
+        ctz_i64 : MethodReference
+        clz_i32 : MethodReference
         }
 
     type DataStuff = {
@@ -726,7 +731,8 @@ module wasm.cecil
             | None -> failwith "should not happen"
         | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
         | MemoryGrow _ -> il.Append(il.Create(OpCodes.Call, ctx.mem_grow))
-        | I32Clz -> todo op
+        | I32Clz ->
+            il.Append(il.Create(OpCodes.Call, ctx.clz_i32))
         | I32Ctz -> todo op
         | I32Popcnt -> todo op
         | I32Rotl ->
@@ -751,8 +757,10 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Or))
 
         | I32Rotr -> todo op
-        | I64Clz -> todo op
-        | I64Ctz -> todo op
+        | I64Clz ->
+            il.Append(il.Create(OpCodes.Call, ctx.clz_i64))
+        | I64Ctz ->
+            il.Append(il.Create(OpCodes.Call, ctx.ctz_i64))
         | I64Popcnt -> todo op
         | I64Rotl -> todo op
         | I64Rotr -> todo op
@@ -909,15 +917,38 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
-        begin
-            let name =
-                match mi.func.name with
-                | Some s -> s
-                | None -> "unexported"
-            //printfn "function: %s" name
-            ()
-            end
-        cecil_expr (function_result_type mi.func.typ) il ctx f_make_tmp a_locals mi.func.code.expr
+        let name =
+            match mi.func.name with
+            | Some s -> s
+            | None -> sprintf "func_%d" (int mi.func.idx)
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" name)))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+        for pair in a_locals do
+            match pair with
+            | ParamRef { def_param = def; typ = t } ->
+                let typ =cecil_valtype ctx.bt t
+                let name = def.Name
+                il.Append(il.Create(OpCodes.Ldarg, def))
+                il.Append(il.Create(OpCodes.Box, typ))
+                il.Append(il.Create(OpCodes.Ldstr, (sprintf "    param %s" name)))
+                il.Append(il.Create(OpCodes.Call, ctx.trace2))
+            | LocalRef { def_var = def } -> ()
+#endif
+        let result_typ = function_result_type mi.func.typ
+        cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
+#if not
+        match result_typ with
+        | Some t ->
+            let typ =cecil_valtype ctx.bt t
+            il.Append(il.Create(OpCodes.Dup))
+            il.Append(il.Create(OpCodes.Box, typ))
+            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" name)))
+            il.Append(il.Create(OpCodes.Call, ctx.trace2))
+        | None ->
+            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" name)))
+            il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
         il.Append(il.Create(OpCodes.Ret))
 
     let create_methods ndx bt (md : ModuleDefinition) env_assembly =
@@ -1110,7 +1141,7 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-        let mem_size_in_pages = 1
+        let mem_size_in_pages = 16 // TODO not ideal.  use min from wasm?
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
         il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))
@@ -1468,6 +1499,56 @@ module wasm.cecil
             gen_grow_mem mem mem_size bt
         container.Methods.Add(mem_grow)
 
+        let ref_trace = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("Trace", [| typeof<string> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
+        let ref_trace2 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("Trace2", [| typeof<System.Object>; typeof<string> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
+        let clz_i64 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("clz_i64", [| typeof<int64> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
+        let ctz_i64 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("ctz_i64", [| typeof<int64> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
+        let clz_i32 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("clz_i32", [| typeof<int32> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
         let ctx =
             {
                 types = types
@@ -1479,6 +1560,11 @@ module wasm.cecil
                 mem_size = mem_size
                 mem_grow = mem_grow
                 tbl_lookup = tbl_lookup
+                trace = ref_trace
+                trace2 = ref_trace2
+                clz_i64 = clz_i64
+                ctz_i64 = ctz_i64
+                clz_i32 = clz_i32
             }
 
         let tbl_setup =

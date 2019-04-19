@@ -21,6 +21,7 @@ module wasm.module_index
         typ : FuncType;
         code : CodeItem
         exported : bool
+        idx : uint32
         }
 
     type FuncLookupItem =
@@ -113,7 +114,7 @@ module wasm.module_index
                     match name with
                     | Some _ -> true
                     | None -> false
-                InternalFunc { name = name; typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported }
+                InternalFunc { name = name; typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported; idx = uint32 fidx }
                 
             Array.mapi f sf.funcs
 
