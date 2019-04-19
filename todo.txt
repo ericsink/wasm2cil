@@ -1,4 +1,6 @@
 
+sqlite3 demo vfs is weak.  it doesn't even have locking
+
 env_testing doesn't have the clz/ctz hacks
 
 proper impl of clz and ctx
@@ -20,7 +22,8 @@ what should call fflush stdout?  return from main
 is supposed to call exit, and exit is supposed
 to flush all stream buffers.  but since clang is
 wrapping main as original main, shouldn't it
-do the exit call?
+do the exit call?  can we somehow find fflush(stdout)
+and insert it into main?
 
 any chance exceptions from wasi methods are
 getting swallowed?
@@ -113,13 +116,6 @@ format
 
 --
 
-might like the ability to output a wasm module
-as F# to reconstruct it with Builder
-
-consistency question about the final End opcode
-
---
-
 hmmm.  consider system.reflection.metadata
 instead of Cecil ?
 
@@ -132,7 +128,8 @@ il.Create() overloads, so problems can be caught at
 compile time instead of run time.
 
 still some problems in roundtripping binary format,
-might be important, not sure
+might be important, not sure.  update:  did this get
+fixed with the leb128 decode signed fix?
 
 need consistency about whether to pass around
 wrapped indexes or just the ints
