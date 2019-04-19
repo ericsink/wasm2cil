@@ -7,6 +7,8 @@ open Xunit
 
 open wasm.def_basic
 open wasm.def_instr
+open wasm.read_basic
+open wasm.write_basic
 open wasm.def
 open wasm.read
 open wasm.write
@@ -1109,4 +1111,69 @@ let i64_reinterpret_f64 () =
     check 1.0
     check -1.0
     check 1.4142135
+
+let decode_i64 (ba : byte[]) =
+    let br = BinaryWasmStream(ba)
+    let i = read_var_i64 br
+    i
+
+let encode_i64 i =
+    use ms = new System.IO.MemoryStream()
+    use sub = new System.IO.BinaryWriter(ms)
+    write_var_i64 sub i
+    let ba = ms.ToArray()
+    ba
+    
+let decode_i32 (ba : byte[]) =
+    let br = BinaryWasmStream(ba)
+    let i = read_var_i32 br
+    i
+
+let encode_i32 i =
+    use ms = new System.IO.MemoryStream()
+    use sub = new System.IO.BinaryWriter(ms)
+    write_var_i32 sub i
+    let ba = ms.ToArray()
+    ba
+    
+[<Theory>]
+[<InlineData(1234)>]
+[<InlineData(0)>]
+[<InlineData(-1)>]
+[<InlineData(8675309)>]
+[<InlineData(123456789)>]
+[<InlineData(-1000)>]
+[<InlineData(1)>]
+[<InlineData(-555)>]
+let leb128_i64_roundtrips (n : int64) =
+    let check n =
+        let ba = encode_i64 n
+        let v = decode_i64 ba
+        Assert.Equal(n, v)
+
+    check n
+
+[<Theory>]
+[<InlineData(1234)>]
+[<InlineData(0)>]
+[<InlineData(-1)>]
+[<InlineData(8675309)>]
+[<InlineData(123456789)>]
+[<InlineData(-1000)>]
+[<InlineData(1)>]
+[<InlineData(-555)>]
+let leb128_i32_roundtrips (n : int32) =
+    let check n =
+        let ba = encode_i32 n
+        let v = decode_i32 ba
+        Assert.Equal(n, v)
+
+    check n
+
+
+[<Fact>]
+let leb128_i64_cases () =
+    Assert.Equal(0L, decode_i64 [| 0uy |])
+    Assert.Equal(1L, decode_i64 [| 1uy |])
+    Assert.Equal(1L <<< 7, decode_i64 [| 0x80uy; 0x01uy |])
 
