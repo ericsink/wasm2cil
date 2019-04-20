@@ -463,6 +463,12 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Call, mf.method))
 
         | CallIndirect _ ->
+#if not
+            il.Append(il.Create(OpCodes.Dup))
+            il.Append(il.Create(OpCodes.Box, ctx.bt.typ_i32))
+            il.Append(il.Create(OpCodes.Ldstr, "CallIndirect"))
+            il.Append(il.Create(OpCodes.Call, ctx.trace2))
+#endif
             let cs =
                 let stack_info = get_instruction_stack_info op
                 match stack_info with
@@ -481,6 +487,10 @@ module wasm.cecil
             | Some f -> il.Append(il.Create(OpCodes.Call, f))
             | None -> failwith "illegal to use CallIndirect with no table"
             il.Append(il.Create(OpCodes.Calli, cs))
+#if not
+            il.Append(il.Create(OpCodes.Ldstr, "after CallIndirect"))
+            il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
 
         | GlobalGet (GlobalIdx idx) ->
             let g = ctx.a_globals.[int idx]
@@ -995,7 +1005,7 @@ module wasm.cecil
 
         a_globals
 
-    let gen_tbl_lookup ndx bt (tbl : FieldDefinition) =
+    let gen_tbl_lookup ndx bt (tbl : FieldDefinition) (trace2 : MethodReference) (main_mod : ModuleDefinition) =
         let method = 
             new MethodDefinition(
                 "__tbl_lookup",
@@ -1009,12 +1019,36 @@ module wasm.cecil
 
         let il = method.Body.GetILProcessor()
 
+#if not
+        il.Append(il.Create(OpCodes.Ldarg, parm))
+        il.Append(il.Create(OpCodes.Box, bt.typ_i32))
+        il.Append(il.Create(OpCodes.Ldstr, "entering tbl_lookup"))
+        il.Append(il.Create(OpCodes.Call, trace2))
+#endif
+
         il.Append(il.Create(OpCodes.Ldsfld, tbl))
         il.Append(il.Create(OpCodes.Ldarg, parm))
         il.Append(il.Create(OpCodes.Ldc_I4, 8))
         il.Append(il.Create(OpCodes.Mul))
         il.Append(il.Create(OpCodes.Add))
         il.Append(il.Create(OpCodes.Ldind_I))
+
+#if not
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Box, bt.typ_intptr))
+        il.Append(il.Create(OpCodes.Ldstr, "exiting tbl_lookup"))
+        il.Append(il.Create(OpCodes.Call, trace2))
+#endif
+
+        let lab = il.Create(OpCodes.Nop)
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Brtrue, lab))
+
+        let ref_typ_e = main_mod.ImportReference(typeof<System.Exception>.GetConstructor([| |]))
+        il.Append(il.Create(OpCodes.Newobj, ref_typ_e))
+        il.Append(il.Create(OpCodes.Throw))
+
+        il.Append(lab)
         il.Append(il.Create(OpCodes.Ret))
 
         method
@@ -1080,6 +1114,11 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "entering tbl_setup"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
+
         let count_tbl_entries = 
             match lim with
             | Min m -> m
@@ -1106,6 +1145,14 @@ module wasm.cecil
 
         for elem in elems do
             cecil_expr (Some I32) il ctx f_make_tmp Array.empty elem.offset
+
+#if not
+            il.Append(il.Create(OpCodes.Dup))
+            il.Append(il.Create(OpCodes.Box, ctx.bt.typ_i32))
+            il.Append(il.Create(OpCodes.Ldstr, "    offset"))
+            il.Append(il.Create(OpCodes.Call, ctx.trace2))
+#endif
+
             il.Append(il.Create(OpCodes.Stloc, tmp))
             for i = 0 to (elem.init.Length - 1) do
 
@@ -1127,8 +1174,20 @@ module wasm.cecil
                     | MethodRefInternal m -> m.method :> MethodReference
                 il.Append(il.Create(OpCodes.Ldftn, m))
 
+#if not
+                il.Append(il.Create(OpCodes.Dup))
+                il.Append(il.Create(OpCodes.Box, ctx.bt.typ_intptr))
+                il.Append(il.Create(OpCodes.Ldstr, "    ldftn"))
+                il.Append(il.Create(OpCodes.Call, ctx.trace2))
+#endif
+
                 // and store it
                 il.Append(il.Create(OpCodes.Stind_I))
+
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "exiting tbl_setup"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
 
         il.Append(il.Create(OpCodes.Ret))
 
@@ -1480,27 +1539,6 @@ module wasm.cecil
                 )
         container.Fields.Add(tbl)
 
-        let tbl_lookup = 
-            let has_table =
-                match (ndx.Table, ndx.TableImport, ndx.Element) with
-                | (Some _, None, Some _) -> true
-                | (None, Some _, Some _) -> true
-                | _ -> false
-            if has_table then
-                let m = gen_tbl_lookup ndx bt tbl
-                container.Methods.Add(m)
-                Some m
-            else None
-
-        let types =
-            match ndx.Type with
-            | Some s -> s.types
-            | None -> [| |]
-
-        let mem_grow =
-            gen_grow_mem mem mem_size bt
-        container.Methods.Add(mem_grow)
-
         let ref_trace = 
             match env_assembly with
             | Some a ->
@@ -1520,6 +1558,27 @@ module wasm.cecil
                 else
                     null
             | None -> null
+
+        let tbl_lookup = 
+            let has_table =
+                match (ndx.Table, ndx.TableImport, ndx.Element) with
+                | (Some _, None, Some _) -> true
+                | (None, Some _, Some _) -> true
+                | _ -> false
+            if has_table then
+                let m = gen_tbl_lookup ndx bt tbl ref_trace2 main_module
+                container.Methods.Add(m)
+                Some m
+            else None
+
+        let types =
+            match ndx.Type with
+            | Some s -> s.types
+            | None -> [| |]
+
+        let mem_grow =
+            gen_grow_mem mem mem_size bt
+        container.Methods.Add(mem_grow)
 
         let clz_i64 = 
             match env_assembly with

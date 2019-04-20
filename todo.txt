@@ -1,4 +1,16 @@
 
+file problem appears to have nothing to do with
+the callindirect.  actual problem is that fopen
+returned null.  sandbox?
+
+init tbl entries to a function that throws?
+
+for debugging, maybe we need the sysroot to be built
+with --export-all
+
+how does wasm represent a null pointer?  if everything
+is an integer address offset from the base of memory.
+
 failing 187, presumably because fopen of a file.
 but why no exceptions thrown from unimplemented
 wasi methods?

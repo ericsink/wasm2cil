@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.IO;
+using System.Text;
 
 public class ProcExitException : Exception
 {
@@ -7,6 +9,72 @@ public class ProcExitException : Exception
     public ProcExitException(int rc)
     {
         ReturnCode = rc;
+    }
+}
+
+public static class util
+{
+    public static byte[] to_utf8(this string sourceText)
+    {
+        if (sourceText == null)
+        {
+            return null;
+        }
+
+        byte[] byteArray;
+        int nlen = Encoding.UTF8.GetByteCount(sourceText) + 1;
+
+        byteArray = new byte[nlen];
+        nlen = Encoding.UTF8.GetBytes(sourceText, 0, sourceText.Length, byteArray, 0);
+        byteArray[nlen] = 0;
+
+        return byteArray;
+    }
+
+    private static int GetNativeUTF8Size(System.IntPtr nativeString)
+    {
+        var offset = 0;
+
+        if (nativeString != IntPtr.Zero)
+        {
+            while (Marshal.ReadByte(nativeString, offset) > 0)
+            {
+                offset++;
+            }
+
+            offset++;
+        }
+
+        return offset;
+    }
+
+    public static string from_utf8(IntPtr nativeString)
+    {
+        string result = null;
+
+        if (nativeString != IntPtr.Zero)
+        {
+            int size = GetNativeUTF8Size(nativeString);
+            var array = new byte[size - 1];
+            Marshal.Copy(nativeString, array, 0, size - 1);
+            result = Encoding.UTF8.GetString(array, 0, array.Length);
+        }
+
+        return result;
+    }
+
+    public static string from_utf8(IntPtr nativeString, int size)
+    {
+        string result = null;
+
+        if (nativeString != IntPtr.Zero)
+        {
+            var array = new byte[size];
+            Marshal.Copy(nativeString, array, 0, size);
+            result = Encoding.UTF8.GetString(array, 0, array.Length);
+        }
+
+        return result;
     }
 }
 
@@ -207,9 +275,15 @@ public static class env
         // TODO this shouldn't be here
         throw new NotImplementedException();
     }
-    public static int getcwd(int a, int b)
+    public static int getcwd(int addr_buf, int len)
     {
-        throw new NotImplementedException();
+        var cwd = Directory.GetCurrentDirectory();
+        var full = Path.GetFullPath(Path.Combine(cwd, ".."));
+        // TODO unixify
+        full = ".";
+        var ba = util.to_utf8(full);
+        Marshal.Copy(ba, 0, wasi_unstable.__mem + addr_buf, ba.Length);
+        return addr_buf;
     }
     public static int localtime(int n)
     {

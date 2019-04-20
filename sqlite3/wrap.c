@@ -35,10 +35,10 @@ int test1()
     return result;
 }
 
-int test2()
+int test_db(char* filename)
 {
     sqlite3* db = NULL;
-    int rc = sqlite3_open(":memory:", &db);
+    int rc = sqlite3_open(filename, &db);
     if (rc != 0) return ERROR(rc);
 
     rc = sqlite3_exec(db, "CREATE TABLE foo (x int);", NULL, NULL, NULL);
@@ -87,5 +87,15 @@ int test2()
     if (rc != 0) return ERROR(rc);
 
     return result;
+}
+
+int test2()
+{
+    return test_db(":memory:");
+}
+
+int test3()
+{
+    return test_db("test3.sqlite");
 }
 
