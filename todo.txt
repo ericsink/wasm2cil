@@ -1,9 +1,11 @@
 
-file problem appears to have nothing to do with
-the callindirect.  actual problem is that fopen
-returned null.  sandbox?
+StructLayout and FieldOffset.  Wasi.cs has too 
+many places where layout of a struct is represented
+by magic numbers.  need something like the Wasi
+C header file, except for C#.
 
-init tbl entries to a function that throws?
+are strings in the wasi api supposed to be zero
+terminated?
 
 for debugging, maybe we need the sysroot to be built
 with --export-all
