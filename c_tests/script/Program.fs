@@ -26,7 +26,7 @@ let main argv =
         Path.GetFullPath(Path.Combine(cwd, ".."))
         // TODO maybe walk upward until we find the right directory
 
-    let dir_run = Path.Combine(top, "run_test")
+    let dir_run = Path.Combine(top, "go")
 
     let mutable count_tests = 0
     let mutable count_failed = 0
