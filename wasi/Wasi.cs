@@ -248,7 +248,7 @@ public static class wasi_unstable
     }
     public static int fd_close(int fd)
     {
-        //System.Console.WriteLine("fd_close: {0}", fd);
+        System.Console.WriteLine("fd_close: {0}", fd);
         if (_files.TryGetValue(fd, out var pair))
         {
             pair.Stream.Close();
@@ -261,13 +261,15 @@ public static class wasi_unstable
             throw new NotImplementedException();
         }
     }
-    public static int fd_sync(int a)
+    public static int fd_sync(int fd)
     {
-        throw new NotImplementedException();
+        System.Console.WriteLine("fd_sync: fd {0}", fd);
+        // TODO
+        return 0;
     }
     public static int fd_seek(int fd, long offset, int whence, int addr_newoffset)
     {
-        //System.Console.WriteLine("fd_seek: fd {0} offset {1} whence {2}", fd, offset, whence);
+        System.Console.WriteLine("fd_seek: fd {0} offset {1} whence {2}", fd, offset, whence);
         var strm = get_stream_for_fd(fd);
         SeekOrigin origin;
         switch (whence)
@@ -284,12 +286,13 @@ public static class wasi_unstable
             default:
                 throw new NotImplementedException();
         }
-        strm.Seek(offset, origin);
+        var newpos = strm.Seek(offset, origin);
+        write_u64(addr_newoffset, (ulong) newpos);
         return 0;
     }
     public static int fd_read(int fd, int addr_iovecs, int iovecs_len, int addr_nread)
     {
-        //System.Console.WriteLine("fd_read: {0}  addr_iovecs: {1}  iovecs_len: {2}  addr_nread: {3}", fd, addr_iovecs, iovecs_len, addr_nread);
+        System.Console.WriteLine("fd_read: {0}  addr_iovecs: {1}  iovecs_len: {2}  addr_nread: {3}", fd, addr_iovecs, iovecs_len, addr_nread);
         var a_iovecs = new int[iovecs_len * 2];
         Marshal.Copy(__mem + addr_iovecs, a_iovecs, 0, iovecs_len * 2);
 
@@ -320,7 +323,7 @@ public static class wasi_unstable
     }
     public static int fd_write(int fd, int addr_iovecs, int iovecs_len, int addr_nwritten)
     {
-        //System.Console.WriteLine("fd_write: {0} {1} {2} {3}", fd, addr_iovecs, iovecs_len, addr_nwritten);
+        System.Console.WriteLine("fd_write: {0} {1} {2} {3}", fd, addr_iovecs, iovecs_len, addr_nwritten);
 
         var a_iovecs = new int[iovecs_len * 2];
         Marshal.Copy(__mem + addr_iovecs, a_iovecs, 0, iovecs_len * 2);
@@ -451,9 +454,16 @@ public static class wasi_unstable
     {
         throw new NotImplementedException();
     }
-    public static int path_unlink_file(int a, int b, int c)
+    public static int path_unlink_file(
+        int dirfd, 
+        int addr_path, 
+        int len_path
+        )
     {
-        throw new NotImplementedException();
+        var path = util.from_utf8(__mem + addr_path, len_path);
+        System.Console.WriteLine("path_unlink_file: {0}", path);
+        File.Delete(path);
+        return 0;
     }
     public static int path_remove_directory(int a, int b, int c)
     {
