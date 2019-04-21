@@ -933,7 +933,7 @@ module wasm.cecil
             match mi.func.name with
             | Some s -> s
             | None -> sprintf "func_%d" (int mi.func.idx)
-//#if not
+#if not
         il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" name)))
         il.Append(il.Create(OpCodes.Call, ctx.trace))
         for pair in a_locals do
@@ -946,10 +946,10 @@ module wasm.cecil
                 il.Append(il.Create(OpCodes.Ldstr, (sprintf "    param %s" name)))
                 il.Append(il.Create(OpCodes.Call, ctx.trace2))
             | LocalRef { def_var = def } -> ()
-//#endif
+#endif
         let result_typ = function_result_type mi.func.typ
         cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
-//#if not
+#if not
         match result_typ with
         | Some t ->
             let typ =cecil_valtype ctx.bt t
@@ -960,7 +960,7 @@ module wasm.cecil
         | None ->
             il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" name)))
             il.Append(il.Create(OpCodes.Call, ctx.trace))
-//#endif
+#endif
         il.Append(il.Create(OpCodes.Ret))
 
     let create_methods ndx bt (md : ModuleDefinition) env_assembly =
