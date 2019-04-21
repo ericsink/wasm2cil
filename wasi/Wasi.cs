@@ -229,6 +229,7 @@ public static class wasi_unstable
     }
     public static int fd_close(int fd)
     {
+        //System.Console.WriteLine("fd_close: {0}", fd);
         if (_files.TryGetValue(fd, out var strm))
         {
             strm.Close();
@@ -247,7 +248,7 @@ public static class wasi_unstable
     }
     public static int fd_seek(int fd, long offset, int whence, int addr_newoffset)
     {
-        System.Console.WriteLine("fd_seek: fd {0} offset {1} whence {2}", fd, offset, whence);
+        //System.Console.WriteLine("fd_seek: fd {0} offset {1} whence {2}", fd, offset, whence);
         var strm = get_stream_for_fd(fd);
         SeekOrigin origin;
         switch (whence)
@@ -269,6 +270,7 @@ public static class wasi_unstable
     }
     public static int fd_read(int fd, int addr_iovecs, int iovecs_len, int addr_nread)
     {
+        //System.Console.WriteLine("fd_read: {0}  addr_iovecs: {1}  iovecs_len: {2}  addr_nread: {3}", fd, addr_iovecs, iovecs_len, addr_nread);
         var a_iovecs = new int[iovecs_len * 2];
         Marshal.Copy(__mem + addr_iovecs, a_iovecs, 0, iovecs_len * 2);
 
@@ -279,13 +281,16 @@ public static class wasi_unstable
         {
             var addr = a_iovecs[i * 2];
             var len = a_iovecs[i * 2 + 1];
+            //System.Console.WriteLine("    addr: {0}  len: {1}", addr, len);
             var ba = new byte[len];
             // TODO ReadFully
-            strm.Read(ba, 0, len);
-            Marshal.Copy(__mem + addr, ba, 0, len);
-            total_len += len;
+            var got = strm.Read(ba, 0, len);
+            //System.Console.WriteLine("    got: {0}  len: {1}", got, len);
+            Marshal.Copy(ba, 0, __mem + addr, got);
+            total_len += got;
         }
 
+        //System.Console.WriteLine("    total_len: {0}", total_len);
         Marshal.WriteInt32(__mem + addr_nread, total_len);
 
         return 0;
