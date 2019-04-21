@@ -89,7 +89,13 @@ public static class wasi_unstable
     public static int __mem_size;
     public static IntPtr __mem;
 
-    static Dictionary<int,FileStream> _files = new Dictionary<int,FileStream>();
+    class FilePair
+    {
+        public FileInfo Info { get; set; }
+        public FileStream Stream { get; set; }
+    }
+
+    static Dictionary<int,FilePair> _files = new Dictionary<int,FilePair>();
 
     static System.IO.Stream _stdin;
     static System.IO.Stream _stdout;
@@ -117,9 +123,9 @@ public static class wasi_unstable
                 }
                 return _stderr;
             default:
-                if (_files.TryGetValue(fd, out var strm))
+                if (_files.TryGetValue(fd, out var fp))
                 {
-                    return strm;
+                    return fp.Stream;
                 }
                 else
                 {
@@ -137,7 +143,7 @@ public static class wasi_unstable
 		int dirfd,
 		int dirflags,
 		int addr_path,
-		int path_len,
+		int len_path,
 		int oflags,
 		long fs_rights_base,
 		long fs_rights_inheriting,
@@ -147,11 +153,13 @@ public static class wasi_unstable
     {
         // TODO very simplistic implementation
         //System.Console.WriteLine("dirfd: {0}", dirfd);
-        var path = util.from_utf8(__mem + addr_path, path_len);
+        var path = util.from_utf8(__mem + addr_path, len_path);
         //System.Console.WriteLine("path: {0}", path);
-        var strm = File.Open(path, FileMode.OpenOrCreate);
+        var fi = new FileInfo(path);
+        var strm = fi.Open(FileMode.OpenOrCreate);
+        var pair = new FilePair { Info = fi, Stream = strm };
         var fd = _nextFd++;
-        _files[fd] = strm;
+        _files[fd] = pair;
         Marshal.WriteInt32(__mem + addr_fd, fd);
         return 0;
     }
@@ -170,6 +178,7 @@ public static class wasi_unstable
     }
     public static int fd_prestat_get(int fd, int addr)
     {
+        System.Console.WriteLine("fd_prestat_get: {0}", fd);
         // there is a loop that tries preopened file descriptors
         // starting at 3 until it finds a bad one.
         switch (fd)
@@ -209,9 +218,19 @@ public static class wasi_unstable
     {
         throw new ProcExitException(a);
     }
-    public static int fd_filestat_get(int a, int b)
+    public static int fd_filestat_get(int fd, int addr_result)
     {
-        throw new NotImplementedException();
+        if (_files.TryGetValue(fd, out var pair))
+        {
+            pair.Info.Refresh();
+            write_filestat(addr_result, pair.Info);
+            return 0;
+        }
+        else
+        {
+            // TODO err code
+            throw new NotImplementedException();
+        }
     }
     public static int clock_time_get(int clock_id, long precision, int addr_result)
     {
@@ -230,9 +249,9 @@ public static class wasi_unstable
     public static int fd_close(int fd)
     {
         //System.Console.WriteLine("fd_close: {0}", fd);
-        if (_files.TryGetValue(fd, out var strm))
+        if (_files.TryGetValue(fd, out var pair))
         {
-            strm.Close();
+            pair.Stream.Close();
             _files.Remove(fd);
             return 0;
         }
@@ -326,6 +345,16 @@ public static class wasi_unstable
 
         return 0;
     }
+    static void write_u64(int addr, ulong v)
+    {
+        var ba = BitConverter.GetBytes(v);
+        Marshal.Copy(ba, 0, __mem + addr, ba.Length);
+    }
+    static void write_u32(int addr, uint v)
+    {
+        var ba = BitConverter.GetBytes(v);
+        Marshal.Copy(ba, 0, __mem + addr, ba.Length);
+    }
     static void add_all_rights(int addr)
     {
         // TODO temporary.  in each case, think about what rights
@@ -389,9 +418,34 @@ public static class wasi_unstable
     {
         throw new NotImplementedException();
     }
-    public static int path_filestat_get(int a, int b, int c, int d, int e)
+    static void write_filestat(int addr_result, FileInfo fi)
     {
-        throw new NotImplementedException();
+        write_u64(addr_result + 0, 0); // device ID
+        write_u64(addr_result + 8, 0); // inode
+        Marshal.WriteByte(__mem + addr_result + 16, 4); // file type, 4, regular file
+        write_u32(addr_result + 20, 0); // hard links
+        write_u64(addr_result + 24, (ulong) (fi.Length)); // size
+        write_u64(addr_result + 32, 0); // access timestamp
+        write_u64(addr_result + 40, 0); // mod time
+        write_u64(addr_result + 48, 0); // status change time
+    }
+    public static int path_filestat_get(
+        int dirfd, 
+        int flags, 
+        int addr_path, 
+        int len_path, 
+        int addr_result
+        )
+    {
+        var path = util.from_utf8(__mem + addr_path, len_path);
+        System.Console.WriteLine("path_filestat_get: {0}", path);
+        var fi = new FileInfo(path);
+        if (!fi.Exists)
+        {
+            return 44; // ENOENT
+        }
+        write_filestat(addr_result, fi);
+        return 0;
     }
     public static int path_rename(int a, int b, int c, int d, int e, int f)
     {

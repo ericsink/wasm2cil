@@ -99,3 +99,10 @@ int test3()
     return test_db("test3.sqlite");
 }
 
+int main(int argc, char** argv)
+{
+    int rc = test3();
+    printf("rc: %d\n", rc);
+    return rc;
+}
+

@@ -1,4 +1,10 @@
 
+ouch.  the code that gets the preopened fds is
+probably called only from the startup code, and
+since the sqlite lib build doesn't generate an
+entry point, that never happens, so the open call
+dies because the po map is not valid.
+
 StructLayout and FieldOffset.  Wasi.cs has too 
 many places where layout of a struct is represented
 by magic numbers.  need something like the Wasi
