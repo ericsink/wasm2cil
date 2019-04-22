@@ -523,18 +523,6 @@ public static partial class wasi_unstable
 
 public static class env
 {
-    // TODO this shouldn't be here.  but sqlite demo vfs needs it.
-    public static int getcwd(int addr_buf, int len)
-    {
-        var cwd = Directory.GetCurrentDirectory();
-        var full = Path.GetFullPath(Path.Combine(cwd, ".."));
-        // TODO unixify
-        full = ".";
-        var ba = util.to_utf8_z(full);
-        Marshal.Copy(ba, 0, wasi_unstable.__mem + addr_buf, ba.Length);
-        return addr_buf;
-    }
-
     public static void Trace(string s)
     {
         System.Console.WriteLine("{0}", s);

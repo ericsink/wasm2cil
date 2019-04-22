@@ -532,15 +532,7 @@ static int demoFullPathname(
   int nPathOut,                   /* Size of output buffer in bytes */
   char *zPathOut                  /* Pointer to output buffer */
 ){
-  char zDir[MAXPATHNAME+1];
-  if( zPath[0]=='/' ){
-    zDir[0] = '\0';
-  }else{
-    if( getcwd(zDir, sizeof(zDir))==0 ) return SQLITE_IOERR;
-  }
-  zDir[MAXPATHNAME] = '\0';
-
-  sqlite3_snprintf(nPathOut, zPathOut, "%s/%s", zDir, zPath);
+  sqlite3_snprintf(nPathOut, zPathOut, "%s", zPath);
   zPathOut[nPathOut-1] = '\0';
 
   return SQLITE_OK;
