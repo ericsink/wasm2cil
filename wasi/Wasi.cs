@@ -397,7 +397,7 @@ public static partial class wasi_unstable
                     rights = rights & (~__WASI_RIGHT_FD_SEEK);
                     rights = rights & (~__WASI_RIGHT_FD_TELL);
                     st.fs_rights_base = rights;
-                    st.fs_rights_inheriting = rights; // TODO rights inherit
+                    st.fs_rights_inheriting = 0; // TODO rights inherit
                     Marshal.StructureToPtr(st, __mem + addr, false);
                     return __WASI_ESUCCESS;
                 }
