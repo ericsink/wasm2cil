@@ -1,4 +1,8 @@
 
+need tests for the Wasm binary reader
+
+need tests for the Wasi layer
+
 ouch.  the code that gets the preopened fds is
 probably called only from the startup code, and
 since the sqlite lib build doesn't generate an
@@ -18,10 +22,6 @@ with --export-all
 
 how does wasm represent a null pointer?  if everything
 is an integer address offset from the base of memory.
-
-failing 187, presumably because fopen of a file.
-but why no exceptions thrown from unimplemented
-wasi methods?
 
 failing 204 because wasi sysroot has formatting of long
 double disabled
@@ -49,8 +49,7 @@ respect the definition in the wasm file?
 
 --
 
-any chance exceptions from wasi methods are
-getting swallowed?
+span
 
 instead of calling Marshal.Copy, use Cpblk
 
@@ -70,9 +69,6 @@ why do shifts get [found Long][expected Native Int]
 
 need test for GrowMemory
 
-about half the time, sqlite3/to_wasm.sh hangs
--Wl,--no-threads
-
 --
 
 currently, the memory section of the module is ignored.
@@ -83,9 +79,8 @@ a way to specify a module which has no memory at all?
 should probably lookup all references in a ns2.0 reference
 assembly
 
-what else is in wasi sysroot?  math stuff like pow() ?
-is it a problem if those funcs get used instead of the
-ones in System.Math?
+do we need a way to use System.Math instead of the math
+routines in wasi sysroot?
 
 consider --import-memory, but currently when we target
 Wasi we just ignore memory import anyway
