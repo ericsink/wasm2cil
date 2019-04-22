@@ -18,44 +18,44 @@ public static partial class wasi_unstable
     [StructLayout(LayoutKind.Explicit, Size=24)]
     struct __wasi_fdstat_t 
     {
-        [FieldOffset(0)] byte fs_filetype;
-        [FieldOffset(2)] ushort fs_flags;
-        [FieldOffset(8)] ulong fs_rights_base;
-        [FieldOffset(16)] ulong fs_rights_inheriting;
+        [FieldOffset(0)] public byte fs_filetype;
+        [FieldOffset(2)] public ushort fs_flags;
+        [FieldOffset(8)] public ulong fs_rights_base;
+        [FieldOffset(16)] public ulong fs_rights_inheriting;
     }
 
     [StructLayout(LayoutKind.Explicit, Size=8)]
     struct __wasi_prestat_t 
     {
-        [FieldOffset(0)] byte pr_type;
-        [FieldOffset(4)] int pr_name_len;
+        [FieldOffset(0)] public byte pr_type;
+        [FieldOffset(4)] public int pr_name_len;
     }
 
     [StructLayout(LayoutKind.Explicit, Size=56)]
     struct __wasi_filestat_t 
     {
-        [FieldOffset(0)] ulong st_dev;
-        [FieldOffset(8)] ulong st_ino;
-        [FieldOffset(16)] byte st_filetype;
-        [FieldOffset(20)] uint st_nlink;
-        [FieldOffset(24)] ulong st_size;
-        [FieldOffset(32)] ulong st_atim;
-        [FieldOffset(40)] ulong st_mtim;
-        [FieldOffset(48)] ulong st_ctim;
+        [FieldOffset(0)] public ulong st_dev;
+        [FieldOffset(8)] public ulong st_ino;
+        [FieldOffset(16)] public byte st_filetype;
+        [FieldOffset(20)] public uint st_nlink;
+        [FieldOffset(24)] public ulong st_size;
+        [FieldOffset(32)] public ulong st_atim;
+        [FieldOffset(40)] public ulong st_mtim;
+        [FieldOffset(48)] public ulong st_ctim;
     }
 
     [StructLayout(LayoutKind.Explicit, Size=8)]
     struct __wasi_ciovec_t 
     {
-        [FieldOffset(0)] uint buf;
-        [FieldOffset(4)] uint buf_len;
+        [FieldOffset(0)] public uint buf;
+        [FieldOffset(4)] public uint buf_len;
     }
 
     [StructLayout(LayoutKind.Explicit, Size=8)]
     struct __wasi_iovec_t 
     {
-        [FieldOffset(0)] uint buf;
-        [FieldOffset(4)] uint buf_len;
+        [FieldOffset(0)] public uint buf;
+        [FieldOffset(4)] public uint buf_len;
     }
 
     public static int __mem_size;
@@ -401,14 +401,19 @@ public static partial class wasi_unstable
         {
             case 0: // stdin
                 {
-                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_CHARACTER_DEVICE);
-                    // TODO appropriate flags for stdin
-                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
+
+                    __wasi_fdstat_t st;
+                    st.fs_filetype = __WASI_FILETYPE_CHARACTER_DEVICE;
+					// TODO appropriate flags for stdin
+                    st.fs_flags = 0; 
                     ulong rights = 0xffffffffffffffff;
                     rights = rights & (~__WASI_RIGHT_FD_SEEK);
                     rights = rights & (~__WASI_RIGHT_FD_TELL);
-                    write_u64(addr + 8, rights);
-                    write_u64(addr + 16, 0); // TODO rights inherit
+                    st.fs_rights_base = rights;
+                    st.fs_rights_inheriting = rights; // TODO rights inherit
+
+                    Marshal.StructureToPtr(st, __mem + addr, false);
+
                     return __WASI_ESUCCESS;
                 }
             case 1: // stdout
