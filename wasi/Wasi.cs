@@ -156,7 +156,27 @@ public static class wasi_unstable
         var path = util.from_utf8(__mem + addr_path, len_path);
         //System.Console.WriteLine("path: {0}", path);
         var fi = new FileInfo(path);
-        var strm = fi.Open(FileMode.OpenOrCreate);
+        FileMode fm;
+        {
+            var creat = (oflags & 0x01) != 0;
+            var excl = (oflags & 0x04) != 0;
+            if (creat)
+            {
+                if (excl)
+                {
+                    fm = FileMode.CreateNew;
+                }
+                else
+                {
+                    fm = FileMode.OpenOrCreate;
+                }
+            }
+            else
+            {
+                fm = FileMode.Open;
+            }
+        }
+        var strm = fi.Open(fm);
         var pair = new FilePair { Info = fi, Stream = strm };
         var fd = _nextFd++;
         _files[fd] = pair;
