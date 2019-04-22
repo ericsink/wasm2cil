@@ -493,11 +493,7 @@ public static class wasi_unstable
 
 public static class env
 {
-    public static int main(int a, int b)
-    {
-        // TODO this shouldn't be here
-        throw new NotImplementedException();
-    }
+    // TODO this shouldn't be here.  sqlite demo vfs needs it.
     public static int getcwd(int addr_buf, int len)
     {
         var cwd = Directory.GetCurrentDirectory();
