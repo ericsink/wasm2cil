@@ -169,7 +169,7 @@ public static partial class wasi_unstable
         {
             case 3:
                 Marshal.WriteByte(__mem + addr_path, 46); // 46 is ascii for .
-                //Marshal.WriteByte(__mem + addr_path + 1, 0);
+                //Marshal.WriteByte(__mem + addr_path + 1, 0); // assuming no need for z terminator
                 return __WASI_ESUCCESS;
             default:
                 throw new NotImplementedException(string.Format("fd {0}  len {1}", fd, len));
@@ -183,8 +183,10 @@ public static partial class wasi_unstable
         switch (fd)
         {
             case 3:
-                Marshal.WriteByte(__mem + addr, 0); // preopentype_dir
-                Marshal.WriteInt32(__mem + addr + 4, 1);
+                __wasi_prestat_t st;
+                st.pr_type = __WASI_PREOPENTYPE_DIR;
+                st.pr_name_len = 1; // assuming no need for z terminator
+                Marshal.StructureToPtr(st, __mem + addr, false);
                 return __WASI_ESUCCESS;
             default:
                 return __WASI_EBADF;
@@ -267,10 +269,10 @@ public static partial class wasi_unstable
                 TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
                 var ms = (long) (t.TotalMilliseconds);
                 var ns = ms * 1000 * 1000;
-                var ia = new long[] { ns };
-                Marshal.Copy(ia, 0, __mem + addr_result, 1);
+                Marshal.WriteInt64(__mem + addr_result, ns);
                 return __WASI_ESUCCESS;
-            default: throw new NotImplementedException();
+            default: 
+                throw new NotImplementedException();
         }
     }
     public static int fd_close(int fd)
@@ -380,89 +382,55 @@ public static partial class wasi_unstable
         var ba = BitConverter.GetBytes(v);
         Marshal.Copy(ba, 0, __mem + addr, ba.Length);
     }
-    static void write_u32(int addr, uint v)
-    {
-        var ba = BitConverter.GetBytes(v);
-        Marshal.Copy(ba, 0, __mem + addr, ba.Length);
-    }
-    static void add_all_rights(int addr)
-    {
-        // TODO temporary.  in each case, think about what rights
-        // should actually be given.
-        for (int i=0; i<8; i++)
-        {
-            Marshal.WriteByte(__mem + addr + i, 0xff);
-        }
-    }
     public static int fd_fdstat_get(int fd, int addr)
     {
         //System.Console.WriteLine("fd_fdstat_get: {0}", fd);
         switch (fd)
         {
             case 0: // stdin
+            case 1: // stdout
+            case 2: // stderr
                 {
-
                     __wasi_fdstat_t st;
                     st.fs_filetype = __WASI_FILETYPE_CHARACTER_DEVICE;
-					// TODO appropriate flags for stdin
+					// TODO appropriate flags
                     st.fs_flags = 0; 
                     ulong rights = 0xffffffffffffffff;
                     rights = rights & (~__WASI_RIGHT_FD_SEEK);
                     rights = rights & (~__WASI_RIGHT_FD_TELL);
                     st.fs_rights_base = rights;
                     st.fs_rights_inheriting = rights; // TODO rights inherit
-
                     Marshal.StructureToPtr(st, __mem + addr, false);
-
-                    return __WASI_ESUCCESS;
-                }
-            case 1: // stdout
-                {
-                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_CHARACTER_DEVICE);
-                    // TODO appropriate flags for stdout
-                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                    ulong rights = 0xffffffffffffffff;
-                    rights = rights & (~__WASI_RIGHT_FD_SEEK);
-                    rights = rights & (~__WASI_RIGHT_FD_TELL);
-                    write_u64(addr + 8, rights);
-                    write_u64(addr + 16, 0); // TODO rights inherit
-                    return __WASI_ESUCCESS;
-                }
-            case 2: // stderr
-                {
-                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_CHARACTER_DEVICE);
-                    // TODO appropriate flags for stderr
-                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                    ulong rights = 0xffffffffffffffff;
-                    rights = rights & (~__WASI_RIGHT_FD_SEEK);
-                    rights = rights & (~__WASI_RIGHT_FD_TELL);
-                    write_u64(addr + 8, rights);
-                    write_u64(addr + 16, 0); // TODO rights inherit
                     return __WASI_ESUCCESS;
                 }
             case 3:
                 {
-                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_DIRECTORY);
-                    // TODO appropriate flags for the pre dir
-                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                    add_all_rights(addr + 8); // TODO rights
-                    add_all_rights(addr + 16); // TODO inherit
+                    __wasi_fdstat_t st;
+                    st.fs_filetype = __WASI_FILETYPE_DIRECTORY;
+					// TODO appropriate flags
+                    st.fs_flags = 0; 
+                    ulong rights = 0xffffffffffffffff;
+                    st.fs_rights_base = rights;
+                    st.fs_rights_inheriting = rights; // TODO rights inherit
+                    Marshal.StructureToPtr(st, __mem + addr, false);
                     return __WASI_ESUCCESS;
                 }
             default:
                 if (_files.TryGetValue(fd, out var strm))
                 {
-                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_REGULAR_FILE);
-                    // TODO appropriate flags for this file
-                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                    add_all_rights(addr + 8); // TODO rights
-                    add_all_rights(addr + 16); // TODO inherit
+                    __wasi_fdstat_t st;
+                    st.fs_filetype = __WASI_FILETYPE_REGULAR_FILE;
+					// TODO appropriate flags
+                    st.fs_flags = 0; 
+                    ulong rights = 0xffffffffffffffff;
+                    st.fs_rights_base = rights;
+                    st.fs_rights_inheriting = rights; // TODO rights inherit
+                    Marshal.StructureToPtr(st, __mem + addr, false);
                     return __WASI_ESUCCESS;
                 }
                 else
                 {
-                    // TODO probably an error code
-                    throw new NotImplementedException();
+                    return __WASI_EBADF;
                 }
         }
     }
@@ -470,16 +438,18 @@ public static partial class wasi_unstable
     {
         throw new NotImplementedException();
     }
-    static void write_filestat(int addr_result, FileInfo fi)
+    static void write_filestat(int addr, FileInfo fi)
     {
-        write_u64(addr_result + 0, 0); // device ID
-        write_u64(addr_result + 8, 0); // inode
-        Marshal.WriteByte(__mem + addr_result + 16, __WASI_FILETYPE_REGULAR_FILE);
-        write_u32(addr_result + 20, 0); // hard links
-        write_u64(addr_result + 24, (ulong) (fi.Length)); // size
-        write_u64(addr_result + 32, 0); // access timestamp
-        write_u64(addr_result + 40, 0); // mod time
-        write_u64(addr_result + 48, 0); // status change time
+        __wasi_filestat_t st;
+        st.st_dev = 0;
+        st.st_ino = 0;
+        st.st_filetype = __WASI_FILETYPE_REGULAR_FILE;
+        st.st_nlink = 0;
+        st.st_size = (ulong) fi.Length;
+        st.st_atim = 0;
+        st.st_mtim = 0;
+        st.st_ctim = 0;
+        Marshal.StructureToPtr(st, __mem + addr, false);
     }
     public static int path_filestat_get(
         int dirfd, 
