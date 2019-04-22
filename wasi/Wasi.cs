@@ -15,19 +15,31 @@ public class ProcExitException : Exception
 
 public static class util
 {
-    public static byte[] to_utf8(this string sourceText)
+    public static byte[] to_utf8(string sourceText)
     {
         if (sourceText == null)
         {
             return null;
         }
 
-        // TODO not sure if we should be adding the 0 terminator or not
-        // TODO sqlite usually wants it I think
+        int nlen = Encoding.UTF8.GetByteCount(sourceText);
 
-        byte[] byteArray;
+        var byteArray = new byte[nlen];
+        nlen = Encoding.UTF8.GetBytes(sourceText, 0, sourceText.Length, byteArray, 0);
+
+        return byteArray;
+    }
+
+    public static byte[] to_utf8_z(string sourceText)
+    {
+        if (sourceText == null)
+        {
+            return null;
+        }
+
         int nlen = Encoding.UTF8.GetByteCount(sourceText) + 1;
 
+        var byteArray = new byte[nlen];
         byteArray = new byte[nlen];
         nlen = Encoding.UTF8.GetBytes(sourceText, 0, sourceText.Length, byteArray, 0);
         byteArray[nlen] = 0;
@@ -235,7 +247,7 @@ public static class wasi_unstable
         __args = new byte[a.Length][];
         for (int i=0; i<a.Length; i++)
         {
-            __args[i] = util.to_utf8(a[i]);
+            __args[i] = util.to_utf8_z(a[i]);
         }
     }
     public static int args_sizes_get(int addr_argc, int addr_argv_buf_size)
@@ -565,14 +577,14 @@ public static class wasi_unstable
 
 public static class env
 {
-    // TODO this shouldn't be here.  sqlite demo vfs needs it.
+    // TODO this shouldn't be here.  but sqlite demo vfs needs it.
     public static int getcwd(int addr_buf, int len)
     {
         var cwd = Directory.GetCurrentDirectory();
         var full = Path.GetFullPath(Path.Combine(cwd, ".."));
         // TODO unixify
         full = ".";
-        var ba = util.to_utf8(full);
+        var ba = util.to_utf8_z(full);
         Marshal.Copy(ba, 0, wasi_unstable.__mem + addr_buf, ba.Length);
         return addr_buf;
     }
