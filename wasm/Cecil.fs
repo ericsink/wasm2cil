@@ -458,7 +458,15 @@ module wasm.cecil
             let fn = ctx.a_methods.[int fidx]
             match fn with
             | MethodRefImported mf ->
+#if not
+                il.Append(il.Create(OpCodes.Ldstr, (sprintf "calling import %s" mf.method.Name)))
+                il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
                 il.Append(il.Create(OpCodes.Call, mf.method))
+#if not
+                il.Append(il.Create(OpCodes.Ldstr, (sprintf "back from import %s" mf.method.Name)))
+                il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
             | MethodRefInternal mf ->
                 il.Append(il.Create(OpCodes.Call, mf.method))
 
