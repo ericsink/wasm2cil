@@ -1,10 +1,11 @@
 
 compiling sqlite with shell needs i64rotl
 
-need wasi funcs for cmd line args
+impl the wasi funcs for cmd line args
 
 sqlite shell tries to open :memory: as if it is
-a filename
+a filename.  and windows doesn't like a filename
+with a colon in it.  where to stop this from happening?
 
 need tests for the Wasm binary reader
 
@@ -15,6 +16,9 @@ probably called only from the startup code, and
 since the sqlite lib build doesn't generate an
 entry point, that never happens, so the open call
 dies because the po map is not valid.
+
+    call $__wasilibc_init_preopen
+    call $__wasilibc_register_preopened_fd
 
 StructLayout and FieldOffset.  Wasi.cs has too 
 many places where layout of a struct is represented
