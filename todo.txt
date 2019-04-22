@@ -1,4 +1,11 @@
 
+compiling sqlite with shell needs i64rotl
+
+need wasi funcs for cmd line args
+
+sqlite shell tries to open :memory: as if it is
+a filename
+
 need tests for the Wasm binary reader
 
 need tests for the Wasi layer
@@ -15,7 +22,7 @@ by magic numbers.  need something like the Wasi
 C header file, except for C#.
 
 are strings in the wasi api supposed to be zero
-terminated?
+terminated?  probably not.
 
 for debugging, maybe we need the sysroot to be built
 with --export-all
