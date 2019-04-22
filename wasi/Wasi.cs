@@ -588,11 +588,6 @@ public static class env
         Marshal.Copy(ba, 0, wasi_unstable.__mem + addr_buf, ba.Length);
         return addr_buf;
     }
-    public static int localtime(int n)
-    {
-        // TODO why isn't this found in wasi sysroot?
-        throw new NotImplementedException();
-    }
 
     public static void Trace(string s)
     {
