@@ -1,7 +1,5 @@
 
-__wasi__
-
-impl the wasi funcs for cmd line args
+shell pragma databases returns nothing.  why?
 
 sqlite shell tries to open :memory: as if it is
 a filename.  and windows doesn't like a filename
@@ -13,10 +11,10 @@ sample files that came from other sources, like clang.
 need tests for the Wasi layer
 
 ouch.  the code that gets the preopened fds is
-probably called only from the startup code, and
-since the sqlite lib build doesn't generate an
-entry point, that never happens, so the open call
-dies because the po map is not valid.
+called only from the startup code, and since 
+the sqlite lib build doesn't generate an entry 
+point, that never happens, so the open call dies 
+because the po map is not valid.
 
     call $__wasilibc_init_preopen
     call $__wasilibc_register_preopened_fd
