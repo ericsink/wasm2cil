@@ -1,5 +1,7 @@
 
-shell pragma databases returns nothing.  why?
+ha.  several of the problems with the sqlite shell
+are working exactly as they do when compiled
+directly to native.
 
 sqlite shell tries to open :memory: as if it is
 a filename.  and windows doesn't like a filename
