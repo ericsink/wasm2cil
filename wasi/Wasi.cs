@@ -87,8 +87,8 @@ public static partial class wasi_unstable
         var fi = new FileInfo(path);
         FileMode fm;
         {
-            var creat = (oflags & 0x01) != 0;
-            var excl = (oflags & 0x04) != 0;
+            var creat = (oflags & __WASI_O_CREAT) != 0;
+            var excl = (oflags & __WASI_O_EXCL) != 0;
             if (creat)
             {
                 if (excl)
@@ -112,11 +112,11 @@ public static partial class wasi_unstable
             var fd = _nextFd++;
             _files[fd] = pair;
             Marshal.WriteInt32(__mem + addr_fd, fd);
-            return 0;
+            return __WASI_ESUCCESS;
         }
         catch (FileNotFoundException)
         {
-            return 44; // ENOENT
+            return __WASI_ENOENT;
         }
     }
 
@@ -125,9 +125,9 @@ public static partial class wasi_unstable
         switch (fd)
         {
             case 3:
-                Marshal.WriteByte(__mem + addr_path, 46); // .
+                Marshal.WriteByte(__mem + addr_path, 46); // 46 is ascii for .
                 //Marshal.WriteByte(__mem + addr_path + 1, 0);
-                return 0;
+                return __WASI_ESUCCESS;
             default:
                 throw new NotImplementedException(string.Format("fd {0}  len {1}", fd, len));
         }
@@ -142,9 +142,9 @@ public static partial class wasi_unstable
             case 3:
                 Marshal.WriteByte(__mem + addr, 0); // preopentype_dir
                 Marshal.WriteInt32(__mem + addr + 4, 1);
-                return 0;
+                return __WASI_ESUCCESS;
             default:
-                return 8; // EBADF
+                return __WASI_EBADF;
         }
     }
     public static int environ_sizes_get(int addr_environ_count, int addr_environ_buf_size)
@@ -152,7 +152,7 @@ public static partial class wasi_unstable
         // TODO for now, no environment variables
         Marshal.WriteInt32(__mem + addr_environ_count, 0);
         Marshal.WriteInt32(__mem + addr_environ_buf_size, 0);
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int environ_get(int a, int b)
     {
@@ -184,7 +184,7 @@ public static partial class wasi_unstable
             Marshal.WriteInt32(__mem + addr_argc, 0);
             Marshal.WriteInt32(__mem + addr_argv_buf_size, 0);
         }
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int args_get(int addr_argv, int addr_argv_buf)
     {
@@ -196,7 +196,7 @@ public static partial class wasi_unstable
             Marshal.Copy(ba, 0, __mem + addr_argv_buf + sofar, ba.Length);
             sofar += ba.Length;
         }
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static void proc_exit(int a)
     {
@@ -208,7 +208,7 @@ public static partial class wasi_unstable
         {
             pair.Info.Refresh();
             write_filestat(addr_result, pair.Info);
-            return 0;
+            return __WASI_ESUCCESS;
         }
         else
         {
@@ -226,7 +226,7 @@ public static partial class wasi_unstable
                 var ns = ms * 1000 * 1000;
                 var ia = new long[] { ns };
                 Marshal.Copy(ia, 0, __mem + addr_result, 1);
-                return 0;
+                return __WASI_ESUCCESS;
             default: throw new NotImplementedException();
         }
     }
@@ -237,7 +237,7 @@ public static partial class wasi_unstable
         {
             pair.Stream.Close();
             _files.Remove(fd);
-            return 0;
+            return __WASI_ESUCCESS;
         }
         else
         {
@@ -249,7 +249,7 @@ public static partial class wasi_unstable
     {
         //System.Console.WriteLine("fd_sync: fd {0}", fd);
         // TODO
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int fd_seek(int fd, long offset, int whence, int addr_newoffset)
     {
@@ -272,7 +272,7 @@ public static partial class wasi_unstable
         }
         var newpos = strm.Seek(offset, origin);
         write_u64(addr_newoffset, (ulong) newpos);
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int fd_read(int fd, int addr_iovecs, int iovecs_len, int addr_nread)
     {
@@ -299,7 +299,7 @@ public static partial class wasi_unstable
         //System.Console.WriteLine("    total_len: {0}", total_len);
         Marshal.WriteInt32(__mem + addr_nread, total_len);
 
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int poll_oneoff(int a, int b, int c, int d)
     {
@@ -330,7 +330,7 @@ public static partial class wasi_unstable
 
         //System.Console.WriteLine("  done fd_write");
 
-        return 0;
+        return __WASI_ESUCCESS;
     }
     static void write_u64(int addr, ulong v)
     {
@@ -358,58 +358,58 @@ public static partial class wasi_unstable
         {
             case 0: // stdin
                 {
-                    Marshal.WriteByte(__mem + addr + 0, 2); // character device
+                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_CHARACTER_DEVICE);
                     // TODO appropriate flags for stdin
                     Marshal.WriteInt16(__mem + addr + 2, 0); // flags
                     ulong rights = 0xffffffffffffffff;
-                    rights = rights & (~0x04UL); // seek
-                    rights = rights & (~0x20UL); // tell
+                    rights = rights & (~__WASI_RIGHT_FD_SEEK);
+                    rights = rights & (~__WASI_RIGHT_FD_TELL);
                     write_u64(addr + 8, rights);
                     write_u64(addr + 16, 0); // TODO rights inherit
-                    return 0;
+                    return __WASI_ESUCCESS;
                 }
             case 1: // stdout
                 {
-                    Marshal.WriteByte(__mem + addr + 0, 2); // character device
+                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_CHARACTER_DEVICE);
                     // TODO appropriate flags for stdout
                     Marshal.WriteInt16(__mem + addr + 2, 0); // flags
                     ulong rights = 0xffffffffffffffff;
-                    rights = rights & (~0x04UL); // seek
-                    rights = rights & (~0x20UL); // tell
+                    rights = rights & (~__WASI_RIGHT_FD_SEEK);
+                    rights = rights & (~__WASI_RIGHT_FD_TELL);
                     write_u64(addr + 8, rights);
                     write_u64(addr + 16, 0); // TODO rights inherit
-                    return 0;
+                    return __WASI_ESUCCESS;
                 }
             case 2: // stderr
                 {
-                    Marshal.WriteByte(__mem + addr + 0, 2); // character device
+                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_CHARACTER_DEVICE);
                     // TODO appropriate flags for stderr
                     Marshal.WriteInt16(__mem + addr + 2, 0); // flags
                     ulong rights = 0xffffffffffffffff;
-                    rights = rights & (~0x04UL); // seek
-                    rights = rights & (~0x20UL); // tell
+                    rights = rights & (~__WASI_RIGHT_FD_SEEK);
+                    rights = rights & (~__WASI_RIGHT_FD_TELL);
                     write_u64(addr + 8, rights);
                     write_u64(addr + 16, 0); // TODO rights inherit
-                    return 0;
+                    return __WASI_ESUCCESS;
                 }
             case 3:
                 {
-                    Marshal.WriteByte(__mem + addr + 0, 3); // dir
+                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_DIRECTORY);
                     // TODO appropriate flags for the pre dir
                     Marshal.WriteInt16(__mem + addr + 2, 0); // flags
                     add_all_rights(addr + 8); // TODO rights
                     add_all_rights(addr + 16); // TODO inherit
-                    return 0;
+                    return __WASI_ESUCCESS;
                 }
             default:
                 if (_files.TryGetValue(fd, out var strm))
                 {
-                    Marshal.WriteByte(__mem + addr + 0, 4); // regular file
+                    Marshal.WriteByte(__mem + addr + 0, __WASI_FILETYPE_REGULAR_FILE);
                     // TODO appropriate flags for this file
                     Marshal.WriteInt16(__mem + addr + 2, 0); // flags
                     add_all_rights(addr + 8); // TODO rights
                     add_all_rights(addr + 16); // TODO inherit
-                    return 0;
+                    return __WASI_ESUCCESS;
                 }
                 else
                 {
@@ -426,7 +426,7 @@ public static partial class wasi_unstable
     {
         write_u64(addr_result + 0, 0); // device ID
         write_u64(addr_result + 8, 0); // inode
-        Marshal.WriteByte(__mem + addr_result + 16, 4); // file type, 4, regular file
+        Marshal.WriteByte(__mem + addr_result + 16, __WASI_FILETYPE_REGULAR_FILE);
         write_u32(addr_result + 20, 0); // hard links
         write_u64(addr_result + 24, (ulong) (fi.Length)); // size
         write_u64(addr_result + 32, 0); // access timestamp
@@ -446,10 +446,10 @@ public static partial class wasi_unstable
         var fi = new FileInfo(path);
         if (!fi.Exists)
         {
-            return 44; // ENOENT
+            return __WASI_ENOENT;
         }
         write_filestat(addr_result, fi);
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int path_rename(int a, int b, int c, int d, int e, int f)
     {
@@ -464,7 +464,7 @@ public static partial class wasi_unstable
         var path = util.from_utf8(__mem + addr_path, len_path);
         //System.Console.WriteLine("path_unlink_file: {0}", path);
         File.Delete(path);
-        return 0;
+        return __WASI_ESUCCESS;
     }
     public static int path_remove_directory(int a, int b, int c)
     {
