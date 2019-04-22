@@ -19,13 +19,10 @@ because the po map is not valid.
     call $__wasilibc_init_preopen
     call $__wasilibc_register_preopened_fd
 
-StructLayout and FieldOffset.  Wasi.cs has too 
-many places where layout of a struct is represented
-by magic numbers.  need something like the Wasi
-C header file, except for C#.
+    /wasi-sysroot/libc-bottom-half/headers/public/wasi/
 
 are strings in the wasi api supposed to be zero
-terminated?  probably not.
+terminated?  case by case?
 
 for debugging, maybe we need the sysroot to be built
 with --export-all
@@ -68,7 +65,7 @@ instead of calling Marshal.Copy, use Cpblk
 get another wasm runtime going for comparison
 purposes.  wasmer.  doesn't seem to run stuff
 from clang 8.  can't tell if wasm is wrong or
-wasmer has problems.
+wasmer has problems.  lucet?
 
 peverify shows lots of problems
 
