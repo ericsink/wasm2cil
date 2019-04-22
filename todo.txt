@@ -1,5 +1,6 @@
 
-compiling sqlite with shell needs i64rotl
+why doesn't sqlite shell print stuff like
+prompts to stdout
 
 impl the wasi funcs for cmd line args
 
@@ -7,7 +8,8 @@ sqlite shell tries to open :memory: as if it is
 a filename.  and windows doesn't like a filename
 with a colon in it.  where to stop this from happening?
 
-need tests for the Wasm binary reader
+need tests for the Wasm binary reader.  probably with
+sample files that came from other sources, like clang.
 
 need tests for the Wasi layer
 
@@ -37,6 +39,10 @@ is an integer address offset from the base of memory.
 failing 204 because wasi sysroot has formatting of long
 double disabled
 
+span
+
+need some rust test cases
+
 --
 
 explicitly add /usr/lib/llvm-8/bin to the path
@@ -59,8 +65,6 @@ behavior of 00056.  default to a higher value?
 respect the definition in the wasm file?
 
 --
-
-span
 
 instead of calling Marshal.Copy, use Cpblk
 
