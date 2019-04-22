@@ -15,6 +15,49 @@ public class ProcExitException : Exception
 
 public static partial class wasi_unstable
 {
+    [StructLayout(LayoutKind.Explicit, Size=24)]
+    struct __wasi_fdstat_t 
+    {
+        [FieldOffset(0)] byte fs_filetype;
+        [FieldOffset(2)] ushort fs_flags;
+        [FieldOffset(8)] ulong fs_rights_base;
+        [FieldOffset(16)] ulong fs_rights_inheriting;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size=8)]
+    struct __wasi_prestat_t 
+    {
+        [FieldOffset(0)] byte pr_type;
+        [FieldOffset(4)] int pr_name_len;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size=56)]
+    struct __wasi_filestat_t 
+    {
+        [FieldOffset(0)] ulong st_dev;
+        [FieldOffset(8)] ulong st_ino;
+        [FieldOffset(16)] byte st_filetype;
+        [FieldOffset(20)] uint st_nlink;
+        [FieldOffset(24)] ulong st_size;
+        [FieldOffset(32)] ulong st_atim;
+        [FieldOffset(40)] ulong st_mtim;
+        [FieldOffset(48)] ulong st_ctim;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size=8)]
+    struct __wasi_ciovec_t 
+    {
+        [FieldOffset(0)] uint buf;
+        [FieldOffset(4)] uint buf_len;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size=8)]
+    struct __wasi_iovec_t 
+    {
+        [FieldOffset(0)] uint buf;
+        [FieldOffset(4)] uint buf_len;
+    }
+
     public static int __mem_size;
     public static IntPtr __mem;
 
