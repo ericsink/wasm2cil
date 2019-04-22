@@ -299,23 +299,36 @@ public static partial class wasi_unstable
     public static int fd_seek(int fd, long offset, int whence, int addr_newoffset)
     {
         //System.Console.WriteLine("fd_seek: fd {0} offset {1} whence {2}", fd, offset, whence);
-        var strm = get_stream_for_fd(fd);
+        FilePair fp;
+        if (!_files.TryGetValue(fd, out fp))
+        {
+            return __WASI_EBADF;
+        }
         SeekOrigin origin;
+        long relpos;
         switch (whence)
         {
             case 0: // cur
                 origin = SeekOrigin.Current;
+                relpos = fp.Stream.Position;
                 break;
             case 1: // end
                 origin = SeekOrigin.End;
+                fp.Info.Refresh();
+                relpos = fp.Info.Length;
                 break;
             case 2: // set
                 origin = SeekOrigin.Begin;
+                relpos = 0;
                 break;
             default:
                 throw new NotImplementedException();
         }
-        var newpos = strm.Seek(offset, origin);
+        if ((relpos + offset) < 0)
+        {
+            return __WASI_EINVAL;
+        }
+        var newpos = fp.Stream.Seek(offset, origin);
         write_u64(addr_newoffset, (ulong) newpos);
         return __WASI_ESUCCESS;
     }
