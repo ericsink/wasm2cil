@@ -334,7 +334,6 @@ public static partial class wasi_unstable
             var len = a_iovecs[i * 2 + 1];
             //System.Console.WriteLine("    addr: {0}  len: {1}", addr, len);
             var ba = new byte[len];
-            // TODO ReadFully
             var got = strm.Read(ba, 0, len);
             //System.Console.WriteLine("    got: {0}  len: {1}", got, len);
             Marshal.Copy(ba, 0, __mem + addr, got);
@@ -366,7 +365,6 @@ public static partial class wasi_unstable
             var len = a_iovecs[i * 2 + 1];
             var ba = new byte[len];
             Marshal.Copy(__mem + addr, ba, 0, len);
-            // TODO WriteFully
             strm.Write(ba, 0, len);
             total_len += len;
         }
