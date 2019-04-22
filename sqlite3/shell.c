@@ -88,7 +88,7 @@ typedef unsigned char u8;
 #include <ctype.h>
 #include <stdarg.h>
 
-#if !defined(_WIN32) && !defined(WIN32) && !defined(WASI)
+#if !defined(_WIN32) && !defined(WIN32) && !defined(__wasi__)
 # include <signal.h>
 # if !defined(__RTP__) && !defined(_WRS_KERNEL)
 #  include <pwd.h>
@@ -211,7 +211,7 @@ static sqlite3_int64 timeOfDay(void){
   return t;
 }
 
-#if !defined(_WIN32) && !defined(WIN32) && !defined(__minux) && !defined(WASI)
+#if !defined(_WIN32) && !defined(WIN32) && !defined(__minux) && !defined(__wasi__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -14940,11 +14940,7 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
   sqlite3_shutdown();
 #endif
 
-  //assert( argc>=1 && argv && argv[0] );
-  // TODO get wasi cmdline args working
-  argc = 1;
-  argv = malloc(sizeof(void*));
-  argv[0] = "sqlite";
+  assert( argc>=1 && argv && argv[0] );
   Argv0 = argv[0];
 
   /* Make sure we have a valid signal handler early, before anything

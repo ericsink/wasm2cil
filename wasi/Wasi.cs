@@ -176,12 +176,19 @@ public static class wasi_unstable
                 fm = FileMode.Open;
             }
         }
-        var strm = fi.Open(fm);
-        var pair = new FilePair { Info = fi, Stream = strm };
-        var fd = _nextFd++;
-        _files[fd] = pair;
-        Marshal.WriteInt32(__mem + addr_fd, fd);
-        return 0;
+        try
+        {
+            var strm = fi.Open(fm);
+            var pair = new FilePair { Info = fi, Stream = strm };
+            var fd = _nextFd++;
+            _files[fd] = pair;
+            Marshal.WriteInt32(__mem + addr_fd, fd);
+            return 0;
+        }
+        catch (FileNotFoundException)
+        {
+            return 44; // ENOENT
+        }
     }
 
     public static int fd_prestat_dir_name(int fd, int addr_path, int len)
@@ -222,17 +229,45 @@ public static class wasi_unstable
     {
         throw new NotImplementedException();
     }
+    static byte[][] __args;
+    public static void set_args(string[] a)
+    {
+        __args = new byte[a.Length][];
+        for (int i=0; i<a.Length; i++)
+        {
+            __args[i] = util.to_utf8(a[i]);
+        }
+    }
     public static int args_sizes_get(int addr_argc, int addr_argv_buf_size)
     {
-        // TODO this is a weird way to get cmdline args.
-        // for now, none.
-        Marshal.WriteInt32(__mem + addr_argc, 0);
-        Marshal.WriteInt32(__mem + addr_argv_buf_size, 0);
+        if (__args != null)
+        {
+            Marshal.WriteInt32(__mem + addr_argc, __args.Length);
+            int len = 0;
+            foreach (var ba in __args)
+            {
+                len += ba.Length;
+            }
+            Marshal.WriteInt32(__mem + addr_argv_buf_size, len);
+        }
+        else
+        {
+            Marshal.WriteInt32(__mem + addr_argc, 0);
+            Marshal.WriteInt32(__mem + addr_argv_buf_size, 0);
+        }
         return 0;
     }
-    public static int args_get(int a, int b)
+    public static int args_get(int addr_argv, int addr_argv_buf)
     {
-        throw new NotImplementedException();
+        int sofar = 0;
+        for (int i=0; i<__args.Length; i++)
+        {
+            Marshal.WriteInt32(__mem + addr_argv + i * 4, addr_argv_buf + sofar);
+            var ba = __args[i];
+            Marshal.Copy(ba, 0, __mem + addr_argv_buf + sofar, ba.Length);
+            sofar += ba.Length;
+        }
+        return 0;
     }
     public static void proc_exit(int a)
     {
@@ -393,37 +428,54 @@ public static class wasi_unstable
         switch (fd)
         {
             case 0: // stdin
-                Marshal.WriteByte(__mem + addr + 0, 3); // dir
-                // TODO appropriate flags for stdin
-                Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                add_all_rights(addr + 8); // TODO rights
-                add_all_rights(addr + 16); // TODO inherit
-                return 0;
+                {
+                    Marshal.WriteByte(__mem + addr + 0, 2); // character device
+                    // TODO appropriate flags for stdin
+                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
+                    ulong rights = 0xffffffffffffffff;
+                    rights = rights & (~0x04UL); // seek
+                    rights = rights & (~0x20UL); // tell
+                    write_u64(addr + 8, rights);
+                    write_u64(addr + 16, 0); // TODO rights inherit
+                    return 0;
+                }
             case 1: // stdout
-                Marshal.WriteByte(__mem + addr + 0, 3); // dir
-                // TODO appropriate flags for stdout
-                Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                add_all_rights(addr + 8); // TODO rights
-                add_all_rights(addr + 16); // TODO inherit
-                return 0;
+                {
+                    Marshal.WriteByte(__mem + addr + 0, 2); // character device
+                    // TODO appropriate flags for stdout
+                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
+                    ulong rights = 0xffffffffffffffff;
+                    rights = rights & (~0x04UL); // seek
+                    rights = rights & (~0x20UL); // tell
+                    write_u64(addr + 8, rights);
+                    write_u64(addr + 16, 0); // TODO rights inherit
+                    return 0;
+                }
             case 2: // stderr
-                Marshal.WriteByte(__mem + addr + 0, 3); // dir
-                // TODO appropriate flags for stderr
-                Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                add_all_rights(addr + 8); // TODO rights
-                add_all_rights(addr + 16); // TODO inherit
-                return 0;
+                {
+                    Marshal.WriteByte(__mem + addr + 0, 2); // character device
+                    // TODO appropriate flags for stderr
+                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
+                    ulong rights = 0xffffffffffffffff;
+                    rights = rights & (~0x04UL); // seek
+                    rights = rights & (~0x20UL); // tell
+                    write_u64(addr + 8, rights);
+                    write_u64(addr + 16, 0); // TODO rights inherit
+                    return 0;
+                }
             case 3:
-                Marshal.WriteByte(__mem + addr + 0, 3); // dir
-                // TODO appropriate flags for the pre dir
-                Marshal.WriteInt16(__mem + addr + 2, 0); // flags
-                add_all_rights(addr + 8); // TODO rights
-                add_all_rights(addr + 16); // TODO inherit
-                return 0;
+                {
+                    Marshal.WriteByte(__mem + addr + 0, 3); // dir
+                    // TODO appropriate flags for the pre dir
+                    Marshal.WriteInt16(__mem + addr + 2, 0); // flags
+                    add_all_rights(addr + 8); // TODO rights
+                    add_all_rights(addr + 16); // TODO inherit
+                    return 0;
+                }
             default:
                 if (_files.TryGetValue(fd, out var strm))
                 {
-                    Marshal.WriteByte(__mem + addr + 0, 3); // dir
+                    Marshal.WriteByte(__mem + addr + 0, 4); // regular file
                     // TODO appropriate flags for this file
                     Marshal.WriteInt16(__mem + addr + 2, 0); // flags
                     add_all_rights(addr + 8); // TODO rights

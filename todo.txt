@@ -1,6 +1,5 @@
 
-why doesn't sqlite shell print stuff like
-prompts to stdout
+__wasi__
 
 impl the wasi funcs for cmd line args
 
