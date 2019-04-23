@@ -1,7 +1,9 @@
 
 ha.  several of the problems with the sqlite shell
 are working exactly as they do when compiled
-directly to native.
+directly to native.  so those problems appear to
+be limitations of the demo VFS rather than bugs
+in this compiler or WASI layer.
 
 sqlite shell tries to open :memory: as if it is
 a filename.  and windows doesn't like a filename
@@ -10,7 +12,7 @@ with a colon in it.  where to stop this from happening?
 need tests for the Wasm binary reader.  probably with
 sample files that came from other sources, like clang.
 
-need tests for the Wasi layer
+need tests for the WASI layer
 
 ouch.  the code that gets the preopened fds is
 called only from the startup code, and since 
@@ -34,8 +36,6 @@ is an integer address offset from the base of memory.
 
 failing 204 because wasi sysroot has formatting of long
 double disabled
-
-span
 
 need some rust test cases
 
@@ -94,7 +94,7 @@ do we need a way to use System.Math instead of the math
 routines in wasi sysroot?
 
 consider --import-memory, but currently when we target
-Wasi we just ignore memory import anyway
+WASI we just ignore memory import anyway
 
 --
 
