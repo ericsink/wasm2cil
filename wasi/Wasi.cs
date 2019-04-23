@@ -371,21 +371,27 @@ public static partial class wasi_unstable
     public static int fd_write(int fd, int addr_iovecs, int iovecs_len, int addr_nwritten)
     {
         //System.Console.WriteLine("fd_write: {0} {1} {2} {3}", fd, addr_iovecs, iovecs_len, addr_nwritten);
-
-        var a_iovecs = new int[iovecs_len * 2];
-        Marshal.Copy(__mem + addr_iovecs, a_iovecs, 0, iovecs_len * 2);
+        Span<__wasi_ciovec_t> a_iovecs;
+        unsafe
+        {
+            a_iovecs = new Span<__wasi_ciovec_t>((__mem + addr_iovecs).ToPointer(), iovecs_len);
+        }
 
         var strm = get_stream_for_fd(fd);
 
         int total_len = 0;
         for (int i=0; i<iovecs_len; i++)
         {
-            var addr = a_iovecs[i * 2];
-            var len = a_iovecs[i * 2 + 1];
-            var ba = new byte[len];
-            Marshal.Copy(__mem + addr, ba, 0, len);
-            strm.Write(ba, 0, len);
-            total_len += len;
+            var addr = a_iovecs[i].buf;
+            var len = a_iovecs[i].buf_len;
+            //System.Console.WriteLine("    addr: {0}  len: {1}", addr, len);
+            Span<byte> src;
+            unsafe
+            {
+                src = new Span<byte>((__mem + (int) addr).ToPointer(), (int) len);
+            }
+            strm.Write(src);
+            total_len += (int) len;
         }
 
         Marshal.WriteInt32(__mem + addr_nwritten, total_len);
