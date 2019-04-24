@@ -539,7 +539,17 @@ public static partial class wasi_unstable
         )
     {
         var path = util.from_utf8(__mem + addr_path, path_len);
-        throw new NotImplementedException();
+        try
+        {
+            Directory.Delete(path);
+            return __WASI_ESUCCESS;
+        }
+        catch (IOException)
+        {
+            // TODO check to see if this is the right error code.
+            // this exception can be thrown for other reasons.
+            return __WASI_ENOTEMPTY;
+        }
     }
     public static int path_link(int a, int b, int c, int d, int e, int f, int g)
     {

@@ -1,4 +1,9 @@
 
+wasi layer is not doing path resolution correctly.
+for example, in remove_directory, the fd param
+is not used, even though it is supposed to be the
+directory at which path resolution starts.
+
 technically, an fd is documented as a uint
 
 ha.  several of the problems with the sqlite shell
