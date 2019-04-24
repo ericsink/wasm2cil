@@ -965,12 +965,8 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
-        let name =
-            match mi.func.name with
-            | Some s -> s
-            | None -> sprintf "func_%d" (int mi.func.idx)
 #if not
-        il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" name)))
+        il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" mi.method.Name)))
         il.Append(il.Create(OpCodes.Call, ctx.trace))
         for pair in a_locals do
             match pair with
@@ -991,16 +987,15 @@ module wasm.cecil
             let typ =cecil_valtype ctx.bt t
             il.Append(il.Create(OpCodes.Dup))
             il.Append(il.Create(OpCodes.Box, typ))
-            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" name)))
+            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" mi.method.Name)))
             il.Append(il.Create(OpCodes.Call, ctx.trace2))
         | None ->
-            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" name)))
+            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" mi.method.Name)))
             il.Append(il.Create(OpCodes.Call, ctx.trace))
 #endif
         il.Append(il.Create(OpCodes.Ret))
 
     let create_methods ndx bt (md : ModuleDefinition) env_assembly =
-        let count_imports = count_function_imports ndx
         let prep_func i fi =
             match fi with
             | ImportedFunc s ->
@@ -1010,7 +1005,7 @@ module wasm.cecil
                     MethodRefImported { MethodRefImported.func = s; method = method }
                 | None -> failwith "no imports"
             | InternalFunc q ->
-                let method = create_method q (count_imports + i) bt
+                let method = create_method q i bt
                 MethodRefInternal { func = q; method = method; }
 
         let a_methods = Array.mapi prep_func ndx.FuncLookup
@@ -1023,8 +1018,6 @@ module wasm.cecil
             | MethodRefImported _ -> ()
 
     let create_globals ndx bt (md : ModuleDefinition) env_assembly =
-        let count_imports = count_global_imports ndx
-
         let prep i gi =
             match gi with
             | ImportedGlobal s ->
@@ -1034,7 +1027,7 @@ module wasm.cecil
                     GlobalRefImported { GlobalRefImported.glob = s; field = field; }
                 | None -> failwith "no imports"
             | InternalGlobal q ->
-                let field = create_global q (count_imports + i) bt
+                let field = create_global q i bt
                 GlobalRefInternal { glob = q; field = field; }
 
         let a_globals = Array.mapi prep ndx.GlobalLookup

@@ -195,17 +195,48 @@ public static partial class wasi_unstable
                 return __WASI_EBADF;
         }
     }
+    static byte[][] __environ;
+    public static void set_environ(Dictionary<string,string> d)
+    {
+        __environ = new byte[d.Count][];
+        int i = 0;
+        foreach (var kv in d)
+        {
+            var s = $"{kv.Key}={kv.Value}";
+            __environ[i] = util.to_utf8_z(s);
+            i++;
+        }
+    }
     public static int environ_sizes_get(int addr_environ_count, int addr_environ_buf_size)
     {
-        // TODO for now, no environment variables
-        Marshal.WriteInt32(__mem + addr_environ_count, 0);
-        Marshal.WriteInt32(__mem + addr_environ_buf_size, 0);
+        if (__environ != null)
+        {
+            Marshal.WriteInt32(__mem + addr_environ_count, __environ.Length);
+            int len = 0;
+            foreach (var ba in __environ)
+            {
+                len += ba.Length;
+            }
+            Marshal.WriteInt32(__mem + addr_environ_buf_size, len);
+        }
+        else
+        {
+            Marshal.WriteInt32(__mem + addr_environ_count, 0);
+            Marshal.WriteInt32(__mem + addr_environ_buf_size, 0);
+        }
         return __WASI_ESUCCESS;
     }
-    public static int environ_get(int a, int b)
+    public static int environ_get(int addr_argv, int addr_argv_buf)
     {
-        // TODO for now, no environment variables
-        throw new NotImplementedException();
+        int sofar = 0;
+        for (int i=0; i<__environ.Length; i++)
+        {
+            Marshal.WriteInt32(__mem + addr_argv + i * 4, addr_argv_buf + sofar);
+            var ba = __environ[i];
+            Marshal.Copy(ba, 0, __mem + addr_argv_buf + sofar, ba.Length);
+            sofar += ba.Length;
+        }
+        return __WASI_ESUCCESS;
     }
     static byte[][] __args;
     public static void set_args(string[] a)
