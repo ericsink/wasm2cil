@@ -1090,6 +1090,11 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "entering data_setup"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
+
         // need to grab a reference to this assembly 
         // (the one that contains our resources)
         // and store it in a local so we can use it
@@ -1126,8 +1131,23 @@ module wasm.cecil
             // and the length
             il.Append(il.Create(OpCodes.Ldc_I4, d.item.init.Length))
 
+#if not
+            il.Append(il.Create(OpCodes.Ldstr, "before Marshal.Copy"))
+            il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
+
             // now copy
             il.Append(il.Create(OpCodes.Call, ref_mcopy))
+
+#if not
+            il.Append(il.Create(OpCodes.Ldstr, "after Marshal.Copy"))
+            il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
+
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "exiting data_setup"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
 
         il.Append(il.Create(OpCodes.Ret))
 
@@ -1221,7 +1241,7 @@ module wasm.cecil
 
         method
 
-    let gen_cctor ctx (tbl_setup : MethodDefinition option) (data_setup : MethodDefinition option) =
+    let gen_cctor ctx mem_size_in_pages (tbl_setup : MethodDefinition option) (data_setup : MethodDefinition option) =
         let method = 
             new MethodDefinition(
                 ".cctor",
@@ -1230,7 +1250,11 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-        let mem_size_in_pages = 16 // TODO not ideal.  use min from wasm?
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "entering cctor"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
+
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
         il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))
@@ -1266,6 +1290,11 @@ module wasm.cecil
                 cecil_expr (Some gi.glob.item.globaltype.typ) il ctx f_make_tmp Array.empty gi.glob.item.init
                 il.Append(il.Create(OpCodes.Stsfld, gi.field))
             | GlobalRefImported _ -> ()
+
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "exiting cctor"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+#endif
 
         il.Append(il.Create(OpCodes.Ret))
 
@@ -1328,7 +1357,7 @@ module wasm.cecil
 
 *)
 
-    let gen_load_resource (main_mod : ModuleDefinition) =
+    let gen_load_resource ctx (main_mod : ModuleDefinition) =
         let method = 
             new MethodDefinition(
                 "__load_resource",
@@ -1352,6 +1381,14 @@ module wasm.cecil
         method.Body.Variables.Add(v_result)
 
         let il = method.Body.GetILProcessor()
+
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "entering load_resource"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+        il.Append(il.Create(OpCodes.Ldarg, parm_name))
+        il.Append(il.Create(OpCodes.Ldstr, "    name"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace2))
+#endif
 
         il.Append(il.Create(OpCodes.Ldarg, parm_a))
         il.Append(il.Create(OpCodes.Ldarg, parm_name))
@@ -1383,6 +1420,15 @@ module wasm.cecil
 *)
 
         il.Append(il.Create(OpCodes.Ldloc, v_result))
+
+#if not
+        il.Append(il.Create(OpCodes.Ldstr, "exiting load_resource"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace))
+        il.Append(il.Create(OpCodes.Ldloc, v_result))
+        il.Append(il.Create(OpCodes.Ldstr, "    result"))
+        il.Append(il.Create(OpCodes.Call, ctx.trace2))
+#endif
+
         il.Append(il.Create(OpCodes.Ret))
 
         method
@@ -1692,7 +1738,7 @@ module wasm.cecil
             match ndx.Data with
             | Some sd -> 
                 let a_datas = create_data_resources ctx sd
-                let load_data = gen_load_resource main_module
+                let load_data = gen_load_resource ctx main_module
                 container.Methods.Add(load_data)
                 for d in a_datas do
                     main_module.Resources.Add(d.resource)
@@ -1701,7 +1747,15 @@ module wasm.cecil
                 Some m
             | None -> None
 
-        let cctor = gen_cctor ctx tbl_setup data_setup
+        let mem_size_in_pages =
+            match ndx.Memory with
+            | Some { mems = [| { limits = lim } |] } -> 
+                match lim with
+                | Min m -> m
+                | MinMax (min,max) -> min
+            | None -> 1u
+            | _ -> 1u
+        let cctor = gen_cctor ctx (int mem_size_in_pages) tbl_setup data_setup
         container.Methods.Add(cctor)
 
         assembly.Write(dest);
