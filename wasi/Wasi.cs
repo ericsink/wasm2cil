@@ -101,8 +101,7 @@ public static partial class wasi_unstable
                 }
                 else
                 {
-                    // TODO probably an error code
-                    throw new NotImplementedException();
+                    return null;
                 }
         }
 
@@ -201,6 +200,7 @@ public static partial class wasi_unstable
     }
     public static int environ_get(int a, int b)
     {
+        // TODO for now, no environment variables
         throw new NotImplementedException();
     }
     static byte[][] __args;
@@ -257,20 +257,25 @@ public static partial class wasi_unstable
         }
         else
         {
-            // TODO err code
-            throw new NotImplementedException();
+            return __WASI_EBADF;
         }
     }
     public static int clock_time_get(int clock_id, long precision, int addr_result)
     {
-        switch (clock_id)
+        switch ((uint) clock_id)
         {
-            case 0:
+            case __WASI_CLOCK_REALTIME:
                 TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
                 var ms = (long) (t.TotalMilliseconds);
                 var ns = ms * 1000 * 1000;
                 Marshal.WriteInt64(__mem + addr_result, ns);
                 return __WASI_ESUCCESS;
+            case __WASI_CLOCK_MONOTONIC:
+                throw new NotImplementedException();
+            case __WASI_CLOCK_PROCESS_CPUTIME_ID:
+                throw new NotImplementedException();
+            case __WASI_CLOCK_THREAD_CPUTIME_ID:
+                throw new NotImplementedException();
             default: 
                 throw new NotImplementedException();
         }
@@ -286,8 +291,7 @@ public static partial class wasi_unstable
         }
         else
         {
-            // TODO err code
-            throw new NotImplementedException();
+            return __WASI_EBADF;
         }
     }
     public static int fd_sync(int fd)
@@ -342,6 +346,10 @@ public static partial class wasi_unstable
         }
 
         var strm = get_stream_for_fd(fd);
+        if (strm == null)
+        {
+            return __WASI_EBADF;
+        }
 
         int total_len = 0;
         for (int i=0; i<iovecs_len; i++)
@@ -378,6 +386,10 @@ public static partial class wasi_unstable
         }
 
         var strm = get_stream_for_fd(fd);
+        if (strm == null)
+        {
+            return __WASI_EBADF;
+        }
 
         int total_len = 0;
         for (int i=0; i<iovecs_len; i++)
