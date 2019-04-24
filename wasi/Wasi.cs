@@ -109,12 +109,16 @@ public static partial class wasi_unstable
 
     // TODO fds are supposed to be more random
     static int _nextFd = 10;
+    static int get_new_fd()
+    {
+        return _nextFd++;
+    }
 
     public static int path_open(
 		int dirfd,
 		int dirflags,
 		int addr_path,
-		int len_path,
+		int path_len,
 		int oflags,
 		long fs_rights_base,
 		long fs_rights_inheriting,
@@ -124,7 +128,7 @@ public static partial class wasi_unstable
     {
         // TODO very simplistic implementation
         //System.Console.WriteLine("dirfd: {0}", dirfd);
-        var path = util.from_utf8(__mem + addr_path, len_path);
+        var path = util.from_utf8(__mem + addr_path, path_len);
         //System.Console.WriteLine("path: {0}", path);
         var fi = new FileInfo(path);
         FileMode fm;
@@ -151,7 +155,7 @@ public static partial class wasi_unstable
         {
             var strm = fi.Open(fm);
             var pair = new FilePair { Info = fi, Stream = strm };
-            var fd = _nextFd++;
+            var fd = get_new_fd();
             _files[fd] = pair;
             Marshal.WriteInt32(__mem + addr_fd, fd);
             return __WASI_ESUCCESS;
@@ -469,7 +473,7 @@ public static partial class wasi_unstable
                 }
         }
     }
-    public static int fd_fdstat_set_flags(int a, int b)
+    public static int fd_fdstat_set_flags(int fd, ushort flags)
     {
         throw new NotImplementedException();
     }
@@ -490,11 +494,11 @@ public static partial class wasi_unstable
         int dirfd, 
         int flags, 
         int addr_path, 
-        int len_path, 
+        int path_len, 
         int addr_result
         )
     {
-        var path = util.from_utf8(__mem + addr_path, len_path);
+        var path = util.from_utf8(__mem + addr_path, path_len);
         //System.Console.WriteLine("path_filestat_get: {0}", path);
         var fi = new FileInfo(path);
         if (!fi.Exists)
@@ -504,42 +508,80 @@ public static partial class wasi_unstable
         write_filestat(addr_result, fi);
         return __WASI_ESUCCESS;
     }
-    public static int path_rename(int a, int b, int c, int d, int e, int f)
+    public static int path_rename(
+        int old_fd, 
+        int addr_old_path, 
+        int old_path_len, 
+        int new_fd, 
+        int addr_new_path, 
+        int new_path_len
+        )
     {
+        var old_path = util.from_utf8(__mem + addr_old_path, old_path_len);
+        var new_path = util.from_utf8(__mem + addr_new_path, new_path_len);
         throw new NotImplementedException();
     }
     public static int path_unlink_file(
         int dirfd, 
         int addr_path, 
-        int len_path
+        int path_len
         )
     {
-        var path = util.from_utf8(__mem + addr_path, len_path);
+        var path = util.from_utf8(__mem + addr_path, path_len);
         //System.Console.WriteLine("path_unlink_file: {0}", path);
         File.Delete(path);
         return __WASI_ESUCCESS;
     }
-    public static int path_remove_directory(int a, int b, int c)
+    public static int path_remove_directory(
+        int fd, 
+        int addr_path, 
+        int path_len
+        )
     {
+        var path = util.from_utf8(__mem + addr_path, path_len);
         throw new NotImplementedException();
     }
     public static int path_link(int a, int b, int c, int d, int e, int f, int g)
     {
         throw new NotImplementedException();
     }
-    public static int path_create_directory(int a, int b, int c)
+    public static int path_create_directory(
+        int fd, 
+        int addr_path, 
+        int path_len
+        )
+    {
+        var path = util.from_utf8(__mem + addr_path, path_len);
+        throw new NotImplementedException();
+    }
+    public static int fd_readdir(
+        int fd, 
+        int addr_buf, 
+        int buf_len, 
+        long cookie, 
+        int addr_bufused
+        )
     {
         throw new NotImplementedException();
     }
-    public static int fd_readdir(int a, int b, int c, long d, int e)
+    public static int path_readlink(
+        int fd, 
+        int addr_path, 
+        int path_len, 
+        int addr_buf, 
+        int buf_len, 
+        int addr_bufused
+        )
     {
         throw new NotImplementedException();
     }
-    public static int path_readlink(int a, int b, int c, int d, int e, int f)
-    {
-        throw new NotImplementedException();
-    }
-    public static int path_symlink(int a, int b, int c, int d, int e)
+    public static int path_symlink(
+        int addr_old_path, 
+        int old_path_len, 
+        int fd, 
+        int addr_new_path, 
+        int new_path_len
+        )
     {
         throw new NotImplementedException();
     }

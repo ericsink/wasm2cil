@@ -1,4 +1,6 @@
 
+technically, an fd is documented as a uint
+
 ha.  several of the problems with the sqlite shell
 are working exactly as they do when compiled
 directly to native.  so those problems appear to
