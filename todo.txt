@@ -19,6 +19,11 @@ in this compiler or WASI layer.
 sqlite shell tries to open :memory: as if it is
 a filename.  and windows doesn't like a filename
 with a colon in it.  where to stop this from happening?
+is the C code in shell.c and sqlite.c really calling
+IO functions with :memory: as a filename instead of
+catching that case earlier?  if so, that would be sad,
+but nonetheless, it highlights a case where the WASI
+layer may need to handle different behavior.
 
 need tests for the Wasm binary reader.  probably with
 sample files that came from other sources, like clang.
