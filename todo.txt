@@ -53,8 +53,6 @@ is an integer address offset from the base of memory.
 failing 204 because wasi sysroot has formatting of long
 double disabled
 
-need some rust test cases
-
 --
 
 explicitly add /usr/lib/llvm-8/bin to the path
