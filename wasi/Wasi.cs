@@ -473,7 +473,7 @@ public static partial class wasi_unstable
                 }
         }
     }
-    public static int fd_fdstat_set_flags(int fd, ushort flags)
+    public static int fd_fdstat_set_flags(int fd, int flags)
     {
         throw new NotImplementedException();
     }

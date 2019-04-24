@@ -4,7 +4,11 @@ for example, in remove_directory, the fd param
 is not used, even though it is supposed to be the
 directory at which path resolution starts.
 
-technically, an fd is documented as a uint
+technically, an fd is documented as a uint.  but
+wasm doesn't really distinguish between i32 and u32
+that much, so the lookups will actually fail if
+we declare, for example, set_flags() with the second
+param as ushort.
 
 ha.  several of the problems with the sqlite shell
 are working exactly as they do when compiled
