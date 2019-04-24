@@ -806,14 +806,22 @@ module wasm.cecil
         | I64Rotr -> todo op
         | F32Copysign -> todo op
         | F64Copysign -> todo op
-        | I32ReinterpretF32 -> todo op
+        | I32ReinterpretF32 ->
+            let v = f_make_tmp (cecil_valtype ctx.bt F32)
+            il.Append(il.Create(OpCodes.Stloc, v))
+            il.Append(il.Create(OpCodes.Ldloca, v))
+            il.Append(il.Create(OpCodes.Ldind_I4))
         | I64ReinterpretF64 ->
             let v = f_make_tmp (cecil_valtype ctx.bt F64)
             il.Append(il.Create(OpCodes.Stloc, v))
             il.Append(il.Create(OpCodes.Ldloca, v))
             il.Append(il.Create(OpCodes.Ldind_I8))
             
-        | F32ReinterpretI32 -> todo op
+        | F32ReinterpretI32 ->
+            let v = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, v))
+            il.Append(il.Create(OpCodes.Ldloca, v))
+            il.Append(il.Create(OpCodes.Ldind_R4))
         | F64ReinterpretI64 ->
             let v = f_make_tmp (cecil_valtype ctx.bt I64)
             il.Append(il.Create(OpCodes.Stloc, v))
