@@ -86,8 +86,10 @@ module wasm.cecil
         trace2 : MethodReference
         clz_i64 : MethodReference
         ctz_i64 : MethodReference
+        popcnt_i64 : MethodReference
         clz_i32 : MethodReference
         ctz_i32 : MethodReference
+        popcnt_i32 : MethodReference
         }
 
     type DataStuff = {
@@ -754,7 +756,8 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Call, ctx.clz_i32))
         | I32Ctz ->
             il.Append(il.Create(OpCodes.Call, ctx.ctz_i32))
-        | I32Popcnt -> todo op
+        | I32Popcnt ->
+            il.Append(il.Create(OpCodes.Call, ctx.popcnt_i32))
         | I32Rotl ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
             // return (value << count) | (value >> (32 - count))
@@ -781,7 +784,8 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Call, ctx.clz_i64))
         | I64Ctz ->
             il.Append(il.Create(OpCodes.Call, ctx.ctz_i64))
-        | I64Popcnt -> todo op
+        | I64Popcnt ->
+            il.Append(il.Create(OpCodes.Call, ctx.popcnt_i64))
         | I64Rotl ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
             // return (value << count) | (value >> (64 - count))
@@ -1695,6 +1699,26 @@ module wasm.cecil
                     null
             | None -> null
 
+        let popcnt_i32 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("popcnt_i32", [| typeof<int32> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
+        let popcnt_i64 = 
+            match env_assembly with
+            | Some a ->
+                let m = a.GetType("env").GetMethod("popcnt_i64", [| typeof<int64> |])
+                if m <> null then
+                    container.Module.ImportReference(m)
+                else
+                    null
+            | None -> null
+
         let ctx =
             {
                 types = types
@@ -1710,8 +1734,10 @@ module wasm.cecil
                 trace2 = ref_trace2
                 clz_i64 = clz_i64
                 ctz_i64 = ctz_i64
+                popcnt_i64 = popcnt_i64
                 clz_i32 = clz_i32
                 ctz_i32 = ctz_i32
+                popcnt_i32 = popcnt_i32
             }
 
         let tbl_setup =

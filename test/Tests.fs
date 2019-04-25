@@ -1275,3 +1275,54 @@ let i64_ctz () =
     check 0xffL 0L
     check Int64.MaxValue 0L
 
+[<Fact>]
+let i32_popcnt () =
+    let name = "i32_popcnt"
+    let m = build_function_i32_popcnt name |> build_module
+    let a = prep_assembly_wasi m
+    let mi = get_method a name
+
+    let popcnt = invoke_1 mi
+
+    let check (n : int32) (sb : int32) =
+        let actual = popcnt n
+        Assert.Equal(sb, actual)
+
+    check 0 0
+    check 1 1
+    check 2 1
+    check 3 2
+    check 4 1
+    check -1 32
+    check 0x8000 1
+    check 0x10000 1
+    check 0xff 8
+    check 0xf0f 8
+    check Int32.MaxValue 31
+    check Int32.MinValue 1
+
+[<Fact>]
+let i64_popcnt () =
+    let name = "i64_popcnt"
+    let m = build_function_i64_popcnt name |> build_module
+    let a = prep_assembly_wasi m
+    let mi = get_method a name
+
+    let popcnt = invoke_1 mi
+
+    let check (n : int64) (sb : int64) =
+        let actual = popcnt n
+        Assert.Equal(sb, actual)
+
+    check 0L 0L
+    check 1L 1L
+    check 2L 1L
+    check 3L 2L
+    check 4L 1L
+    check -1L 64L
+    check 0x8000L 1L
+    check 0x10000L 1L
+    check 0xffL 8L
+    check 0xf0fL 8L
+    check Int64.MaxValue 63L
+    check Int64.MinValue 1L

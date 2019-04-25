@@ -10,6 +10,26 @@ open wasm.write
 open wasm.cecil
 open wasm.builder
 
+let build_function_i64_popcnt name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some I64
+    fb.AddParam I64
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I64Popcnt)
+    fb.Add (End)
+    fb
+
+let build_function_i32_popcnt name =
+    let fb = FunctionBuilder()
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (I32Popcnt)
+    fb.Add (End)
+    fb
+
 let build_function_i64_ctz name =
     let fb = FunctionBuilder()
     fb.Name <- Some name
