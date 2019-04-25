@@ -1,6 +1,7 @@
 
 use std::env;
 
+#[inline(never)]
 pub fn foo(next_in : u32, input: &[u8]) -> u64 {
     let v = 0 as u64;
     let w = v | (input[next_in as usize] as u64) << 56;
