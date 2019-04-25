@@ -149,6 +149,11 @@ public static partial class wasi_unstable
             else
             {
                 fm = FileMode.Open;
+                if (!fi.Exists)
+                {
+                    // TODO return fd -1 ?
+                    return __WASI_ENOENT;
+                }
             }
         }
         try
@@ -162,8 +167,10 @@ public static partial class wasi_unstable
         }
         catch (FileNotFoundException)
         {
+            // TODO return fd -1 ?
             return __WASI_ENOENT;
         }
+        // TODO catch other exceptions here?
     }
 
     public static int fd_prestat_dir_name(int fd, int addr_path, int len)
