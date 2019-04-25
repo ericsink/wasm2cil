@@ -653,14 +653,34 @@ public static class env
             System.Console.WriteLine("{0} : {1}", s, v);
         }
     }
-    public static int clz_i64(long i)
+    public static long popcnt_i64(long x)
     {
-        if (i == 0) return 64;
-        //System.Console.WriteLine("clz_i64: 0x{0:x}", i);
-        // TODO this is such a dreadful hack
-        var result = 64 - Convert.ToString(i, 2).Length;
-        //System.Console.WriteLine("    result: {0}", result);
-        return result;
+		x -= (x >> 1) & 0x5555555555555555L;
+		x = (x & 0x3333333333333333L) + ((x >> 2) & 0x3333333333333333L);
+		x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fL;
+		return (x * 0x0101010101010101L) >> 56;
+    }
+    public static int popcnt_i32(int x)
+    {
+		x -= x >> 1 & 0x55555555;
+		x = (x >> 2 & 0x33333333) + (x & 0x33333333);
+		x = (x >> 4) + x & 0x0f0f0f0f;
+		x += x >> 8;
+		x += x >> 16;
+		return x & 0x0000003f;
+    }
+    public static long clz_i64(long x)
+    {
+		const long numIntBits = sizeof(long) * 8; //compile time constant
+		//do the smearing
+		x |= x >> 1; 
+		x |= x >> 2;
+		x |= x >> 4;
+		x |= x >> 8;
+		x |= x >> 16;
+		x |= x >> 32;
+        // TODO inline popcnt here?
+		return numIntBits - popcnt_i64(x);
     }
     public static int clz_i32(int x)
     {
