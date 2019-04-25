@@ -48,13 +48,17 @@ let prep_assembly_with (assembly : System.Reflection.Assembly) m =
     let target = Other (Some assembly)
     prep_assembly_with_target target m
 
-let prep_assembly_env m =
-    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env>)
+let prep_assembly_wasi m =
+    let wasi_assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+    let target = Wasi wasi_assembly
+    prep_assembly_with_target target m
+
+let prep_assembly_env_testing m =
+    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env_testing>)
     let target = Other (Some env_assembly)
     prep_assembly_with_target target m
 
 let prep_assembly_none m =
-    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env>)
     let target = Other None
     prep_assembly_with_target target m
 
@@ -200,7 +204,7 @@ let import_memory_store () =
 
     Assert.Equal(IntPtr.Zero, env.__mem_1)
 
-    let a = prep_assembly_env m
+    let a = prep_assembly_env_testing m
     let mi = get_method a name
 
     let impl n =
@@ -249,7 +253,7 @@ let test_memory_load () =
 
     let m = b.CreateModule()
 
-    let a = prep_assembly_env m
+    let a = prep_assembly_env_testing m
 
     let mi_k = get_method a name_k
 
@@ -1176,4 +1180,51 @@ let leb128_i64_cases () =
     Assert.Equal(0L, decode_i64 [| 0uy |])
     Assert.Equal(1L, decode_i64 [| 1uy |])
     Assert.Equal(1L <<< 7, decode_i64 [| 0x80uy; 0x01uy |])
+
+[<Fact>]
+let i32_clz () =
+    let name = "i32_clz"
+    let m = build_function_i32_clz name |> build_module
+    let a = prep_assembly_wasi m
+    let mi = get_method a name
+
+    let clz = invoke_1 mi
+
+    let check (n : int32) (sb : int32) =
+        let actual = clz n
+        Assert.Equal(sb, actual)
+
+    check 0 32
+    check 1 31
+    check 2 30
+    check 3 30
+    check 4 29
+    check -1 0
+    check 0x8000 16
+    check 0xff 24
+    check Int32.MaxValue 1
+
+[<Fact>]
+let i64_clz () =
+    let name = "i64_clz"
+    let m = build_function_i64_clz name |> build_module
+    let a = prep_assembly_wasi m
+    let mi = get_method a name
+
+    let clz = invoke_1 mi
+
+    let check (n : int64) (sb : int64) =
+        let actual = clz n
+        Assert.Equal(sb, actual)
+
+    check 0L 64L
+    check 1L 63L
+    check 2L 62L
+    check 3L 62L
+    check 4L 61L
+    check -1L 0L
+    check 0x8000L 48L
+    check 0xffL 56L
+    check Int64.MaxValue 1L
+
 

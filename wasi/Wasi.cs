@@ -662,14 +662,31 @@ public static class env
         //System.Console.WriteLine("    result: {0}", result);
         return result;
     }
-    public static int clz_i32(int i)
+    public static int clz_i32(int x)
     {
-        if (i == 0) return 32;
-        //System.Console.WriteLine("clz_i32: 0x{0:x}", i);
+        if (x == 0) return 32;
+        //System.Console.WriteLine("clz_i32: 0x{0:x}", x);
         // TODO this is such a dreadful hack
-        var result = 32 - Convert.ToString(i, 2).Length;
+        var result = 32 - Convert.ToString(x, 2).Length;
         //System.Console.WriteLine("    result: {0}", result);
         return result;
+#if not
+		// https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
+		const int numIntBits = sizeof(int) * 8; //compile time constant
+		//do the smearing
+		x |= x >> 1; 
+		x |= x >> 2;
+		x |= x >> 4;
+		x |= x >> 8;
+		x |= x >> 16;
+		//count the ones
+		x -= x >> 1 & 0x55555555;
+		x = (x >> 2 & 0x33333333) + (x & 0x33333333);
+		x = (x >> 4) + x & 0x0f0f0f0f;
+		x += x >> 8;
+		x += x >> 16;
+		return numIntBits - (x & 0x0000003f); //subtract # of 1s from 32
+#endif
     }
     public static int ctz_i64(long i)
     {
