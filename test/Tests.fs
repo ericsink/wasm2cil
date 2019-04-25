@@ -1227,4 +1227,51 @@ let i64_clz () =
     check 0xffL 56L
     check Int64.MaxValue 1L
 
+[<Fact>]
+let i32_ctz () =
+    let name = "i32_ctz"
+    let m = build_function_i32_ctz name |> build_module
+    let a = prep_assembly_wasi m
+    let mi = get_method a name
+
+    let ctz = invoke_1 mi
+
+    let check (n : int32) (sb : int32) =
+        let actual = ctz n
+        Assert.Equal(sb, actual)
+
+    check 0 32
+    check 1 0
+    check 2 1
+    check 3 0
+    check 4 2
+    check -1 0
+    check 0x8000 15
+    check 0x10000 16
+    check 0xff 0
+    check Int32.MaxValue 0
+
+[<Fact>]
+let i64_ctz () =
+    let name = "i64_ctz"
+    let m = build_function_i64_ctz name |> build_module
+    let a = prep_assembly_wasi m
+    let mi = get_method a name
+
+    let ctz = invoke_1 mi
+
+    let check (n : int64) (sb : int64) =
+        let actual = ctz n
+        Assert.Equal(sb, actual)
+
+    check 0L 64L
+    check 1L 0L
+    check 2L 1L
+    check 3L 0L
+    check 4L 2L
+    check -1L 0L
+    check 0x8000L 15L
+    check 0x10000L 16L
+    check 0xffL 0L
+    check Int64.MaxValue 0L
 

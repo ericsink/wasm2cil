@@ -700,24 +700,24 @@ public static class env
 		x += x >> 16;
 		return numIntBits - (x & 0x0000003f); //subtract # of 1s from 32
     }
-    public static int ctz_i64(long i)
+    public static long ctz_i64(long i)
     {
-        // TODO this is such a dreadful hack
-        var s = Convert.ToString(i, 2);
+        if (i == 0) return 64L;
         int count = 0;
-        while (s[s.Length - 1 - count] == '0')
+        while ((i & 0x01L) == 0)
         {
+            i = i >> 1;
             count++;
         }
         return count;
     }
     public static int ctz_i32(int i)
     {
-        // TODO this is such a dreadful hack
-        var s = Convert.ToString(i, 2);
+        if (i == 0) return 32;
         int count = 0;
-        while (s[s.Length - 1 - count] == '0')
+        while ((i & 0x01L) == 0)
         {
+            i = i >> 1;
             count++;
         }
         return count;
