@@ -655,13 +655,21 @@ public static class env
     }
     public static int clz_i64(long i)
     {
+        if (i == 0) return 64;
+        //System.Console.WriteLine("clz_i64: 0x{0:x}", i);
         // TODO this is such a dreadful hack
-        return 64 - Convert.ToString(i, 2).Length;
+        var result = 64 - Convert.ToString(i, 2).Length;
+        //System.Console.WriteLine("    result: {0}", result);
+        return result;
     }
     public static int clz_i32(int i)
     {
+        if (i == 0) return 32;
+        //System.Console.WriteLine("clz_i32: 0x{0:x}", i);
         // TODO this is such a dreadful hack
-        return 32 - Convert.ToString(i, 2).Length;
+        var result = 32 - Convert.ToString(i, 2).Length;
+        //System.Console.WriteLine("    result: {0}", result);
+        return result;
     }
     public static int ctz_i64(long i)
     {
