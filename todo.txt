@@ -1,65 +1,4 @@
 
-brotli problem:
-
-Log2FloorNonZero is returning an incorrect
-result.  the input n is 1, and it's returning
-1, but it should be 0.  this ends up causing
-an assert just a bit later.
-
-however, if Log2FloorNonZero is extracted out
-into a simple program just to repro, the repro
-fails, it gives the correct result.
-
-similarly, if I add a print stmt inside the
-loop within Log2FloorNonZero, the bug disappears.
-call this b2.
-
-what's the difference?  whether the function was
-inlined or not?
-
-.wat file (with the log2 prints) shows that
-Log2 is inlined into StoreVar...
-
-problem related to branching?  the Log2 function
-has a loop with both a continue and a break.
-
-x1.wat
-x2.wat
-
-good grief.  v2 (with the log2 prints) has no
-loop.  where did it go?
-
-also, v2 calls clz but v1 never does that.
-
-why would the compiler add clz when the extra
-prints are present?  seems more intuitive that
-it would do that when the loop has no extra
-stuff in it.
-
-and how does clz actually work here anyway?
-
-in b2.wat and b2.il, StoreVar is func_193
-
-double check all the above.  things might have
-gotten mixed up.
-
-okay, cancel that, the version without the prints
-in the Log2 loop is the one that uses clz, and it's
-the one that fails.
-
-confirmed:  add the print ack in the loop, and
-once again the wat shows a loop instruction, 
-no clz, and the code works.
-
-clz definitely gives the wrong answer for 0.
-is it possible that clz impl is the whole problem?
-
-wow.  yep, fix clz for the 0 case and the code works.
-
-but still get unexpected EOF during decompress
-
---
-
 wasi layer is not doing path resolution correctly.
 for example, in remove_directory, the fd param
 is not used, even though it is supposed to be the
@@ -110,24 +49,11 @@ sqlite3 demo vfs is weak.  it doesn't even have locking.
 need to use the regular vfs, but without pthreads.
 and mmap.
 
-env_testing doesn't have the clz/ctz hacks
-
 proper impl of clz and ctx
-
-does cctor init of globals/data respect mem size?
-
-initial mem size does make a difference in the
-behavior of 00056.  default to a higher value?
-respect the definition in the wasm file?
 
 --
 
 instead of calling Marshal.Copy, use Cpblk
-
-get another wasm runtime going for comparison
-purposes.  wasmer.  doesn't seem to run stuff
-from clang 8.  can't tell if wasm is wrong or
-wasmer has problems.  lucet?
 
 peverify shows lots of problems
 
