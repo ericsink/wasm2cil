@@ -8,8 +8,6 @@ open wasm.cecil
 
 [<EntryPoint>]
 let main argv =
-    let assy = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
-
     let m =
         let filename = "..\\sqlite3.wasm"
         printfn "Reading %s" filename
@@ -30,7 +28,12 @@ let main argv =
         let ns = id
         let classname = "foo"
         let ver = new System.Version(1, 0, 0, 0)
-        gen_assembly (Wasi assy) m id ns classname ver ms
+        let settings = {
+            memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
+            profile = ProfileSetting.No
+            env = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>) |> Some
+            }
+        gen_assembly settings m id ns classname ver ms
         ms.ToArray()
     System.IO.File.WriteAllBytes(destname, ba)
 

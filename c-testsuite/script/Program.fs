@@ -17,7 +17,7 @@ open build
 let main argv =
     let timer = Stopwatch.StartNew()
 
-    let assy = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
 
     let dir_tests = Path.GetFullPath(argv.[0])
 
@@ -44,7 +44,12 @@ let main argv =
             let ns = id
             let classname = "foo"
             let ver = new System.Version(1, 0, 0, 0)
-            gen_assembly (Wasi assy) m id ns classname ver ms
+            let settings = {
+                memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
+                profile = ProfileSetting.No
+                env = Some env_assembly
+                }
+            gen_assembly settings m id ns classname ver ms
             ms.ToArray()
 
         let destname = Path.Combine(dir_run, "test.dll")

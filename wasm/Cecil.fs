@@ -14,6 +14,20 @@ module wasm.cecil
 
     let mem_page_size = 64 * 1024
 
+    type ProfileSetting =
+        | Yes
+        | No
+
+    type MemorySetting =
+        | AlwaysImportPairFrom of string
+        | Default
+
+    type CompilerSettings = {
+        profile : ProfileSetting
+        env : System.Reflection.Assembly option
+        memory : MemorySetting
+        }
+
     type BasicTypes = {
         typ_void : TypeReference
         typ_i32 : TypeReference
@@ -82,6 +96,8 @@ module wasm.cecil
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
+        profile_enter : MethodReference
+        profile_exit : MethodReference
         trace : MethodReference
         trace2 : MethodReference
         clz_i64 : MethodReference
@@ -955,7 +971,7 @@ module wasm.cecil
 
         method
 
-    let gen_function_code ctx (mi : MethodRefInternal) =
+    let gen_function_code ctx (mi : MethodRefInternal) profile_setting =
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
             let get_name () =
@@ -982,6 +998,11 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
+        match profile_setting with
+        | ProfileSetting.Yes ->
+            il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
+            il.Append(il.Create(OpCodes.Call, ctx.profile_enter))
+        | ProfileSetting.No -> ()
 #if not
         il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" mi.method.Name)))
         il.Append(il.Create(OpCodes.Call, ctx.trace))
@@ -998,6 +1019,11 @@ module wasm.cecil
 #endif
         let result_typ = function_result_type mi.func.typ
         cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
+        match profile_setting with
+        | ProfileSetting.Yes ->
+            il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
+            il.Append(il.Create(OpCodes.Call, ctx.profile_exit))
+        | ProfileSetting.No -> ()
 #if not
         match result_typ with
         | Some t ->
@@ -1028,10 +1054,10 @@ module wasm.cecil
         let a_methods = Array.mapi prep_func ndx.FuncLookup
         a_methods
 
-    let gen_code_for_methods ctx =
+    let gen_code_for_methods ctx profile_setting =
         for m in ctx.a_methods do
             match m with
-            | MethodRefInternal mi -> gen_function_code ctx mi
+            | MethodRefInternal mi -> gen_function_code ctx mi profile_setting
             | MethodRefImported _ -> ()
 
     let create_globals ndx bt (md : ModuleDefinition) env_assembly =
@@ -1523,11 +1549,7 @@ module wasm.cecil
             { item = d; name = name; resource = r; }
         Array.mapi f sd.datas
 
-    type Target =
-    | Wasi of System.Reflection.Assembly
-    | Other of System.Reflection.Assembly option
-
-    let gen_assembly target m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
+    let gen_assembly settings m assembly_name ns classname (ver : System.Version) (dest : System.IO.Stream) =
         let assembly = 
             AssemblyDefinition.CreateAssembly(
                 new AssemblyNameDefinition(
@@ -1563,15 +1585,19 @@ module wasm.cecil
         let ndx = get_module_index m
 
         let (mem, mem_size) =
-            match target with
-            | Wasi assembly ->
+            match settings.memory with
+            | AlwaysImportPairFrom name ->
                 // when targeting wasi, we ignore what the module says about
                 // memory and import the one from our wasi implementation.
 
-                let mem_size = import_field main_module "wasi_unstable" "__mem_size" assembly
-                let mem = import_field main_module "wasi_unstable" "__mem" assembly
-                (mem, mem_size)
-            | Other maybe_assembly ->
+                match settings.env with
+                | Some assembly ->
+                    let mem_size = import_field main_module name "__mem_size" assembly
+                    let mem = import_field main_module name "__mem" assembly
+                    (mem, mem_size)
+                | None ->
+                    failwith "no reference assembly"
+            | Default->
                 // in this case, we accept an optional assembly for looking
                 // up imports, and we respect whatever the module says about
                 // memory.  if there is no import assembly but the module
@@ -1590,7 +1616,7 @@ module wasm.cecil
                 let mem =
                     match ndx.MemoryImport with
                     | Some mi ->
-                        match maybe_assembly with
+                        match settings.env with
                         | Some assembly -> import_memory main_module mi assembly
                         | None -> failwith "no imports"
                     | None ->
@@ -1604,19 +1630,14 @@ module wasm.cecil
                         f :> FieldReference
                 (mem, mem_size)
 
-        let env_assembly =
-            match target with
-            | Wasi assembly -> Some assembly
-            | Other maybe_assembly -> maybe_assembly
-
-        let a_globals = create_globals ndx bt main_module env_assembly
+        let a_globals = create_globals ndx bt main_module settings.env
 
         for m in a_globals do
             match m with
             | GlobalRefInternal mi -> container.Fields.Add(mi.field)
             | GlobalRefImported _ -> ()
 
-        let a_methods = create_methods ndx bt main_module env_assembly
+        let a_methods = create_methods ndx bt main_module settings.env
 
         for m in a_methods do
             match m with
@@ -1642,14 +1663,26 @@ module wasm.cecil
             else
                 null
 
+        let ref_profile_enter = 
+            match settings.env with
+            | Some a ->
+                find_method container.Module a "__profile" "Enter" [| typeof<string> |]
+            | None -> null
+
+        let ref_profile_exit = 
+            match settings.env with
+            | Some a ->
+                find_method container.Module a "__profile" "Exit" [| typeof<string> |]
+            | None -> null
+
         let ref_trace = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__log" "Trace" [| typeof<string> |]
             | None -> null
 
         let ref_trace2 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__log" "Trace2" [| typeof<System.Object>; typeof<string> |]
             | None -> null
@@ -1676,37 +1709,37 @@ module wasm.cecil
         container.Methods.Add(mem_grow)
 
         let clz_i64 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "clz_i64" [| typeof<int64> |]
             | None -> null
 
         let ctz_i64 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "ctz_i64" [| typeof<int64> |]
             | None -> null
 
         let clz_i32 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "clz_i32" [| typeof<int32> |]
             | None -> null
 
         let ctz_i32 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "ctz_i32" [| typeof<int32> |]
             | None -> null
 
         let popcnt_i32 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "popcnt_i32" [| typeof<int32> |]
             | None -> null
 
         let popcnt_i64 = 
-            match env_assembly with
+            match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "popcnt_i64" [| typeof<int64> |]
             | None -> null
@@ -1730,6 +1763,8 @@ module wasm.cecil
                 clz_i32 = clz_i32
                 ctz_i32 = ctz_i32
                 popcnt_i32 = popcnt_i32
+                profile_enter = ref_profile_enter
+                profile_exit = ref_profile_exit
             }
 
         let tbl_setup =
@@ -1751,7 +1786,7 @@ module wasm.cecil
             | (None, None, None) ->
                 None
 
-        gen_code_for_methods ctx
+        gen_code_for_methods ctx settings.profile
 
         let data_setup =
             match ndx.Data with

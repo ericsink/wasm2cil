@@ -31,36 +31,52 @@ type AssemblyStuff = {
     classname : string
     }
 
-let prep_assembly_with_target target m =
+let prep_assembly_with_settings settings m =
     let id = newid ()
     let ns = "test_namespace"
     let classname = "foo"
     let ver = new System.Version(1, 0, 0, 0)
     let ba = 
         use ms = new System.IO.MemoryStream()
-        gen_assembly target m id ns classname ver ms
+        gen_assembly settings m id ns classname ver ms
         ms.ToArray()
     let a = System.Reflection.Assembly.Load(ba)
     Assert.NotNull(a)
     { a = a; classname = classname; ns = ns; }
 
 let prep_assembly_with (assembly : System.Reflection.Assembly) m =
-    let target = Other (Some assembly)
-    prep_assembly_with_target target m
+    let settings = {
+        memory = MemorySetting.Default
+        profile = ProfileSetting.No
+        env = Some assembly
+        }
+    prep_assembly_with_settings settings m
 
 let prep_assembly_wasi m =
-    let wasi_assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
-    let target = Wasi wasi_assembly
-    prep_assembly_with_target target m
+    let assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+    let settings = {
+        memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
+        profile = ProfileSetting.No
+        env = Some assembly
+        }
+    prep_assembly_with_settings settings m
 
 let prep_assembly_env_testing m =
-    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env_testing>)
-    let target = Other (Some env_assembly)
-    prep_assembly_with_target target m
+    let assembly = System.Reflection.Assembly.GetAssembly(typeof<env_testing>)
+    let settings = {
+        memory = MemorySetting.Default
+        profile = ProfileSetting.No
+        env = Some assembly
+        }
+    prep_assembly_with_settings settings m
 
 let prep_assembly_none m =
-    let target = Other None
-    prep_assembly_with_target target m
+    let settings = {
+        memory = MemorySetting.Default
+        profile = ProfileSetting.No
+        env = None
+        }
+    prep_assembly_with_settings settings m
 
 let get_method a name =
     let fullname = sprintf "%s.%s" a.ns a.classname

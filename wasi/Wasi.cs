@@ -720,6 +720,18 @@ public static class __compiler_support
     }
 }
 
+public static class __profile
+{
+    public static void Enter(string name)
+    {
+        System.Console.WriteLine("{0}", name);
+    }
+    public static void Exit(string name)
+    {
+        System.Console.WriteLine("{0}", name);
+    }
+}
+
 public static class __log
 {
     public static void Trace(string s)
