@@ -15,7 +15,7 @@ module wasm.cecil
     let mem_page_size = 64 * 1024
 
     type ProfileSetting =
-        | Yes
+        | Yes of System.Reflection.Assembly
         | No
 
     type MemorySetting =
@@ -86,6 +86,11 @@ module wasm.cecil
         | MethodRefImported of MethodRefImported
         | MethodRefInternal of MethodRefInternal
 
+    type ProfileHooks = {
+        profile_enter : MethodReference
+        profile_exit : MethodReference
+        }
+
     type GenContext = {
         types: FuncType[]
         md : ModuleDefinition
@@ -96,8 +101,6 @@ module wasm.cecil
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
-        profile_enter : MethodReference
-        profile_exit : MethodReference
         trace : MethodReference
         trace2 : MethodReference
         clz_i64 : MethodReference
@@ -106,6 +109,7 @@ module wasm.cecil
         clz_i32 : MethodReference
         ctz_i32 : MethodReference
         popcnt_i32 : MethodReference
+        profile : ProfileHooks option
         }
 
     type DataStuff = {
@@ -971,7 +975,7 @@ module wasm.cecil
 
         method
 
-    let gen_function_code ctx (mi : MethodRefInternal) profile_setting =
+    let gen_function_code ctx (mi : MethodRefInternal) =
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
             let get_name () =
@@ -998,11 +1002,11 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
-        match profile_setting with
-        | ProfileSetting.Yes ->
+        match ctx.profile with
+        | Some h ->
             il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-            il.Append(il.Create(OpCodes.Call, ctx.profile_enter))
-        | ProfileSetting.No -> ()
+            il.Append(il.Create(OpCodes.Call, h.profile_enter))
+        | None -> ()
 #if not
         il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" mi.method.Name)))
         il.Append(il.Create(OpCodes.Call, ctx.trace))
@@ -1019,11 +1023,11 @@ module wasm.cecil
 #endif
         let result_typ = function_result_type mi.func.typ
         cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
-        match profile_setting with
-        | ProfileSetting.Yes ->
+        match ctx.profile with
+        | Some h ->
             il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-            il.Append(il.Create(OpCodes.Call, ctx.profile_exit))
-        | ProfileSetting.No -> ()
+            il.Append(il.Create(OpCodes.Call, h.profile_exit))
+        | None -> ()
 #if not
         match result_typ with
         | Some t ->
@@ -1054,10 +1058,10 @@ module wasm.cecil
         let a_methods = Array.mapi prep_func ndx.FuncLookup
         a_methods
 
-    let gen_code_for_methods ctx profile_setting =
+    let gen_code_for_methods ctx =
         for m in ctx.a_methods do
             match m with
-            | MethodRefInternal mi -> gen_function_code ctx mi profile_setting
+            | MethodRefInternal mi -> gen_function_code ctx mi
             | MethodRefImported _ -> ()
 
     let create_globals ndx bt (md : ModuleDefinition) env_assembly =
@@ -1663,18 +1667,6 @@ module wasm.cecil
             else
                 null
 
-        let ref_profile_enter = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__profile" "Enter" [| typeof<string> |]
-            | None -> null
-
-        let ref_profile_exit = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__profile" "Exit" [| typeof<string> |]
-            | None -> null
-
         let ref_trace = 
             match settings.env with
             | Some a ->
@@ -1744,6 +1736,15 @@ module wasm.cecil
                 find_method container.Module a "__compiler_support" "popcnt_i64" [| typeof<int64> |]
             | None -> null
 
+        let profile_hooks =
+            match settings.profile with
+            | No -> None 
+            | Yes a ->
+                Some {
+                    profile_enter = find_method container.Module a "__profile" "Enter" [| typeof<string> |]
+                    profile_exit = find_method container.Module a "__profile" "Exit" [| typeof<string> |]
+                    }
+
         let ctx =
             {
                 types = types
@@ -1763,8 +1764,7 @@ module wasm.cecil
                 clz_i32 = clz_i32
                 ctz_i32 = ctz_i32
                 popcnt_i32 = popcnt_i32
-                profile_enter = ref_profile_enter
-                profile_exit = ref_profile_exit
+                profile = profile_hooks
             }
 
         let tbl_setup =
@@ -1786,7 +1786,7 @@ module wasm.cecil
             | (None, None, None) ->
                 None
 
-        gen_code_for_methods ctx settings.profile
+        gen_code_for_methods ctx
 
         let data_setup =
             match ndx.Data with
