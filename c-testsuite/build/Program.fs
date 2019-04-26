@@ -23,6 +23,7 @@ let main argv =
     // TODO arguably this should always just write to ..\run_test\test.dll
     let destname = argv.[1]
     printfn "Generating assembly %s" destname
+    let assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
     let ba = 
         use ms = new System.IO.MemoryStream()
         let id = "test"
@@ -31,8 +32,8 @@ let main argv =
         let ver = new System.Version(1, 0, 0, 0)
         let settings = {
             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
-            profile = ProfileSetting.No
-            env = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>) |> Some
+            profile = ProfileSetting.Yes assembly
+            env = Some assembly
             }
         gen_assembly settings m id ns classname ver ms
         ms.ToArray()

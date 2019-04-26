@@ -1,4 +1,6 @@
 
+mv profiler out of Wasi assembly
+
 should probably lookup all references in a ns2.0 reference
 assembly.  seems wrong to have any references looked up
 in the assembly that the compiler happens to be running

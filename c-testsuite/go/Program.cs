@@ -19,6 +19,7 @@ public static class go
         {
             rc = e.ReturnCode;
         }
+        __profile.Report();
         return rc;
     }
 }
