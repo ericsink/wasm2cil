@@ -633,6 +633,18 @@ public static partial class wasi_unstable
     {
         throw new NotImplementedException();
     }
+    static Random rnd = new Random();
+    public static int random_get(
+        int addr_buf,
+        int buf_len
+        )
+    {
+        // TODO investigate higher quality random number gen
+        var ba = new byte[buf_len];
+        rnd.NextBytes(ba); // TODO is there a Span overload for this?
+        Marshal.Copy(ba, 0, __mem + addr_buf, ba.Length);
+        return __WASI_ESUCCESS;
+    }
 }
 
 public static class env
