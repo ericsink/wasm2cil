@@ -549,12 +549,24 @@ module wasm.cecil
         | I32Load8U m -> load m OpCodes.Ldind_U1
         | I32Load16S m -> load m OpCodes.Ldind_I2
         | I32Load16U m -> load m OpCodes.Ldind_U2
-        | I64Load8S m -> load m OpCodes.Ldind_I1
-        | I64Load8U m -> load m OpCodes.Ldind_U1
-        | I64Load16S m -> load m OpCodes.Ldind_I2
-        | I64Load16U m -> load m OpCodes.Ldind_U2
-        | I64Load32S m -> load m OpCodes.Ldind_I4
-        | I64Load32U m -> load m OpCodes.Ldind_U4
+        | I64Load8S m -> 
+            load m OpCodes.Ldind_I1
+            il.Append(il.Create(OpCodes.Conv_I8))
+        | I64Load8U m -> 
+            load m OpCodes.Ldind_U1
+            il.Append(il.Create(OpCodes.Conv_I8))
+        | I64Load16S m -> 
+            load m OpCodes.Ldind_I2
+            il.Append(il.Create(OpCodes.Conv_I8))
+        | I64Load16U m -> 
+            load m OpCodes.Ldind_U2
+            il.Append(il.Create(OpCodes.Conv_I8))
+        | I64Load32S m -> 
+            load m OpCodes.Ldind_I4
+            il.Append(il.Create(OpCodes.Conv_I8))
+        | I64Load32U m -> 
+            load m OpCodes.Ldind_U4
+            il.Append(il.Create(OpCodes.Conv_I8)) // TODO is this right?
 
         | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i32)
         | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp ctx.bt.typ_i64)
@@ -679,8 +691,9 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Conv_R_Un))
             il.Append(il.Create(OpCodes.Conv_R8))
 
-        | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4))
-        | I64ExtendI32S | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8))
+        | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4)) // TODO is this correct?
+        | I64ExtendI32S -> il.Append(il.Create(OpCodes.Conv_I8))
+        | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8)) // TODO is this correct?
 
         | I32TruncF32S | I32TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I4))
         | I64TruncF32S | I64TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I8))
