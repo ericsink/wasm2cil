@@ -1,4 +1,20 @@
 
+env should be just for stuff the compiler looks
+for that is not in wasi, extra stuff beyond the
+wasi platform, or experimental additions
+
+compiler helpers like clz, if they stay in C#,
+should move to a separate class
+
+profiler:  add hooks to track enter and exit
+of all the methods
+
+env_testing mem things could move into env_testing,
+instead of just using that class name as a way to
+find the right reference assembly.
+
+--
+
 wasi layer is not doing path resolution correctly.
 for example, in remove_directory, the fd param
 is not used, even though it is supposed to be the
