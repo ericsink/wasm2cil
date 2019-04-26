@@ -647,24 +647,8 @@ public static partial class wasi_unstable
     }
 }
 
-public static class env
+public static class __compiler_support
 {
-    public static void Trace(string s)
-    {
-        System.Console.WriteLine("{0}", s);
-    }
-
-    public static void Trace2(object v, string s)
-    {
-        if (v is null)
-        {
-            System.Console.WriteLine("{0} NULL", s);
-        }
-        else
-        {
-            System.Console.WriteLine("{0} : {1}", s, v);
-        }
-    }
     public static long popcnt_i64(long x)
     {
 		x -= (x >> 1) & 0x5555555555555555L;
@@ -733,6 +717,26 @@ public static class env
             count++;
         }
         return count;
+    }
+}
+
+public static class __log
+{
+    public static void Trace(string s)
+    {
+        System.Console.WriteLine("{0}", s);
+    }
+
+    public static void Trace2(object v, string s)
+    {
+        if (v is null)
+        {
+            System.Console.WriteLine("{0} NULL", s);
+        }
+        else
+        {
+            System.Console.WriteLine("{0} : {1}", s, v);
+        }
     }
 }
 

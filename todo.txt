@@ -1,10 +1,11 @@
 
+we could have multiple reference/support assemblies
+if we knew a way to get clang to not always use "env".
+or if we just did a mapping.
+
 env should be just for stuff the compiler looks
 for that is not in wasi, extra stuff beyond the
 wasi platform, or experimental additions
-
-compiler helpers like clz, if they stay in C#,
-should move to a separate class
 
 profiler:  add hooks to track enter and exit
 of all the methods

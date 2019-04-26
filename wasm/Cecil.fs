@@ -1631,24 +1631,27 @@ module wasm.cecil
                 )
         container.Fields.Add(tbl)
 
+        let find_method (md : ModuleDefinition) (a : System.Reflection.Assembly) (type_name : string) (method_name : string) (parms : System.Type[]) =
+            let t = a.GetType(type_name)
+            if t <> null then
+                let m = t.GetMethod(method_name, parms)
+                if m <> null then
+                    md.ImportReference(m)
+                else
+                    null
+            else
+                null
+
         let ref_trace = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("Trace", [| typeof<string> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__log" "Trace" [| typeof<string> |]
             | None -> null
 
         let ref_trace2 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("Trace2", [| typeof<System.Object>; typeof<string> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__log" "Trace2" [| typeof<System.Object>; typeof<string> |]
             | None -> null
 
         let tbl_lookup = 
@@ -1675,61 +1678,37 @@ module wasm.cecil
         let clz_i64 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("clz_i64", [| typeof<int64> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__compiler_support" "clz_i64" [| typeof<int64> |]
             | None -> null
 
         let ctz_i64 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("ctz_i64", [| typeof<int64> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__compiler_support" "ctz_i64" [| typeof<int64> |]
             | None -> null
 
         let clz_i32 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("clz_i32", [| typeof<int32> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__compiler_support" "clz_i32" [| typeof<int32> |]
             | None -> null
 
         let ctz_i32 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("ctz_i32", [| typeof<int32> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__compiler_support" "ctz_i32" [| typeof<int32> |]
             | None -> null
 
         let popcnt_i32 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("popcnt_i32", [| typeof<int32> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__compiler_support" "popcnt_i32" [| typeof<int32> |]
             | None -> null
 
         let popcnt_i64 = 
             match env_assembly with
             | Some a ->
-                let m = a.GetType("env").GetMethod("popcnt_i64", [| typeof<int64> |])
-                if m <> null then
-                    container.Module.ImportReference(m)
-                else
-                    null
+                find_method container.Module a "__compiler_support" "popcnt_i64" [| typeof<int64> |]
             | None -> null
 
         let ctx =
