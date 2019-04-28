@@ -772,14 +772,14 @@ module wasm.cecil
                 let var_v1 = f_make_tmp (cecil_valtype ctx.bt t)
                 il.Append(il.Create(OpCodes.Stloc, var_v1))
 
-                let push_v1 = il.Create(OpCodes.Ldloc, var_v1);
-                let push_v2 = il.Create(OpCodes.Ldloc, var_v2);
-                let lab_done = il.Create(OpCodes.Nop);
+                let push_v1 = il.Create(OpCodes.Ldloc, var_v1)
+                let push_v2 = il.Create(OpCodes.Ldloc, var_v2)
+                let lab_done = il.Create(OpCodes.Nop)
 
                 il.Append(il.Create(OpCodes.Ldloc, var_c)) // put c back
                 il.Append(il.Create(OpCodes.Brtrue, push_v1))
                 il.Append(push_v2);
-                il.Append(il.Create(OpCodes.Br, lab_done));
+                il.Append(il.Create(OpCodes.Br, lab_done))
                 il.Append(push_v1);
                 il.Append(lab_done);
             | None -> failwith "should not happen"
@@ -841,8 +841,83 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Or))
 
         | I64Rotr -> todo op
-        | F32Copysign -> todo op
-        | F64Copysign -> todo op
+        | F32Copysign ->
+            let v2 = f_make_tmp (cecil_valtype ctx.bt F32)
+            il.Append(il.Create(OpCodes.Stloc, v2))
+            let v1 = f_make_tmp (cecil_valtype ctx.bt F32)
+            il.Append(il.Create(OpCodes.Stloc, v1))
+
+            il.Append(il.Create(OpCodes.Ldloca, v1))
+            il.Append(il.Create(OpCodes.Ldind_I4))
+            il.Append(il.Create(OpCodes.Ldc_I4, 0x80000000))
+            il.Append(il.Create(OpCodes.And))
+            
+            il.Append(il.Create(OpCodes.Ldloca, v2))
+            il.Append(il.Create(OpCodes.Ldind_I4))
+            il.Append(il.Create(OpCodes.Ldc_I4, 0x80000000))
+            il.Append(il.Create(OpCodes.And))
+
+            il.Append(il.Create(OpCodes.Xor))
+
+            let lab_use_v1 = il.Create(OpCodes.Nop)
+            let lab_done = il.Create(OpCodes.Nop)
+            il.Append(il.Create(OpCodes.Brfalse, lab_use_v1))
+
+            il.Append(il.Create(OpCodes.Ldloca, v1))
+            il.Append(il.Create(OpCodes.Ldind_I4))
+            il.Append(il.Create(OpCodes.Ldc_I4, 0x80000000))
+            il.Append(il.Create(OpCodes.Xor))
+
+            let v3 = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, v3))
+
+            il.Append(il.Create(OpCodes.Ldloca, v3))
+            il.Append(il.Create(OpCodes.Ldind_R4))
+            il.Append(il.Create(OpCodes.Br, lab_done))
+
+            il.Append(lab_use_v1)
+            il.Append(il.Create(OpCodes.Ldloc, v1))
+            il.Append(lab_done);
+
+            
+        | F64Copysign ->
+            let v2 = f_make_tmp (cecil_valtype ctx.bt F64)
+            il.Append(il.Create(OpCodes.Stloc, v2))
+            let v1 = f_make_tmp (cecil_valtype ctx.bt F64)
+            il.Append(il.Create(OpCodes.Stloc, v1))
+
+            il.Append(il.Create(OpCodes.Ldloca, v1))
+            il.Append(il.Create(OpCodes.Ldind_I8))
+            il.Append(il.Create(OpCodes.Ldc_I8, 0x8000000000000000L))
+            il.Append(il.Create(OpCodes.And))
+            
+            il.Append(il.Create(OpCodes.Ldloca, v2))
+            il.Append(il.Create(OpCodes.Ldind_I8))
+            il.Append(il.Create(OpCodes.Ldc_I8, 0x8000000000000000L))
+            il.Append(il.Create(OpCodes.And))
+
+            il.Append(il.Create(OpCodes.Xor))
+
+            let lab_use_v1 = il.Create(OpCodes.Nop)
+            let lab_done = il.Create(OpCodes.Nop)
+            il.Append(il.Create(OpCodes.Brfalse, lab_use_v1))
+
+            il.Append(il.Create(OpCodes.Ldloca, v1))
+            il.Append(il.Create(OpCodes.Ldind_I8))
+            il.Append(il.Create(OpCodes.Ldc_I8, 0x8000000000000000L))
+            il.Append(il.Create(OpCodes.Xor))
+
+            let v3 = f_make_tmp (cecil_valtype ctx.bt I64)
+            il.Append(il.Create(OpCodes.Stloc, v3))
+
+            il.Append(il.Create(OpCodes.Ldloca, v3))
+            il.Append(il.Create(OpCodes.Ldind_R8))
+            il.Append(il.Create(OpCodes.Br, lab_done))
+
+            il.Append(lab_use_v1)
+            il.Append(il.Create(OpCodes.Ldloc, v1))
+            il.Append(lab_done);
+
         | I32ReinterpretF32 ->
             let v = f_make_tmp (cecil_valtype ctx.bt F32)
             il.Append(il.Create(OpCodes.Stloc, v))

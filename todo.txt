@@ -1,4 +1,13 @@
 
+Rotr
+
+mv compiler_support into its own assembly
+
+then move compiler_support to the assembly being
+compiled
+
+--
+
 mv profiler out of Wasi assembly
 
 should probably lookup all references in a ns2.0 reference
@@ -11,9 +20,6 @@ locals?
 
 enclosing class is always named foo ?
 
-if clz stuff is in a separate assembly, does that
-prevent the jit from optimizing / inlining them?
-
 we could have multiple reference/support assemblies
 if we knew a way to get clang to not always use "env".
 or if we just did a mapping.  so maybe clang always
@@ -23,9 +29,6 @@ in different places for certain things.
 env should be just for stuff the compiler looks
 for that is not in wasi, extra stuff beyond the
 wasi platform, or experimental additions
-
-profiler:  add hooks to track enter and exit
-of all the methods
 
 statics/globals might be a problem.  what if we want
 to run lots of webassembly programs in a single
@@ -82,8 +85,6 @@ easier because the functions have visible names
 sqlite3 demo vfs is weak.  it doesn't even have locking.
 need to use the regular vfs, but without pthreads.
 and mmap.
-
-proper impl of clz and ctx
 
 --
 

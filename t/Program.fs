@@ -11,8 +11,7 @@ open Builders
 [<EntryPoint>]
 let main argv =
     printfn "Args: (filename|build)  [assembly|None] [wasm|filename]"
-    // TODO this is outdated
-    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<env>)
+    let env_assembly = System.Reflection.Assembly.GetAssembly(typeof<__compiler_support>)
 
     let m =
         match argv.[0] with
@@ -38,6 +37,7 @@ let main argv =
                 let id = "hello"
                 let ns = id
                 let classname = "foo"
+                let ver = new System.Version(1, 0, 0, 0)
                 let settings = {
                     memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
                     profile = ProfileSetting.No

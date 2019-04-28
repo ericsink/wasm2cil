@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\wasm\wasm.fsproj" />
     <ProjectReference Include="..\builders\builders.fsproj" />
-    <ProjectReference Include="..\env_testing\env_testing.csproj" />
+    <ProjectReference Include="..\wasi\wasi.csproj" />
   </ItemGroup>
 
 </Project>

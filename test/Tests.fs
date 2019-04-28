@@ -1342,3 +1342,66 @@ let i64_popcnt () =
     check 0xf0fL 8L
     check Int64.MaxValue 63L
     check Int64.MinValue 1L
+
+
+[<Fact>]
+let f32_copysign () =
+    let impl_copysign f1 f2 =
+        // handles basic cases, not NaN
+        if f1 < 0.0f then
+            if f2 < 0.0f then
+                f1
+            else
+                -f1
+        else if f2 < 0.0f then
+            -f1
+        else
+            f1
+
+    let check = make_simple_binop_check F32 F32Copysign impl_copysign
+    check 0.0f 0.0f
+    check 1.0f 1.0f
+    check -1.0f -1.0f
+    check -1.0f 4.0f
+    check -1.0f 99.0f
+    check -1.0f -33.0f
+    check -1.0f 0.0f
+    check -20.0f 0.0f
+    check 20.0f 20.0f
+    check 20.0f -3.0f
+    check 0.0f -4.0f
+    check 0.0f 4.0f
+    check 1.0f -1.0f
+    check 3.14f -1.0f
+
+[<Fact>]
+let f64_copysign () =
+    let impl_copysign f1 f2 =
+        // handles basic cases, not NaN
+        if f1 < 0.0 then
+            if f2 < 0.0 then
+                f1
+            else
+                -f1
+        else if f2 < 0.0 then
+            -f1
+        else
+            f1
+
+    let check = make_simple_binop_check F64 F64Copysign impl_copysign
+    check 0.0 0.0
+    check 1.0 1.0
+    check -1.0 -1.0
+    check -1.0 4.0
+    check -1.0 99.0
+    check -1.0 -33.0
+    check -1.0 0.0
+    check -20.0 0.0
+    check 20.0 20.0
+    check 20.0 -3.0
+    check 0.0 -4.0
+    check 0.0 4.0
+    check 1.0 -1.0
+    check 3.14 -1.0
+
+
