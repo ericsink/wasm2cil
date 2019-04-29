@@ -103,8 +103,6 @@ module wasm.cecil
         bt : BasicTypes
         trace : MethodReference
         trace2 : MethodReference
-        ctz_i64 : MethodReference
-        ctz_i32 : MethodReference
         profile : ProfileHooks option
         }
 
@@ -327,6 +325,96 @@ module wasm.cecil
         il.Append(il.Create(OpCodes.Neg))
         il.Append(il.Create(OpCodes.Ldc_I8, 64L))
         il.Append(il.Create(OpCodes.Add))
+
+    let gen_body_ctz_i64 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+        let i = f_make_tmp (cecil_valtype bt I64)
+        il.Append(il.Create(OpCodes.Stloc, i))
+
+        let count = f_make_tmp (cecil_valtype bt I32)
+
+        // init count to 64, for when i is 0
+        il.Append(il.Create(OpCodes.Ldc_I4, 64))
+        il.Append(il.Create(OpCodes.Stloc, count))
+
+        let lab_done = il.Create(OpCodes.Nop)
+
+        // if i is 0, skip the loop
+        il.Append(il.Create(OpCodes.Ldloc, i))
+        il.Append(il.Create(OpCodes.Brfalse, lab_done))
+
+        // result count to 0 so we can increment it in the loop
+        il.Append(il.Create(OpCodes.Ldc_I4, 0))
+        il.Append(il.Create(OpCodes.Stloc, count))
+
+        // while ((i & 0x01L) == 0)
+        let lab_top_of_loop = il.Create(OpCodes.Nop)
+        il.Append(lab_top_of_loop)
+        il.Append(il.Create(OpCodes.Ldloc, i))
+        il.Append(il.Create(OpCodes.Ldc_I8, 0x01L))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Brtrue, lab_done))
+
+        // i = i >> 1;
+        il.Append(il.Create(OpCodes.Ldloc, i))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x01))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Stloc, i))
+
+        // count++;
+        il.Append(il.Create(OpCodes.Ldloc, count))
+        il.Append(il.Create(OpCodes.Ldc_I4, 1))
+        il.Append(il.Create(OpCodes.Add))
+        il.Append(il.Create(OpCodes.Stloc, count))
+
+        il.Append(il.Create(OpCodes.Br, lab_top_of_loop))
+
+        il.Append(lab_done)
+        il.Append(il.Create(OpCodes.Ldloc, count))
+
+    let gen_body_ctz_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+        let i = f_make_tmp (cecil_valtype bt I32)
+        il.Append(il.Create(OpCodes.Stloc, i))
+
+        let count = f_make_tmp (cecil_valtype bt I32)
+
+        // init count to 32, for when i is 0
+        il.Append(il.Create(OpCodes.Ldc_I4, 32))
+        il.Append(il.Create(OpCodes.Stloc, count))
+
+        let lab_done = il.Create(OpCodes.Nop)
+
+        // if i is 0, skip the loop
+        il.Append(il.Create(OpCodes.Ldloc, i))
+        il.Append(il.Create(OpCodes.Brfalse, lab_done))
+
+        // result count to 0 so we can increment it in the loop
+        il.Append(il.Create(OpCodes.Ldc_I4, 0))
+        il.Append(il.Create(OpCodes.Stloc, count))
+
+        // while ((i & 0x01L) == 0)
+        let lab_top_of_loop = il.Create(OpCodes.Nop)
+        il.Append(lab_top_of_loop)
+        il.Append(il.Create(OpCodes.Ldloc, i))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x01))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Brtrue, lab_done))
+
+        // i = i >> 1;
+        il.Append(il.Create(OpCodes.Ldloc, i))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x01))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Stloc, i))
+
+        // count++;
+        il.Append(il.Create(OpCodes.Ldloc, count))
+        il.Append(il.Create(OpCodes.Ldc_I4, 1))
+        il.Append(il.Create(OpCodes.Add))
+        il.Append(il.Create(OpCodes.Stloc, count))
+
+        il.Append(il.Create(OpCodes.Br, lab_top_of_loop))
+
+        il.Append(lab_done)
+        il.Append(il.Create(OpCodes.Ldloc, count))
 
     let gen_body_clz_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
         // https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
@@ -952,7 +1040,7 @@ module wasm.cecil
         | I32Clz ->
             gen_body_clz_i32 ctx.bt il f_make_tmp
         | I32Ctz ->
-            il.Append(il.Create(OpCodes.Call, ctx.ctz_i32))
+            gen_body_ctz_i32 ctx.bt il f_make_tmp
         | I32Popcnt ->
             gen_body_popcnt_i32 ctx.bt il f_make_tmp
         | I32Rotl ->
@@ -1000,7 +1088,7 @@ module wasm.cecil
         | I64Clz ->
             gen_body_clz_i64 ctx.bt il f_make_tmp
         | I64Ctz ->
-            il.Append(il.Create(OpCodes.Call, ctx.ctz_i64))
+            gen_body_ctz_i64 ctx.bt il f_make_tmp
         | I64Popcnt ->
             gen_body_popcnt_i64 ctx.bt il f_make_tmp
         | I64Rotl ->
@@ -1979,18 +2067,6 @@ module wasm.cecil
             gen_grow_mem mem mem_size bt
         container.Methods.Add(mem_grow)
 
-        let ctz_i64 = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__compiler_support" "ctz_i64" [| typeof<int64> |]
-            | None -> null
-
-        let ctz_i32 = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__compiler_support" "ctz_i32" [| typeof<int32> |]
-            | None -> null
-
         let profile_hooks =
             match settings.profile with
             | No -> None 
@@ -2013,8 +2089,6 @@ module wasm.cecil
                 tbl_lookup = tbl_lookup
                 trace = ref_trace
                 trace2 = ref_trace2
-                ctz_i64 = ctz_i64
-                ctz_i32 = ctz_i32
                 profile = profile_hooks
             }
 

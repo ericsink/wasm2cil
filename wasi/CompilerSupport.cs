@@ -55,7 +55,6 @@ public static class __compiler_support
 		x += x >> 16;
 		return numIntBits - (x & 0x0000003f); //subtract # of 1s from 32
     }
-#endif
     public static long ctz_i64(long i)
     {
         if (i == 0) return 64L;
@@ -78,5 +77,6 @@ public static class __compiler_support
         }
         return count;
     }
+#endif
 }
 
