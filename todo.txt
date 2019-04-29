@@ -1,11 +1,4 @@
 
-mv compiler_support into its own assembly
-
-then move compiler_support to the assembly being
-compiled
-
---
-
 mv profiler out of Wasi assembly
 
 should probably lookup all references in a ns2.0 reference
