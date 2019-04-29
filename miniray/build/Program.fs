@@ -31,6 +31,7 @@ let main argv =
         let settings = {
             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
             profile = ProfileSetting.No
+            trace = TraceSetting.No
             env = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>) |> Some
             }
         gen_assembly settings m id ns classname ver ms

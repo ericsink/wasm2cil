@@ -18,12 +18,17 @@ module wasm.cecil
         | Yes of System.Reflection.Assembly
         | No
 
+    type TraceSetting =
+        | Yes of System.Reflection.Assembly
+        | No
+
     type MemorySetting =
         | AlwaysImportPairFrom of string
         | Default
 
     type CompilerSettings = {
         profile : ProfileSetting
+        trace : TraceSetting
         env : System.Reflection.Assembly option
         memory : MemorySetting
         }
@@ -92,6 +97,12 @@ module wasm.cecil
         profile_exit : MethodReference
         }
 
+    type TraceHooks = {
+        trace_enter : MethodReference
+        trace_exit_value : MethodReference
+        trace_exit_void : MethodReference
+        }
+
     type GenContext = {
         types: FuncType[]
         md : ModuleDefinition
@@ -102,9 +113,7 @@ module wasm.cecil
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
-        trace_enter : MethodReference
-        trace : MethodReference
-        trace2 : MethodReference
+        trace : TraceHooks option
         profile : ProfileHooks option
         }
 
@@ -1371,34 +1380,38 @@ module wasm.cecil
         let f_make_tmp = make_tmp mi.method
 
         let il = mi.method.Body.GetILProcessor()
+
         match ctx.profile with
         | Some h ->
             il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
             il.Append(il.Create(OpCodes.Call, h.profile_enter))
         | None -> ()
-#if not
-        let v_parms = new VariableDefinition(ctx.md.ImportReference(typeof<System.Object[]>))
-        mi.method.Body.Variables.Add(v_parms)
-        let parms =
-            a_locals
-            |> Array.choose (fun x -> match x with | ParamRef x -> Some (x) | LocalRef _ -> None)
-        il.Append(il.Create(OpCodes.Ldc_I4, parms.Length))
-        il.Append(il.Create(OpCodes.Newarr, ctx.bt.typ_object))
-        il.Append(il.Create(OpCodes.Stloc, v_parms))
-        let f_parm (i : int32) p =
+
+        match ctx.trace with
+        | Some h ->
+            let v_parms = new VariableDefinition(ctx.md.ImportReference(typeof<System.Object[]>))
+            mi.method.Body.Variables.Add(v_parms)
+            let parms =
+                a_locals
+                |> Array.choose (fun x -> match x with | ParamRef x -> Some (x) | LocalRef _ -> None)
+            il.Append(il.Create(OpCodes.Ldc_I4, parms.Length))
+            il.Append(il.Create(OpCodes.Newarr, ctx.bt.typ_object))
+            il.Append(il.Create(OpCodes.Stloc, v_parms))
+            let f_parm (i : int32) p =
+                il.Append(il.Create(OpCodes.Ldloc, v_parms))
+                il.Append(il.Create(OpCodes.Ldc_I4, i))
+                let { def_param = def; typ = t } = p
+                let typ = cecil_valtype ctx.bt t
+                // TODO it would be nice to include names here?
+                il.Append(il.Create(OpCodes.Ldarg, def))
+                il.Append(il.Create(OpCodes.Box, typ))
+                il.Append(il.Create(OpCodes.Stelem_Ref))
+            Array.iteri f_parm parms
+            il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
             il.Append(il.Create(OpCodes.Ldloc, v_parms))
-            il.Append(il.Create(OpCodes.Ldc_I4, i))
-            let { def_param = def; typ = t } = p
-            let typ = cecil_valtype ctx.bt t
-            // TODO it would be nice to include names here?
-            il.Append(il.Create(OpCodes.Ldarg, def))
-            il.Append(il.Create(OpCodes.Box, typ))
-            il.Append(il.Create(OpCodes.Stelem_Ref))
-        Array.iteri f_parm parms
-        il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-        il.Append(il.Create(OpCodes.Ldloc, v_parms))
-        il.Append(il.Create(OpCodes.Call, ctx.trace_enter))
-#endif
+            il.Append(il.Create(OpCodes.Call, h.trace_enter))
+        | None -> ()
+
         let result_typ = function_result_type mi.func.typ
         cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
         match ctx.profile with
@@ -1406,18 +1419,21 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
             il.Append(il.Create(OpCodes.Call, h.profile_exit))
         | None -> ()
-#if not
-        match result_typ with
-        | Some t ->
-            let typ =cecil_valtype ctx.bt t
-            il.Append(il.Create(OpCodes.Dup))
-            il.Append(il.Create(OpCodes.Box, typ))
-            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" mi.method.Name)))
-            il.Append(il.Create(OpCodes.Call, ctx.trace2))
-        | None ->
-            il.Append(il.Create(OpCodes.Ldstr, (sprintf "exiting %s" mi.method.Name)))
-            il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
+
+        match ctx.trace with
+        | Some h ->
+            match result_typ with
+            | Some t ->
+                let typ =cecil_valtype ctx.bt t
+                il.Append(il.Create(OpCodes.Dup))
+                il.Append(il.Create(OpCodes.Box, typ))
+                il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
+                il.Append(il.Create(OpCodes.Call, h.trace_exit_value))
+            | None ->
+                il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
+                il.Append(il.Create(OpCodes.Call, h.trace_exit_void))
+        | None -> ()
+
         il.Append(il.Create(OpCodes.Ret))
 
     let create_methods ndx bt (md : ModuleDefinition) env_assembly =
@@ -2085,10 +2101,20 @@ module wasm.cecil
             gen_grow_mem mem mem_size bt
         container.Methods.Add(mem_grow)
 
+        let trace_hooks =
+            match settings.trace with
+            | TraceSetting.No -> None 
+            | TraceSetting.Yes a ->
+                Some {
+                    trace_enter = find_method container.Module a "__log" "Enter" [| typeof<string>; typeof<System.Object[]> |]
+                    trace_exit_value = find_method container.Module a "__profile" "Exit" [| typeof<string>; typeof<System.Object> |]
+                    trace_exit_void = find_method container.Module a "__profile" "Exit" [| typeof<string>; |]
+                    }
+
         let profile_hooks =
             match settings.profile with
-            | No -> None 
-            | Yes a ->
+            | ProfileSetting.No -> None 
+            | ProfileSetting.Yes a ->
                 Some {
                     profile_enter = find_method container.Module a "__profile" "Enter" [| typeof<string> |]
                     profile_exit = find_method container.Module a "__profile" "Exit" [| typeof<string> |]
@@ -2105,9 +2131,7 @@ module wasm.cecil
                 mem_size = mem_size
                 mem_grow = mem_grow
                 tbl_lookup = tbl_lookup
-                trace_enter = ref_trace_enter
-                trace = ref_trace
-                trace2 = ref_trace2
+                trace = trace_hooks
                 profile = profile_hooks
             }
 

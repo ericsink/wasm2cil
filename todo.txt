@@ -1,7 +1,4 @@
 
-trace methods should be treated more like profiler,
-controlled by settings passed in, not using #if
-
 mv profiler out of Wasi assembly
 
 should probably lookup all references in a ns2.0 reference

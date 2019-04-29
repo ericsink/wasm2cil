@@ -48,6 +48,7 @@ let prep_assembly_with (assembly : System.Reflection.Assembly) m =
     let settings = {
         memory = MemorySetting.Default
         profile = ProfileSetting.No
+        trace = TraceSetting.No
         env = Some assembly
         }
     prep_assembly_with_settings settings m
@@ -57,6 +58,7 @@ let prep_assembly_wasi m =
     let settings = {
         memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
         profile = ProfileSetting.No
+        trace = TraceSetting.No
         env = Some assembly
         }
     prep_assembly_with_settings settings m
@@ -66,6 +68,7 @@ let prep_assembly_env_testing m =
     let settings = {
         memory = MemorySetting.Default
         profile = ProfileSetting.No
+        trace = TraceSetting.No
         env = Some assembly
         }
     prep_assembly_with_settings settings m
@@ -74,6 +77,7 @@ let prep_assembly_none m =
     let settings = {
         memory = MemorySetting.Default
         profile = ProfileSetting.No
+        trace = TraceSetting.No
         env = None
         }
     prep_assembly_with_settings settings m

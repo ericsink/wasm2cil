@@ -16,6 +16,17 @@ public static class __log
         }
     }
 
+    public static void Exit(string s, object v)
+    {
+        System.Console.WriteLine("exiting {0}: {1}", s, v.ToString());
+    }
+
+    public static void Exit(string s)
+    {
+        System.Console.WriteLine("exiting {0}", s);
+    }
+
+#if not
     public static void Trace(string s)
     {
         System.Console.WriteLine("{0}", s);
@@ -32,5 +43,6 @@ public static class __log
             System.Console.WriteLine("{0} : {1}", s, v);
         }
     }
+#endif
 }
 
