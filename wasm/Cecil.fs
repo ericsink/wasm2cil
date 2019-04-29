@@ -101,6 +101,7 @@ module wasm.cecil
         trace_enter : MethodReference
         trace_exit_value : MethodReference
         trace_exit_void : MethodReference
+        //trace_grow_mem : MethodReference
         }
 
     type GenContext = {
@@ -1461,7 +1462,7 @@ module wasm.cecil
 
         a_globals
 
-    let gen_tbl_lookup ndx bt (tbl : FieldDefinition) (trace2 : MethodReference) (main_mod : ModuleDefinition) =
+    let gen_tbl_lookup ndx bt (tbl : FieldDefinition) (main_mod : ModuleDefinition) =
         let method = 
             new MethodDefinition(
                 "__tbl_lookup",
@@ -1475,26 +1476,12 @@ module wasm.cecil
 
         let il = method.Body.GetILProcessor()
 
-#if not
-        il.Append(il.Create(OpCodes.Ldarg, parm))
-        il.Append(il.Create(OpCodes.Box, bt.typ_i32))
-        il.Append(il.Create(OpCodes.Ldstr, "entering tbl_lookup"))
-        il.Append(il.Create(OpCodes.Call, trace2))
-#endif
-
         il.Append(il.Create(OpCodes.Ldsfld, tbl))
         il.Append(il.Create(OpCodes.Ldarg, parm))
         il.Append(il.Create(OpCodes.Ldc_I4, 8))
         il.Append(il.Create(OpCodes.Mul))
         il.Append(il.Create(OpCodes.Add))
         il.Append(il.Create(OpCodes.Ldind_I))
-
-#if not
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Box, bt.typ_intptr))
-        il.Append(il.Create(OpCodes.Ldstr, "exiting tbl_lookup"))
-        il.Append(il.Create(OpCodes.Call, trace2))
-#endif
 
         let lab = il.Create(OpCodes.Nop)
         il.Append(il.Create(OpCodes.Dup))
@@ -1978,24 +1965,6 @@ module wasm.cecil
             else
                 null
 
-        let ref_trace = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__log" "Trace" [| typeof<string> |]
-            | None -> null
-
-        let ref_trace_enter = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__log" "Enter" [| typeof<string>; typeof<System.Object[]> |]
-            | None -> null
-
-        let ref_trace2 = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__log" "Trace2" [| typeof<System.Object>; typeof<string> |]
-            | None -> null
-
         let tbl_lookup = 
             let has_table =
                 match (ndx.Table, ndx.TableImport, ndx.Element) with
@@ -2003,7 +1972,7 @@ module wasm.cecil
                 | (None, Some _, Some _) -> true
                 | _ -> false
             if has_table then
-                let m = gen_tbl_lookup ndx bt tbl ref_trace2 main_module
+                let m = gen_tbl_lookup ndx bt tbl main_module
                 container.Methods.Add(m)
                 Some m
             else None
