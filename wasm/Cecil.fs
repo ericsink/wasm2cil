@@ -103,12 +103,8 @@ module wasm.cecil
         bt : BasicTypes
         trace : MethodReference
         trace2 : MethodReference
-        clz_i64 : MethodReference
         ctz_i64 : MethodReference
-        popcnt_i64 : MethodReference
-        clz_i32 : MethodReference
         ctz_i32 : MethodReference
-        popcnt_i32 : MethodReference
         profile : ProfileHooks option
         }
 
@@ -204,6 +200,52 @@ module wasm.cecil
         method.Body.Variables.Add(v)
         v
 
+    let gen_body_popcnt_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+        // x -= x >> 1 & 0x55555555;
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 1))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x55555555))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Sub))
+
+        // x = (x & 0x33333333) + (x >> 2 & 0x33333333);
+        let t1 = f_make_tmp (cecil_valtype bt I32)
+        il.Append(il.Create(OpCodes.Stloc, t1))
+        il.Append(il.Create(OpCodes.Ldloc, t1))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x33333333))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Ldloc, t1))
+        il.Append(il.Create(OpCodes.Ldc_I4, 2))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x33333333))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Add))
+
+        // x = (x >> 4) + x & 0x0f0f0f0f;
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 4))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Add))
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x0f0f0f0f))
+        il.Append(il.Create(OpCodes.And))
+
+        // x += x >> 8;
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 8))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Add))
+
+        // x += x >> 16;
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 16))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Add))
+
+        // return x & 0x0000003f;
+        il.Append(il.Create(OpCodes.Ldc_I4, 0x0000003f))
+        il.Append(il.Create(OpCodes.And))
+
     let gen_body_popcnt_i64 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
         // x -= (x >> 1) & 0x5555555555555555L;
         il.Append(il.Create(OpCodes.Dup))
@@ -284,6 +326,46 @@ module wasm.cecil
 
         il.Append(il.Create(OpCodes.Neg))
         il.Append(il.Create(OpCodes.Ldc_I8, 64L))
+        il.Append(il.Create(OpCodes.Add))
+
+    let gen_body_clz_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+        // https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
+        // do the smearing
+
+        // x |= x >> 1; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 1))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 2; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 2))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 4; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 4))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 8; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 8))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 16; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 16))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        gen_body_popcnt_i32 bt il f_make_tmp
+
+        il.Append(il.Create(OpCodes.Neg))
+        il.Append(il.Create(OpCodes.Ldc_I4, 32))
         il.Append(il.Create(OpCodes.Add))
 
     let check_instr ctx (a_locals : ParamOrVar[]) blocks op =
@@ -868,11 +950,11 @@ module wasm.cecil
         | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
         | MemoryGrow _ -> il.Append(il.Create(OpCodes.Call, ctx.mem_grow))
         | I32Clz ->
-            il.Append(il.Create(OpCodes.Call, ctx.clz_i32))
+            gen_body_clz_i32 ctx.bt il f_make_tmp
         | I32Ctz ->
             il.Append(il.Create(OpCodes.Call, ctx.ctz_i32))
         | I32Popcnt ->
-            il.Append(il.Create(OpCodes.Call, ctx.popcnt_i32))
+            gen_body_popcnt_i32 ctx.bt il f_make_tmp
         | I32Rotl ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
             // return (value << count) | (value >> (32 - count))
@@ -916,12 +998,10 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Or))
 
         | I64Clz ->
-            //il.Append(il.Create(OpCodes.Call, ctx.clz_i64))
             gen_body_clz_i64 ctx.bt il f_make_tmp
         | I64Ctz ->
             il.Append(il.Create(OpCodes.Call, ctx.ctz_i64))
         | I64Popcnt ->
-            //il.Append(il.Create(OpCodes.Call, ctx.popcnt_i64))
             gen_body_popcnt_i64 ctx.bt il f_make_tmp
         | I64Rotl ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
@@ -1279,48 +1359,6 @@ module wasm.cecil
         let a_globals = Array.mapi prep ndx.GlobalLookup
 
         a_globals
-
-    let gen_clz_i64 bt =
-        let method = 
-            new MethodDefinition(
-                "__clz_i64",
-                MethodAttributes.Private ||| MethodAttributes.Static,
-                bt.typ_i64
-                )
-        let parm = new ParameterDefinition(bt.typ_i64)
-        method.Parameters.Add(parm)
-
-        let il = method.Body.GetILProcessor()
-
-        il.Append(il.Create(OpCodes.Ldarg, parm))
-
-        let f_make_tmp = make_tmp method
-        gen_body_clz_i64 bt il f_make_tmp
-
-        il.Append(il.Create(OpCodes.Ret))
-
-        method
-
-    let gen_popcnt_i64 bt =
-        let method = 
-            new MethodDefinition(
-                "__popcnt_i64",
-                MethodAttributes.Private ||| MethodAttributes.Static,
-                bt.typ_i64
-                )
-        let parm = new ParameterDefinition(bt.typ_i64)
-        method.Parameters.Add(parm)
-
-        let il = method.Body.GetILProcessor()
-
-        il.Append(il.Create(OpCodes.Ldarg, parm))
-
-        let f_make_tmp = make_tmp method
-        gen_body_popcnt_i64 bt il f_make_tmp
-
-        il.Append(il.Create(OpCodes.Ret))
-
-        method
 
     let gen_tbl_lookup ndx bt (tbl : FieldDefinition) (trace2 : MethodReference) (main_mod : ModuleDefinition) =
         let method = 
@@ -1941,19 +1979,10 @@ module wasm.cecil
             gen_grow_mem mem mem_size bt
         container.Methods.Add(mem_grow)
 
-        let clz_i64 = gen_clz_i64 bt
-        container.Methods.Add(clz_i64)
-
         let ctz_i64 = 
             match settings.env with
             | Some a ->
                 find_method container.Module a "__compiler_support" "ctz_i64" [| typeof<int64> |]
-            | None -> null
-
-        let clz_i32 = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__compiler_support" "clz_i32" [| typeof<int32> |]
             | None -> null
 
         let ctz_i32 = 
@@ -1961,15 +1990,6 @@ module wasm.cecil
             | Some a ->
                 find_method container.Module a "__compiler_support" "ctz_i32" [| typeof<int32> |]
             | None -> null
-
-        let popcnt_i32 = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__compiler_support" "popcnt_i32" [| typeof<int32> |]
-            | None -> null
-
-        let popcnt_i64 = gen_popcnt_i64 bt
-        container.Methods.Add(popcnt_i64)
 
         let profile_hooks =
             match settings.profile with
@@ -1993,12 +2013,8 @@ module wasm.cecil
                 tbl_lookup = tbl_lookup
                 trace = ref_trace
                 trace2 = ref_trace2
-                clz_i64 = clz_i64
                 ctz_i64 = ctz_i64
-                popcnt_i64 = popcnt_i64
-                clz_i32 = clz_i32
                 ctz_i32 = ctz_i32
-                popcnt_i32 = popcnt_i32
                 profile = profile_hooks
             }
 
