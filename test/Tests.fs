@@ -678,6 +678,7 @@ let i32rotl () =
     let mi = get_method a name
 
     let impl (v : int32) c =
+        // like the wasm version, we need to accept signed but treat it as unsigned
         let v = uint32 v
         let q = (v <<< c) ||| (v >>> (32 - c))
         int q
@@ -697,9 +698,152 @@ let i32rotl () =
     check 5 1
     check 8675309 0
     check 8675309 1
+    check 8675309 -1
+    check 8675309 -3
     check 8675309 4
     check 8675309 8
     check 8675309 19
+
+[<Fact>]
+let i32rotr () =
+    let fb = FunctionBuilder()
+    let name = "i32rotr"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I32
+    fb.AddParam I32
+    fb.AddParam I32
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (I32Rotr)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+    let a = prep_assembly_none m
+    let mi = get_method a name
+
+    let impl (v : int32) c =
+        // like the wasm version, we need to accept signed but treat it as unsigned
+        let v = uint32 v
+        let q = (v >>> c) ||| (v <<< (32 - c))
+        int q
+
+    let check_wrap_all_the_way_around (n : int32) =
+        let q = invoke_2 mi n 32
+        Assert.Equal(n, q)
+
+    check_wrap_all_the_way_around 284
+    check_wrap_all_the_way_around 1
+    check_wrap_all_the_way_around 1995
+
+    let check =
+        check_2 mi impl
+
+    check 17 4
+    check 5 1
+    check 8675309 0
+    check 8675309 1
+    check 8675309 -1
+    check 8675309 -3
+    check 8675309 4
+    check 8675309 8
+    check 8675309 19
+
+[<Fact>]
+let i64rotl () =
+    let fb = FunctionBuilder()
+    let name = "i64rotl"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I64
+    fb.AddParam I64
+    fb.AddParam I64
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (I64Rotl)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+    let a = prep_assembly_none m
+    let mi = get_method a name
+
+    let impl (v : int64) (c : int64) =
+        // like the wasm version, we need to accept signed but treat it as unsigned
+        let v = uint64 v
+        let q = (v <<< (int) c) ||| (v >>> (int) (64L - c))
+        int64 q
+
+    let check_wrap_all_the_way_around (n : int64) =
+        let q = invoke_2 mi n 64L
+        Assert.Equal(n, q)
+
+    check_wrap_all_the_way_around 284L
+    check_wrap_all_the_way_around 1L
+    check_wrap_all_the_way_around 1995L
+
+    let check =
+        check_2 mi impl
+
+    check 17L 4L
+    check 5L 1L
+    check 8675309L 0L
+    check 8675309L 1L
+    check 8675309L -1L
+    check 8675309L -3L
+    check 8675309L 4L
+    check 8675309L 8L
+    check 8675309L 19L
+
+[<Fact>]
+let i64rotr () =
+    let fb = FunctionBuilder()
+    let name = "i64rotr"
+    fb.Name <- Some name
+    fb.ReturnType <- Some I64
+    fb.AddParam I64
+    fb.AddParam I64
+    fb.Add (LocalGet (LocalIdx 0u))
+    fb.Add (LocalGet (LocalIdx 1u))
+    fb.Add (I64Rotr)
+    fb.Add (End)
+
+    let b = ModuleBuilder()
+    b.AddFunction(fb)
+
+    let m = b.CreateModule()
+    let a = prep_assembly_none m
+    let mi = get_method a name
+
+    let impl (v : int64) (c : int64) =
+        // like the wasm version, we need to accept signed but treat it as unsigned
+        let v = uint64 v
+        let q = (v >>> (int) c) ||| (v <<< (int) (64L - c))
+        int64 q
+
+    let check_wrap_all_the_way_around (n : int64) =
+        let q = invoke_2 mi n 64L
+        Assert.Equal(n, q)
+
+    check_wrap_all_the_way_around 284L
+    check_wrap_all_the_way_around 1L
+    check_wrap_all_the_way_around 1995L
+
+    let check =
+        check_2 mi impl
+
+    check 17L 4L
+    check 5L 1L
+    check 8675309L 0L
+    check 8675309L 1L
+    check 8675309L -1L
+    check 8675309L -3L
+    check 8675309L 4L
+    check 8675309L 8L
+    check 8675309L 19L
 
 let make_simple_binop_func name t op =
     let fb = FunctionBuilder()

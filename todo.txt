@@ -1,6 +1,4 @@
 
-Rotr
-
 mv compiler_support into its own assembly
 
 then move compiler_support to the assembly being

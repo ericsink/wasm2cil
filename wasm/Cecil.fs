@@ -812,7 +812,27 @@ module wasm.cecil
 
             il.Append(il.Create(OpCodes.Or))
 
-        | I32Rotr -> todo op
+        | I32Rotr ->
+            // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
+            // return (value >> count) | (value << (32 - count))
+
+            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, var_count))
+            let var_v = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, var_v))
+
+            il.Append(il.Create(OpCodes.Ldloc, var_v))
+            il.Append(il.Create(OpCodes.Ldloc, var_count))
+            il.Append(il.Create(OpCodes.Shr_Un))
+
+            il.Append(il.Create(OpCodes.Ldloc, var_v))
+            il.Append(il.Create(OpCodes.Ldc_I4, 32))
+            il.Append(il.Create(OpCodes.Ldloc, var_count))
+            il.Append(il.Create(OpCodes.Sub))
+            il.Append(il.Create(OpCodes.Shl))
+
+            il.Append(il.Create(OpCodes.Or))
+
         | I64Clz ->
             il.Append(il.Create(OpCodes.Call, ctx.clz_i64))
         | I64Ctz ->
@@ -840,7 +860,27 @@ module wasm.cecil
 
             il.Append(il.Create(OpCodes.Or))
 
-        | I64Rotr -> todo op
+        | I64Rotr ->
+            // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
+            // return (value >> count) | (value << (64 - count))
+
+            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
+            il.Append(il.Create(OpCodes.Stloc, var_count))
+            let var_v = f_make_tmp (cecil_valtype ctx.bt I64)
+            il.Append(il.Create(OpCodes.Stloc, var_v))
+
+            il.Append(il.Create(OpCodes.Ldloc, var_v))
+            il.Append(il.Create(OpCodes.Ldloc, var_count))
+            il.Append(il.Create(OpCodes.Shr_Un))
+
+            il.Append(il.Create(OpCodes.Ldloc, var_v))
+            il.Append(il.Create(OpCodes.Ldc_I4, 64))
+            il.Append(il.Create(OpCodes.Ldloc, var_count))
+            il.Append(il.Create(OpCodes.Sub))
+            il.Append(il.Create(OpCodes.Shl))
+
+            il.Append(il.Create(OpCodes.Or))
+
         | F32Copysign ->
             let v2 = f_make_tmp (cecil_valtype ctx.bt F32)
             il.Append(il.Create(OpCodes.Stloc, v2))
