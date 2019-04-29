@@ -26,5 +26,10 @@ public static class __trace
         System.Console.WriteLine("exiting {0}", s);
     }
 
+    public static void GrowMem(int old_size, int old_ptr, int grow, int new_size, int new_ptr)
+    {
+        System.Console.WriteLine("GrowMem {0} {1} {2} {3} {4}", old_size, old_ptr, grow, new_size, new_ptr);
+    }
+
 }
 

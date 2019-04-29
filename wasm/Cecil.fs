@@ -101,7 +101,7 @@ module wasm.cecil
         trace_enter : MethodReference
         trace_exit_value : MethodReference
         trace_exit_void : MethodReference
-        //trace_grow_mem : MethodReference
+        trace_grow_mem : MethodReference
         }
 
     type GenContext = {
@@ -1778,7 +1778,7 @@ module wasm.cecil
 
         method
 
-    let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt =
+    let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt trace (md : ModuleDefinition) =
         let method = 
             new MethodDefinition(
                 "__grow_mem",
@@ -1791,18 +1791,30 @@ module wasm.cecil
         let v_old_size = new VariableDefinition(bt.typ_i32)
         method.Body.Variables.Add(v_old_size)
 
+        let v_new_size = new VariableDefinition(bt.typ_i32)
+        method.Body.Variables.Add(v_new_size)
+
+        let v_old_mem = new VariableDefinition(bt.typ_intptr)
+        method.Body.Variables.Add(v_old_mem)
+
+        let v_new_mem = new VariableDefinition(bt.typ_intptr)
+        method.Body.Variables.Add(v_new_mem)
+
         let il = method.Body.GetILProcessor()
 
         il.Append(il.Create(OpCodes.Ldsfld, mem))
+        il.Append(il.Create(OpCodes.Stloc, v_old_mem))
 
         il.Append(il.Create(OpCodes.Ldsfld, mem_size))
-        il.Append(il.Create(OpCodes.Dup))
         il.Append(il.Create(OpCodes.Stloc, v_old_size))
+
+        il.Append(il.Create(OpCodes.Ldloc, v_old_size))
         il.Append(il.Create(OpCodes.Ldarg, parm))
         il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Stsfld, mem_size))
+        il.Append(il.Create(OpCodes.Stloc, v_new_size))
 
+        il.Append(il.Create(OpCodes.Ldloc, v_old_mem))
+        il.Append(il.Create(OpCodes.Ldloc, v_new_size))
         il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
         il.Append(il.Create(OpCodes.Mul))
 
@@ -1815,7 +1827,21 @@ module wasm.cecil
         // TODO where is this freed?
         let ext = mem.Module.ImportReference(method_realloc)
         il.Append(il.Create(OpCodes.Call, ext))
+        il.Append(il.Create(OpCodes.Stloc, v_new_mem))
 
+        match trace with
+        | Some h ->
+            il.Append(il.Create(OpCodes.Ldloc, v_old_size))
+            il.Append(il.Create(OpCodes.Ldloc, v_old_mem))
+            il.Append(il.Create(OpCodes.Ldarg, parm))
+            il.Append(il.Create(OpCodes.Ldloc, v_new_size))
+            il.Append(il.Create(OpCodes.Ldloc, v_new_mem))
+            il.Append(il.Create(OpCodes.Call, h.trace_grow_mem))
+        | None -> ()
+
+        il.Append(il.Create(OpCodes.Ldloc, v_new_size))
+        il.Append(il.Create(OpCodes.Stsfld, mem_size))
+        il.Append(il.Create(OpCodes.Ldloc, v_new_mem))
         il.Append(il.Create(OpCodes.Stsfld, mem))
 
         // memset 0
@@ -1982,10 +2008,6 @@ module wasm.cecil
             | Some s -> s.types
             | None -> [| |]
 
-        let mem_grow =
-            gen_grow_mem mem mem_size bt
-        container.Methods.Add(mem_grow)
-
         let trace_hooks =
             match settings.trace with
             | TraceSetting.No -> None 
@@ -1994,6 +2016,7 @@ module wasm.cecil
                     trace_enter = find_method container.Module a "__trace" "Enter" [| typeof<string>; typeof<System.Object[]> |]
                     trace_exit_value = find_method container.Module a "__trace" "Exit" [| typeof<string>; typeof<System.Object> |]
                     trace_exit_void = find_method container.Module a "__trace" "Exit" [| typeof<string>; |]
+                    trace_grow_mem = find_method container.Module a "__trace" "GrowMem" [| typeof<int32>; typeof<int32>; typeof<int32>; typeof<int32>; typeof<int32>; |]
                     }
 
         let profile_hooks =
@@ -2004,6 +2027,10 @@ module wasm.cecil
                     profile_enter = find_method container.Module a "__profile" "Enter" [| typeof<string> |]
                     profile_exit = find_method container.Module a "__profile" "Exit" [| typeof<string> |]
                     }
+
+        let mem_grow =
+            gen_grow_mem mem mem_size bt trace_hooks container.Module
+        container.Methods.Add(mem_grow)
 
         let ctx =
             {
