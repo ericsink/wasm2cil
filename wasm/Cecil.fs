@@ -647,7 +647,7 @@ module wasm.cecil
             bi.result
         | _ -> None
 
-    let gen_instr ctx (a_locals : ParamOrVar[]) blocks result_type body (il : ILProcessor) f_make_tmp op =
+    let gen_instr ctx (a_locals : ParamOrVar[]) blocks result_type body (il : ILProcessor) f_make_tmp op (mem_loc : VariableDefinition) =
         let get_label_from_block blk =
             match blk with
             | CB_Body _ -> failwith "branch not allowed outside block"
@@ -667,7 +667,7 @@ module wasm.cecil
 
         let prep_addr (m : MemArg) =
             // the address operand should be on the stack
-            il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
+            il.Append(il.Create(OpCodes.Ldloc, mem_loc))
             il.Append(il.Create(OpCodes.Add))
             if m.offset <> 0u then
                 il.Append(il.Create(OpCodes.Ldc_I4, int m.offset))
@@ -1257,6 +1257,10 @@ module wasm.cecil
 *)
             ()
 
+        let mem_loc = f_make_tmp ctx.bt.typ_intptr
+        il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
+        il.Append(il.Create(OpCodes.Stloc, mem_loc))
+
         for op in e do
 
             //printfn "op: %A" op // (wasm.instr_name.get_instruction_name op)
@@ -1289,7 +1293,7 @@ module wasm.cecil
                 post_gen blocks result_type
             else
                 let result_type = check_instr ctx a_locals blocks op
-                gen_instr ctx a_locals blocks result_type body il f_make_tmp op
+                gen_instr ctx a_locals blocks result_type body il f_make_tmp op mem_loc
                 post_gen blocks result_type
 
             dump "after"
