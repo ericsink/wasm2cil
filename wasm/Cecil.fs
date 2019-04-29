@@ -1991,9 +1991,9 @@ module wasm.cecil
             | TraceSetting.No -> None 
             | TraceSetting.Yes a ->
                 Some {
-                    trace_enter = find_method container.Module a "__log" "Enter" [| typeof<string>; typeof<System.Object[]> |]
-                    trace_exit_value = find_method container.Module a "__profile" "Exit" [| typeof<string>; typeof<System.Object> |]
-                    trace_exit_void = find_method container.Module a "__profile" "Exit" [| typeof<string>; |]
+                    trace_enter = find_method container.Module a "__trace" "Enter" [| typeof<string>; typeof<System.Object[]> |]
+                    trace_exit_value = find_method container.Module a "__trace" "Exit" [| typeof<string>; typeof<System.Object> |]
+                    trace_exit_void = find_method container.Module a "__trace" "Exit" [| typeof<string>; |]
                     }
 
         let profile_hooks =
