@@ -1,4 +1,9 @@
 
+for brotli compress, setting initial mem size really 
+high doesn't reduce number of calls to grow mem.  :-(
+
+need profiler calls in grow mem
+
 mv profiler out of Wasi assembly
 
 mv trace out of Wasi assembly
