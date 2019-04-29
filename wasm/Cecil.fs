@@ -204,6 +204,85 @@ module wasm.cecil
         method.Body.Variables.Add(v)
         v
 
+    let gen_body_clz_i64 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+        // https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
+        // do the smearing
+
+        // x |= x >> 1; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 1))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 2; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 2))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 4; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 4))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 8; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 8))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 16; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 16))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x |= x >> 32; 
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 32))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Or))
+
+        // x -= (x >> 1) & 0x5555555555555555L;
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 1))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Ldc_I8, 0x5555555555555555L))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Sub))
+
+        // x = (x & 0x3333333333333333L) + ((x >> 2) & 0x3333333333333333L);
+        let t1 = f_make_tmp (cecil_valtype bt I64)
+        il.Append(il.Create(OpCodes.Stloc, t1))
+        il.Append(il.Create(OpCodes.Ldloc, t1))
+        il.Append(il.Create(OpCodes.Ldc_I8, 0x3333333333333333L))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Ldloc, t1))
+        il.Append(il.Create(OpCodes.Ldc_I4, 2))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Ldc_I8, 0x3333333333333333L))
+        il.Append(il.Create(OpCodes.And))
+        il.Append(il.Create(OpCodes.Add))
+
+        // x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fL;
+        il.Append(il.Create(OpCodes.Dup))
+        il.Append(il.Create(OpCodes.Ldc_I4, 4))
+        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(il.Create(OpCodes.Add))
+        il.Append(il.Create(OpCodes.Ldc_I8, 0x0f0f0f0f0f0f0f0fL))
+        il.Append(il.Create(OpCodes.And))
+
+        // return (x * 0x0101010101010101L) >> 56
+        il.Append(il.Create(OpCodes.Ldc_I8, 0x0101010101010101L))
+        il.Append(il.Create(OpCodes.Mul))
+        il.Append(il.Create(OpCodes.Ldc_I4, 56))
+        il.Append(il.Create(OpCodes.Shr_Un))
+
+        il.Append(il.Create(OpCodes.Neg))
+        il.Append(il.Create(OpCodes.Ldc_I8, 64L))
+        il.Append(il.Create(OpCodes.Add))
+
     let check_instr ctx (a_locals : ParamOrVar[]) blocks op =
         let cur_block = peek blocks
         let cur_blockinfo = get_blockinfo cur_block
@@ -834,7 +913,8 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Or))
 
         | I64Clz ->
-            il.Append(il.Create(OpCodes.Call, ctx.clz_i64))
+            //il.Append(il.Create(OpCodes.Call, ctx.clz_i64))
+            gen_body_clz_i64 ctx.bt il f_make_tmp
         | I64Ctz ->
             il.Append(il.Create(OpCodes.Call, ctx.ctz_i64))
         | I64Popcnt ->
@@ -1195,6 +1275,27 @@ module wasm.cecil
         let a_globals = Array.mapi prep ndx.GlobalLookup
 
         a_globals
+
+    let gen_clz_i64 bt =
+        let method = 
+            new MethodDefinition(
+                "__clz_i64",
+                MethodAttributes.Private ||| MethodAttributes.Static,
+                bt.typ_i64
+                )
+        let parm = new ParameterDefinition(bt.typ_i64)
+        method.Parameters.Add(parm)
+
+        let il = method.Body.GetILProcessor()
+
+        il.Append(il.Create(OpCodes.Ldarg, parm))
+
+        let f_make_tmp = make_tmp method
+        gen_body_clz_i64 bt il f_make_tmp
+
+        il.Append(il.Create(OpCodes.Ret))
+
+        method
 
     let gen_tbl_lookup ndx bt (tbl : FieldDefinition) (trace2 : MethodReference) (main_mod : ModuleDefinition) =
         let method = 
@@ -1815,11 +1916,8 @@ module wasm.cecil
             gen_grow_mem mem mem_size bt
         container.Methods.Add(mem_grow)
 
-        let clz_i64 = 
-            match settings.env with
-            | Some a ->
-                find_method container.Module a "__compiler_support" "clz_i64" [| typeof<int64> |]
-            | None -> null
+        let clz_i64 = gen_clz_i64 bt
+        container.Methods.Add(clz_i64)
 
         let ctz_i64 = 
             match settings.env with

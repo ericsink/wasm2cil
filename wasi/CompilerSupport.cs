@@ -23,6 +23,7 @@ public static class __compiler_support
 		x += x >> 16;
 		return x & 0x0000003f;
     }
+#if not
     public static long clz_i64(long x)
     {
 		const long numIntBits = sizeof(long) * 8; //compile time constant
@@ -36,6 +37,7 @@ public static class __compiler_support
         // TODO inline popcnt here?
 		return numIntBits - popcnt_i64(x);
     }
+#endif
     public static int clz_i32(int x)
     {
 		// https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
