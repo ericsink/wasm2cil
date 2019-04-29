@@ -1774,7 +1774,7 @@ module wasm.cecil
 
         method
 
-    let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt trace (md : ModuleDefinition) =
+    let gen_grow_mem (mem : FieldReference) (mem_size : FieldReference) bt trace profile =
         let method = 
             new MethodDefinition(
                 "__grow_mem",
@@ -1797,6 +1797,12 @@ module wasm.cecil
         method.Body.Variables.Add(v_new_mem)
 
         let il = method.Body.GetILProcessor()
+
+        match profile with
+        | Some h ->
+            il.Append(il.Create(OpCodes.Ldstr, method.Name))
+            il.Append(il.Create(OpCodes.Call, h.profile_enter))
+        | None -> ()
 
         il.Append(il.Create(OpCodes.Ldsfld, mem))
         il.Append(il.Create(OpCodes.Stloc, v_old_mem))
@@ -1859,6 +1865,13 @@ module wasm.cecil
         // return value
 
         il.Append(il.Create(OpCodes.Ldloc, v_old_size))
+
+        match profile with
+        | Some h ->
+            il.Append(il.Create(OpCodes.Ldstr, method.Name))
+            il.Append(il.Create(OpCodes.Call, h.profile_exit))
+        | None -> ()
+
         il.Append(il.Create(OpCodes.Ret))
 
         method
@@ -2025,7 +2038,7 @@ module wasm.cecil
                     }
 
         let mem_grow =
-            gen_grow_mem mem mem_size bt trace_hooks container.Module
+            gen_grow_mem mem mem_size bt trace_hooks profile_hooks
         container.Methods.Add(mem_grow)
 
         let ctx =

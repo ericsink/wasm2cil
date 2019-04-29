@@ -32,9 +32,9 @@ let main argv =
         let ver = new System.Version(1, 0, 0, 0)
         let settings = {
             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
-            //profile = ProfileSetting.Yes assembly
-            profile = ProfileSetting.No
-            trace = TraceSetting.Yes assembly
+            profile = ProfileSetting.Yes assembly
+            //profile = ProfileSetting.No
+            trace = TraceSetting.No
             env = Some assembly
             }
         gen_assembly settings m id ns classname ver ms
