@@ -743,25 +743,11 @@ module wasm.cecil
             let fn = ctx.a_methods.[int fidx]
             match fn with
             | MethodRefImported mf ->
-#if not
-                il.Append(il.Create(OpCodes.Ldstr, (sprintf "calling import %s" mf.method.Name)))
-                il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
                 il.Append(il.Create(OpCodes.Call, mf.method))
-#if not
-                il.Append(il.Create(OpCodes.Ldstr, (sprintf "back from import %s" mf.method.Name)))
-                il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
             | MethodRefInternal mf ->
                 il.Append(il.Create(OpCodes.Call, mf.method))
 
         | CallIndirect _ ->
-#if not
-            il.Append(il.Create(OpCodes.Dup))
-            il.Append(il.Create(OpCodes.Box, ctx.bt.typ_i32))
-            il.Append(il.Create(OpCodes.Ldstr, "CallIndirect"))
-            il.Append(il.Create(OpCodes.Call, ctx.trace2))
-#endif
             let cs =
                 let stack_info = get_instruction_stack_info op
                 match stack_info with
@@ -780,10 +766,6 @@ module wasm.cecil
             | Some f -> il.Append(il.Create(OpCodes.Call, f))
             | None -> failwith "illegal to use CallIndirect with no table"
             il.Append(il.Create(OpCodes.Calli, cs))
-#if not
-            il.Append(il.Create(OpCodes.Ldstr, "after CallIndirect"))
-            il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
 
         | GlobalGet (GlobalIdx idx) ->
             let g = ctx.a_globals.[int idx]
@@ -1532,11 +1514,6 @@ module wasm.cecil
                 )
         let il = method.Body.GetILProcessor()
 
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "entering data_setup"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
-
         // need to grab a reference to this assembly 
         // (the one that contains our resources)
         // and store it in a local so we can use it
@@ -1573,23 +1550,8 @@ module wasm.cecil
             // and the length
             il.Append(il.Create(OpCodes.Ldc_I4, d.item.init.Length))
 
-#if not
-            il.Append(il.Create(OpCodes.Ldstr, "before Marshal.Copy"))
-            il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
-
             // now copy
             il.Append(il.Create(OpCodes.Call, ref_mcopy))
-
-#if not
-            il.Append(il.Create(OpCodes.Ldstr, "after Marshal.Copy"))
-            il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
-
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "exiting data_setup"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
 
         il.Append(il.Create(OpCodes.Ret))
 
@@ -1603,11 +1565,6 @@ module wasm.cecil
                 ctx.bt.typ_void
                 )
         let il = method.Body.GetILProcessor()
-
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "entering tbl_setup"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
 
         let count_tbl_entries = 
             match lim with
@@ -1636,13 +1593,6 @@ module wasm.cecil
         for elem in elems do
             cecil_expr (Some I32) il ctx f_make_tmp Array.empty elem.offset
 
-#if not
-            il.Append(il.Create(OpCodes.Dup))
-            il.Append(il.Create(OpCodes.Box, ctx.bt.typ_i32))
-            il.Append(il.Create(OpCodes.Ldstr, "    offset"))
-            il.Append(il.Create(OpCodes.Call, ctx.trace2))
-#endif
-
             il.Append(il.Create(OpCodes.Stloc, tmp))
             for i = 0 to (elem.init.Length - 1) do
 
@@ -1664,20 +1614,8 @@ module wasm.cecil
                     | MethodRefInternal m -> m.method :> MethodReference
                 il.Append(il.Create(OpCodes.Ldftn, m))
 
-#if not
-                il.Append(il.Create(OpCodes.Dup))
-                il.Append(il.Create(OpCodes.Box, ctx.bt.typ_intptr))
-                il.Append(il.Create(OpCodes.Ldstr, "    ldftn"))
-                il.Append(il.Create(OpCodes.Call, ctx.trace2))
-#endif
-
                 // and store it
                 il.Append(il.Create(OpCodes.Stind_I))
-
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "exiting tbl_setup"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
 
         il.Append(il.Create(OpCodes.Ret))
 
@@ -1691,11 +1629,6 @@ module wasm.cecil
                 ctx.bt.typ_void
                 )
         let il = method.Body.GetILProcessor()
-
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "entering cctor"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
 
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
@@ -1732,11 +1665,6 @@ module wasm.cecil
                 cecil_expr (Some gi.glob.item.globaltype.typ) il ctx f_make_tmp Array.empty gi.glob.item.init
                 il.Append(il.Create(OpCodes.Stsfld, gi.field))
             | GlobalRefImported _ -> ()
-
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "exiting cctor"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-#endif
 
         il.Append(il.Create(OpCodes.Ret))
 
@@ -1824,14 +1752,6 @@ module wasm.cecil
 
         let il = method.Body.GetILProcessor()
 
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "entering load_resource"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-        il.Append(il.Create(OpCodes.Ldarg, parm_name))
-        il.Append(il.Create(OpCodes.Ldstr, "    name"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace2))
-#endif
-
         il.Append(il.Create(OpCodes.Ldarg, parm_a))
         il.Append(il.Create(OpCodes.Ldarg, parm_name))
         il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.Reflection.Assembly>.GetMethod("GetManifestResourceStream", [| typeof<string> |]))))
@@ -1862,14 +1782,6 @@ module wasm.cecil
 *)
 
         il.Append(il.Create(OpCodes.Ldloc, v_result))
-
-#if not
-        il.Append(il.Create(OpCodes.Ldstr, "exiting load_resource"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-        il.Append(il.Create(OpCodes.Ldloc, v_result))
-        il.Append(il.Create(OpCodes.Ldstr, "    result"))
-        il.Append(il.Create(OpCodes.Call, ctx.trace2))
-#endif
 
         il.Append(il.Create(OpCodes.Ret))
 

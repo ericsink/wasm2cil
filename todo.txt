@@ -1,7 +1,7 @@
 
 mv profiler out of Wasi assembly
 
-mv trace out of Wasi assembly.  and it can be in F#
+mv trace out of Wasi assembly
 
 should probably lookup all references in a ns2.0 reference
 assembly.  seems wrong to have any references looked up
