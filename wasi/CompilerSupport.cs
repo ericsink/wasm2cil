@@ -7,6 +7,7 @@ using System.Collections.Generic;
 
 public static class __compiler_support
 {
+#if not
     public static long popcnt_i64(long x)
     {
 		x -= (x >> 1) & 0x5555555555555555L;
@@ -14,6 +15,7 @@ public static class __compiler_support
 		x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fL;
 		return (x * 0x0101010101010101L) >> 56;
     }
+#endif
     public static int popcnt_i32(int x)
     {
 		x -= x >> 1 & 0x55555555;
