@@ -35,6 +35,7 @@ module wasm.cecil
         typ_f32 : TypeReference
         typ_f64 : TypeReference
         typ_intptr : TypeReference
+        typ_object : TypeReference
         }
 
     let cecil_valtype bt vt =
@@ -101,6 +102,7 @@ module wasm.cecil
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
         bt : BasicTypes
+        trace_enter : MethodReference
         trace : MethodReference
         trace2 : MethodReference
         profile : ProfileHooks option
@@ -1375,18 +1377,27 @@ module wasm.cecil
             il.Append(il.Create(OpCodes.Call, h.profile_enter))
         | None -> ()
 #if not
-        il.Append(il.Create(OpCodes.Ldstr, (sprintf "entering %s" mi.method.Name)))
-        il.Append(il.Create(OpCodes.Call, ctx.trace))
-        for pair in a_locals do
-            match pair with
-            | ParamRef { def_param = def; typ = t } ->
-                let typ =cecil_valtype ctx.bt t
-                let name = def.Name
-                il.Append(il.Create(OpCodes.Ldarg, def))
-                il.Append(il.Create(OpCodes.Box, typ))
-                il.Append(il.Create(OpCodes.Ldstr, (sprintf "    param %s" name)))
-                il.Append(il.Create(OpCodes.Call, ctx.trace2))
-            | LocalRef { def_var = def } -> ()
+        let v_parms = new VariableDefinition(ctx.md.ImportReference(typeof<System.Object[]>))
+        mi.method.Body.Variables.Add(v_parms)
+        let parms =
+            a_locals
+            |> Array.choose (fun x -> match x with | ParamRef x -> Some (x) | LocalRef _ -> None)
+        il.Append(il.Create(OpCodes.Ldc_I4, parms.Length))
+        il.Append(il.Create(OpCodes.Newarr, ctx.bt.typ_object))
+        il.Append(il.Create(OpCodes.Stloc, v_parms))
+        let f_parm (i : int32) p =
+            il.Append(il.Create(OpCodes.Ldloc, v_parms))
+            il.Append(il.Create(OpCodes.Ldc_I4, i))
+            let { def_param = def; typ = t } = p
+            let typ = cecil_valtype ctx.bt t
+            // TODO it would be nice to include names here?
+            il.Append(il.Create(OpCodes.Ldarg, def))
+            il.Append(il.Create(OpCodes.Box, typ))
+            il.Append(il.Create(OpCodes.Stelem_Ref))
+        Array.iteri f_parm parms
+        il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
+        il.Append(il.Create(OpCodes.Ldloc, v_parms))
+        il.Append(il.Create(OpCodes.Call, ctx.trace_enter))
 #endif
         let result_typ = function_result_type mi.func.typ
         cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
@@ -1941,6 +1952,7 @@ module wasm.cecil
                 typ_f64 = main_module.TypeSystem.Double
                 typ_void = main_module.TypeSystem.Void
                 typ_intptr = main_module.TypeSystem.IntPtr
+                typ_object = main_module.TypeSystem.Object
             }
 
         let container = 
@@ -2040,6 +2052,12 @@ module wasm.cecil
                 find_method container.Module a "__log" "Trace" [| typeof<string> |]
             | None -> null
 
+        let ref_trace_enter = 
+            match settings.env with
+            | Some a ->
+                find_method container.Module a "__log" "Enter" [| typeof<string>; typeof<System.Object[]> |]
+            | None -> null
+
         let ref_trace2 = 
             match settings.env with
             | Some a ->
@@ -2087,6 +2105,7 @@ module wasm.cecil
                 mem_size = mem_size
                 mem_grow = mem_grow
                 tbl_lookup = tbl_lookup
+                trace_enter = ref_trace_enter
                 trace = ref_trace
                 trace2 = ref_trace2
                 profile = profile_hooks
