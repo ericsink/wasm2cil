@@ -21,9 +21,14 @@ module wasm.write
         write_byte w 0x6Duy
 
     let write_custom_section w s =
-        write_name w s.name
-        write_blob w s.data
-        0uy
+        match s with
+        | Unknown s ->
+            write_name w s.name
+            write_blob w s.data
+            0uy
+        | Name s ->
+            // TODO
+            0uy
 
     let write_valtype w vt =
         let b =

@@ -1339,6 +1339,7 @@ module wasm.cecil
     let gen_function_code ctx (mi : MethodRefInternal) =
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
+            // TODO look up names in mi.func.locals
             let get_name () =
                 sprintf "p%d" (a.Count)
             for x in mi.func.typ.parms do

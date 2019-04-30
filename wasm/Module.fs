@@ -88,10 +88,33 @@ module wasm.def
         expr: Instruction[]
         }
 
-    type CustomSection = {
+    type UnknownCustomSection = {
         name : string
         data : byte[]
         }
+
+    type NameAssoc = {
+        idx: uint32
+        name: string
+        }
+
+    type IndirectNameAssoc = {
+        idx: uint32
+        map: NameAssoc[]
+        }
+
+    type NameSubSection =
+        | Module of string
+        | Function of NameAssoc[]
+        | Local of IndirectNameAssoc[]
+
+    type NameCustomSection = {
+        subsections: NameSubSection[]
+        }
+
+    type CustomSection =
+        | Unknown of UnknownCustomSection
+        | Name of NameCustomSection
 
     type ImportSection = {
         imports : ImportItem[]

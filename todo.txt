@@ -1,12 +1,11 @@
 
+use names of locals
+
 for brotli compress, setting initial mem size really 
 high doesn't reduce number of calls to grow mem.  :-(
 in other words, the malloc implementation in wasi-sysroot
 doesn't seem to be able to make use of more memory that
 the process already has.
-
-gotta figure out a way to get better functions names
-than func_586 through the rust pipeline
 
 mv profiler out of Wasi assembly
 

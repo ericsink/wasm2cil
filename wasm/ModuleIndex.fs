@@ -22,6 +22,7 @@ module wasm.module_index
         code : CodeItem
         exported : bool
         idx : uint32
+        locals : NameAssoc[] option
         }
 
     type FuncLookupItem =
@@ -91,6 +92,25 @@ module wasm.module_index
         let s_global = Array.tryPick (fun x -> match x with | Global i -> Some i | _ -> None) m.sections
         let s_code = Array.tryPick (fun x -> match x with | Code i -> Some i | _ -> None) m.sections
         let s_type = Array.tryPick (fun x -> match x with | Type i -> Some i | _ -> None) m.sections
+        let s_name = Array.tryPick (fun x -> match x with | Custom (Name i) -> Some i | _ -> None) m.sections
+
+        // TODO the following code assumes only one func name subsection
+        let custom_func_names = 
+            match s_name with
+            | None -> Array.empty
+            | Some s -> 
+                match Array.tryPick (fun x -> match x with | NameSubSection.Function a -> Some a | _ -> None) s.subsections with
+                | Some a -> a
+                | None -> Array.empty
+
+        // TODO the following code assumes only one local name subsection
+        let custom_local_names = 
+            match s_name with
+            | None -> Array.empty
+            | Some s -> 
+                match Array.tryPick (fun x -> match x with | NameSubSection.Local a -> Some a | _ -> None) s.subsections with
+                | Some a -> a
+                | None -> Array.empty
 
         let exported_func_names = 
             match s_export with
@@ -103,18 +123,33 @@ module wasm.module_index
                 Array.choose f s.exports
 
         let get_func_internals sf st sc num_func_imports =
+            let find_custom_func_name fidx =
+                // TODO use something like a dictionary instead of linear search
+                Array.tryPick (fun { idx = idx; name = name; } -> if fidx = idx then Some name else None) custom_func_names
             let find_exported_func_name fidx =
+                // TODO use something like a dictionary instead of linear search
                 Array.tryPick (fun (idx,name) -> if fidx = idx then Some name else None) exported_func_names
+            let find_func_name fidx =
+                // an exported func name takes precedence
+                match find_exported_func_name fidx with
+                | Some x -> Some x
+                | None -> 
+                    let (FuncIdx q) = fidx
+                    find_custom_func_name q
+            let find_custom_local_names fidx =
+                // TODO use something like a dictionary instead of linear search
+                Array.tryPick (fun { idx = idx; map = map; } -> if fidx = idx then Some map else None) custom_local_names
 
             let f i t =
-                let fidx = i + num_func_imports
-                let name = find_exported_func_name (FuncIdx (uint32 fidx))
+                let (fidx : int) = i + num_func_imports
+                let name = find_func_name (FuncIdx (uint32 fidx))
                 let (TypeIdx i_type) = t
                 let exported =
                     match name with
                     | Some _ -> true
                     | None -> false
-                InternalFunc { name = name; typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported; idx = uint32 fidx }
+                let locals = find_custom_local_names (uint32 fidx)
+                InternalFunc { name = name; typ = st.types.[int i_type]; code = sc.codes.[i]; exported = exported; idx = uint32 fidx; locals = locals }
                 
             Array.mapi f sf.funcs
 

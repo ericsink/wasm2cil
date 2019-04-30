@@ -20,6 +20,8 @@ let main argv =
 
     //printfn "%A" m
 
+    let assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+
     let destname = "..\\miniray.dll"
     printfn "Generating assembly %s" destname
     let ba = 
@@ -32,7 +34,7 @@ let main argv =
             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
             profile = ProfileSetting.No
             trace = TraceSetting.No
-            env = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>) |> Some
+            env = Some assembly
             }
         gen_assembly settings m id ns classname ver ms
         ms.ToArray()

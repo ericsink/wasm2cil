@@ -12,12 +12,75 @@ module wasm.read
         let ba_name = read_bytes br len_name
         let name = System.Text.Encoding.UTF8.GetString(ba_name, 0, ba_name.Length);
         name
+    
+    let read_nameassoc br =
+        let idx = read_var_u32 br
+        let name = read_name br
+        {
+            NameAssoc.idx = idx
+            name = name
+        }
+
+    let read_module_name_subsection br =
+        let name = read_name br
+        NameSubSection.Module name
+
+    let read_namemap br =
+        let count = read_var_u32 br
+        let a = read_vector br count read_nameassoc
+        a
+
+    let read_indirectnameassoc br =
+        let idx = read_var_u32 br
+        let a = read_namemap br
+        {
+            IndirectNameAssoc.idx = idx
+            map = a
+        }
+
+    let read_indirectnamemap br =
+        let count = read_var_u32 br
+        let a = read_vector br count read_indirectnameassoc
+        a
+
+    let read_function_names_subsection br =
+        let a = read_namemap br
+        NameSubSection.Function a
+
+    let read_local_names_subsection br =
+        let a = read_indirectnamemap br
+        NameSubSection.Local a
+
+    let read_name_subsection br =
+        let id = read_byte br
+        let offset = get_read_offset br
+        let br_subsection = 
+            let len = read_var_u32 br
+            let ba_subsection = read_bytes br len
+            BinaryWasmStream(ba_subsection)
+        //printfn "read name subsection %d at %d with len %d" id offset (br_subsection.Length())
+        match id with
+        | 0uy -> read_module_name_subsection br_subsection
+        | 1uy -> read_function_names_subsection br_subsection
+        | 2uy -> read_local_names_subsection br_subsection
+        | _ -> failwith "unknown name subsection id"
+
+    let read_name_section ba =
+        let br = BinaryWasmStream(ba)
+        let sections = System.Collections.Generic.List<NameSubSection>()
+        while get_remaining br > 0 do
+            let s = read_name_subsection br
+            sections.Add(s)
+        Array.ofSeq sections
 
     let read_custom_section br =
         let name = read_name br
         let len = get_remaining br
         let ba = read_bytes br (len |> uint32)
-        Custom { name = name; data = ba; }
+        if name = "name" then
+            Custom (Name { subsections = read_name_section ba })
+        else
+            Custom (Unknown { name = name; data = ba; })
 
     let read_valtype br =
         read_byte br |> make_valtype
