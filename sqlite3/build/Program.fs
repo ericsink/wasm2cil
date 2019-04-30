@@ -1,5 +1,6 @@
 ﻿
 open System
+open System.IO
 
 open wasm.read_basic
 open wasm.read
@@ -8,8 +9,10 @@ open wasm.cecil
 
 [<EntryPoint>]
 let main argv =
+    let cwd = Directory.GetCurrentDirectory()
+    let top = Path.GetFullPath(Path.Combine(cwd, ".."))
     let m =
-        let filename = "..\\sqlite3.wasm"
+        let filename = Path.Combine(top, "sqlite3.wasm")
         printfn "Reading %s" filename
         let br = BinaryWasmStream(System.IO.File.ReadAllBytes(filename))
         let timer = System.Diagnostics.Stopwatch.StartNew()
@@ -20,7 +23,7 @@ let main argv =
 
     //printfn "%A" m
 
-    let destname = "..\\sqlite3.dll"
+    let destname = Path.Combine(top, "sqlite3.dll")
     printfn "Generating assembly %s" destname
     let ba = 
         use ms = new System.IO.MemoryStream()
