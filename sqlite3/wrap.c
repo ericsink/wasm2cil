@@ -178,7 +178,29 @@ int test3()
 int main(int argc, char** argv)
 {
     long t1 = get_ms();
-    int rc = test_more("t4.sqlite", 1000, 256, 384);
+    if (argc < 5)
+    {
+        fprintf(stderr, "Usage: %s filename count first last\n", argv[0]);
+        return -1;
+    }
+    char* filename = argv[1];
+    int count = atoi(argv[2]);
+    int first = atoi(argv[3]);
+    int last = atoi(argv[4]);
+    if (
+        (count < 0)
+        || (last < first)
+        || (last < 0)
+        || (last >= count)
+        || (first < 0)
+        || (first >= count)
+        )
+    {
+        fprintf(stderr, "numbers invalid\n");
+        return -1;
+    }
+    fprintf(stderr, "filename=%s  count=%d  first=%d  last=%d\n", filename, count, first, last);
+    int rc = test_more(filename, count, first, last);
     long t2 = get_ms();
     fprintf(stderr, "elapsed: %d ms\n", (int) (t2 - t1));
     printf("rc: %d\n", rc);
