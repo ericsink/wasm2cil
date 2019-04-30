@@ -112,7 +112,7 @@ let main argv =
         ) |> ignore
     app.OnExecute(
         (fun () ->
-            System.Console.Error.WriteLine("specify subcommand")
+            app.ShowHelp()
             )
         )
 
