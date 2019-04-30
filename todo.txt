@@ -71,9 +71,6 @@ because the po map is not valid.
 are strings in the wasi api supposed to be zero
 terminated?  case by case?
 
-for debugging, maybe we need the sysroot to be built
-with --export-all
-
 how does wasm represent a null pointer?  if everything
 is an integer address offset from the base of memory.
 
@@ -83,9 +80,6 @@ double disabled
 --
 
 explicitly add /usr/lib/llvm-8/bin to the path
-
---export-all instead of --export=main makes tracing
-easier because the functions have visible names
 
 sqlite3 demo vfs is weak.  it doesn't even have locking.
 need to use the regular vfs, but without pthreads.
