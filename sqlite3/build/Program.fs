@@ -26,6 +26,7 @@ let main argv =
     let destname = Path.Combine(top, "sqlite3.dll")
     printfn "Generating assembly %s" destname
     let ba = 
+        let assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
         use ms = new System.IO.MemoryStream()
         let id = "sqlite3"
         let ns = id
@@ -33,9 +34,10 @@ let main argv =
         let ver = new System.Version(1, 0, 0, 0)
         let settings = {
             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
+            //profile = ProfileSetting.Yes assembly
             profile = ProfileSetting.No
             trace = TraceSetting.No
-            env = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>) |> Some
+            env = Some assembly
             }
         gen_assembly settings m id ns classname ver ms
         ms.ToArray()
