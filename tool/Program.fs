@@ -96,7 +96,8 @@ let main argv =
                     let mutable rc = 0
                     try
                         let ret = mi.Invoke(null, null)
-                        rc <- unbox<int> ret
+                        if ret <> null then
+                                rc <- unbox<int> ret
                     with
                     | :? System.Reflection.TargetInvocationException as e ->
                         let e = e.InnerException
