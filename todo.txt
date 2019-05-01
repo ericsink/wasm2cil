@@ -16,14 +16,17 @@ mv trace out of Wasi assembly
 should probably lookup all references in a ns2.0 reference
 assembly.  seems wrong to have any references looked up
 in the assembly that the compiler happens to be running
-in.  is this NetStandard.Library nuget package?
+in.  is this the NetStandard.Library nuget package?
 
 are we taxing the JIT by having funcs with so many
 locals?
 
 enclosing class is always named foo ?  not at the
 compiler level, only as a default in temporary
-test console apps.
+test console apps.  use the module name from the
+custom name section?
+
+--
 
 we could have multiple reference/support assemblies
 if we knew a way to get clang to not always use "env".
@@ -34,6 +37,8 @@ in different places for certain things.
 env should be just for stuff the compiler looks
 for that is not in wasi, extra stuff beyond the
 wasi platform, or experimental additions
+
+--
 
 fix binary writer to handle the custom name section
 
