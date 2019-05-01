@@ -1,9 +1,11 @@
 
+WebAssembly/WASI#21
+
 use names of locals
 
 for brotli compress, setting initial mem size really 
 high doesn't reduce number of calls to grow mem.  :-(
-in other words, the malloc implementation in wasi-sysroot
+in other words, the malloc implementation in wasi-sysroot/rust
 doesn't seem to be able to make use of more memory that
 the process already has.
 
@@ -33,6 +35,8 @@ env should be just for stuff the compiler looks
 for that is not in wasi, extra stuff beyond the
 wasi platform, or experimental additions
 
+fix binary writer to handle the custom name section
+
 --
 
 statics/globals might be a problem.  what if we want
@@ -57,7 +61,7 @@ sample files that came from other sources, like clang.
 
 need tests for the WASI layer
 
-ouch.  the code that gets the preopened fds is
+hmmm.  the code that gets the preopened fds is
 called only from the startup code, and since 
 the sqlite lib build doesn't generate an entry 
 point, that never happens, so the open call dies 
