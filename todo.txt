@@ -39,6 +39,26 @@ fix binary writer to handle the custom name section
 
 --
 
+interested in possibilities to simplify memory
+access for perf.
+
+can store the mem base in a local if we know it
+won't change.  that helps the JIT optimizer.
+
+even better, what if the mem base were zero?
+like if we could replace the memory allocator
+and just return actual addresses?  but then we
+probably have a 32/64 bit problem.
+
+another possibility is to never realloc but
+just add blocks.  so the memory wouldn't be
+contiguous, but we would need to present it
+as if it were, like virtual.  benefit would be
+that nothing ever needs to move.  once you know
+the address of something, it doesn't change.
+
+--
+
 statics/globals might be a problem.  what if we want
 to run lots of webassembly programs in a single
 process, all sandboxed?
