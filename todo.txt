@@ -1,7 +1,7 @@
 
-WebAssembly/WASI#21
+WebAssembly/WASI#21 -- environ get, extra null
 
-use names of locals
+use names of locals ?
 
 for brotli compress, setting initial mem size really 
 high doesn't reduce number of calls to grow mem.  :-(
@@ -16,7 +16,7 @@ mv trace out of Wasi assembly
 should probably lookup all references in a ns2.0 reference
 assembly.  seems wrong to have any references looked up
 in the assembly that the compiler happens to be running
-in.
+in.  is this NetStandard.Library nuget package?
 
 are we taxing the JIT by having funcs with so many
 locals?
