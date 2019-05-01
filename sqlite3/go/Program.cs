@@ -18,7 +18,7 @@ public static class go
         {
             rc = e.ReturnCode;
         }
-        __profile.Report();
+        __profile.Report(System.Console.Error);
         return rc;
     }
 }

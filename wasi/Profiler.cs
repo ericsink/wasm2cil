@@ -70,13 +70,13 @@ public static class __profile
             _stack.Peek().timer_self.Start();
         }
     }
-    public static void Report()
+    public static void Report(TextWriter sw)
     {
         foreach (var ft in _funcs
             .OrderByDescending(kv => kv.Value.time_self)
             )
         {
-            System.Console.WriteLine("{0} -- {1} -- {2} -- {3}", ft.Key, ft.Value.count, ft.Value.time_all, ft.Value.time_self);
+            sw.WriteLine("{0} -- {1} -- {2} -- {3}", ft.Key, ft.Value.count, ft.Value.time_all, ft.Value.time_self);
         }
     }
 }

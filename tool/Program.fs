@@ -105,7 +105,7 @@ let main argv =
                         | _ -> raise e
 
                     if option_profile.ParsedValue then
-                        __profile.Report()
+                        __profile.Report(System.Console.Error)
                     )
                 )
             )
