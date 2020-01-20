@@ -11,6 +11,7 @@ module wasm.cecil
     open wasm.instr_stack
     open wasm.import
     open wasm.errors
+    open wasm.cil
 
     let mem_page_size = 64 * 1024
 
@@ -33,23 +34,6 @@ module wasm.cecil
         memory : MemorySetting
         }
 
-    type BasicTypes = {
-        typ_void : TypeReference
-        typ_i32 : TypeReference
-        typ_i64 : TypeReference
-        typ_f32 : TypeReference
-        typ_f64 : TypeReference
-        typ_intptr : TypeReference
-        typ_object : TypeReference
-        }
-
-    let cecil_valtype bt vt =
-        match vt with
-        | I32 -> bt.typ_i32
-        | I64 -> bt.typ_i64
-        | F32 -> bt.typ_f32
-        | F64 -> bt.typ_f64
-
     type ParamRef = {
         typ : ValType;
         def_param : ParameterDefinition;
@@ -57,7 +41,7 @@ module wasm.cecil
 
     type LocalRef = {
         typ : ValType;
-        def_var : VariableDefinition;
+        def_var : Variable;
         }
 
     type ParamOrVar =
@@ -113,7 +97,7 @@ module wasm.cecil
         tbl_lookup : MethodDefinition option
         a_globals : GlobalStuff[]
         a_methods : MethodStuff[]
-        bt : BasicTypes
+        bt : GenTypes
         trace : TraceHooks option
         profile : ProfileHooks option
         }
@@ -167,7 +151,7 @@ module wasm.cecil
     type BlockInfo = {
         result : ValType option
         opstack : MyStack<ValType>
-        label : Mono.Cecil.Cil.Instruction
+        label : Label
         mutable stack_polymorphic : bool
         }
 
@@ -205,268 +189,267 @@ module wasm.cecil
         let poly = if bi.stack_polymorphic then " - unreachable" else ""
         sprintf "%s %s%s"k t poly
 
-    let make_tmp (method : MethodDefinition) (t : TypeReference) =
-        let v = new VariableDefinition(t)
-        method.Body.Variables.Add(v)
+    let make_tmp (il : CilWriter) (t : ValType) =
+        let v = il.NewVariable(t)
         v
 
-    let gen_body_popcnt_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+    let gen_body_popcnt_i32 bt (il : CilWriter) (f_make_tmp : ValType -> Variable) =
         // x -= x >> 1 & 0x55555555;
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 1))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x55555555))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Sub))
+        il.Append(Dup)
+        il.Append(Ldc_I4 1)
+        il.Append(Shr_Un)
+        il.Append(Ldc_I4 0x55555555)
+        il.Append(And)
+        il.Append(Sub)
 
         // x = (x & 0x33333333) + (x >> 2 & 0x33333333);
-        let t1 = f_make_tmp (cecil_valtype bt I32)
-        il.Append(il.Create(OpCodes.Stloc, t1))
-        il.Append(il.Create(OpCodes.Ldloc, t1))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x33333333))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Ldloc, t1))
-        il.Append(il.Create(OpCodes.Ldc_I4, 2))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x33333333))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Add))
+        let t1 = f_make_tmp I32
+        il.Append(Stloc t1)
+        il.Append(Ldloc t1)
+        il.Append(Ldc_I4 0x33333333)
+        il.Append(And)
+        il.Append(Ldloc t1)
+        il.Append(Ldc_I4 2)
+        il.Append(Shr_Un)
+        il.Append(Ldc_I4 0x33333333)
+        il.Append(And)
+        il.Append(Add)
 
         // x = (x >> 4) + x & 0x0f0f0f0f;
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 4))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x0f0f0f0f))
-        il.Append(il.Create(OpCodes.And))
+        il.Append(Dup)
+        il.Append(Ldc_I4 4)
+        il.Append(Shr_Un)
+        il.Append(Add)
+        il.Append(Ldc_I4 0x0f0f0f0f)
+        il.Append(And)
 
         // x += x >> 8;
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 8))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Add))
+        il.Append(Dup)
+        il.Append(Ldc_I4 8)
+        il.Append(Shr_Un)
+        il.Append(Add)
 
         // x += x >> 16;
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 16))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Add))
+        il.Append(Dup)
+        il.Append(Ldc_I4 16)
+        il.Append(Shr_Un)
+        il.Append(Add)
 
         // return x & 0x0000003f;
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x0000003f))
-        il.Append(il.Create(OpCodes.And))
+        il.Append(Ldc_I4 0x0000003f)
+        il.Append(And)
 
-    let gen_body_popcnt_i64 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+    let gen_body_popcnt_i64 bt (il : CilWriter) (f_make_tmp : ValType -> Variable) =
         // x -= (x >> 1) & 0x5555555555555555L;
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 1))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Ldc_I8, 0x5555555555555555L))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Sub))
+        il.Append(Dup)
+        il.Append(Ldc_I4 1)
+        il.Append(Shr_Un)
+        il.Append(Ldc_I8 0x5555555555555555L)
+        il.Append(And)
+        il.Append(Sub)
 
         // x = (x & 0x3333333333333333L) + ((x >> 2) & 0x3333333333333333L);
-        let t1 = f_make_tmp (cecil_valtype bt I64)
-        il.Append(il.Create(OpCodes.Stloc, t1))
-        il.Append(il.Create(OpCodes.Ldloc, t1))
-        il.Append(il.Create(OpCodes.Ldc_I8, 0x3333333333333333L))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Ldloc, t1))
-        il.Append(il.Create(OpCodes.Ldc_I4, 2))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Ldc_I8, 0x3333333333333333L))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Add))
+        let t1 = f_make_tmp I64
+        il.Append(Stloc t1)
+        il.Append(Ldloc t1)
+        il.Append(Ldc_I8 0x3333333333333333L)
+        il.Append(And)
+        il.Append(Ldloc t1)
+        il.Append(Ldc_I4 2)
+        il.Append(Shr_Un)
+        il.Append(Ldc_I8 0x3333333333333333L)
+        il.Append(And)
+        il.Append(Add)
 
         // x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fL;
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 4))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Ldc_I8, 0x0f0f0f0f0f0f0f0fL))
-        il.Append(il.Create(OpCodes.And))
+        il.Append(Dup)
+        il.Append(Ldc_I4 4)
+        il.Append(Shr_Un)
+        il.Append(Add)
+        il.Append(Ldc_I8 0x0f0f0f0f0f0f0f0fL)
+        il.Append(And)
 
         // return (x * 0x0101010101010101L) >> 56
-        il.Append(il.Create(OpCodes.Ldc_I8, 0x0101010101010101L))
-        il.Append(il.Create(OpCodes.Mul))
-        il.Append(il.Create(OpCodes.Ldc_I4, 56))
-        il.Append(il.Create(OpCodes.Shr_Un))
+        il.Append(Ldc_I8 0x0101010101010101L)
+        il.Append(Mul)
+        il.Append(Ldc_I4 56)
+        il.Append(Shr_Un)
 
-    let gen_body_clz_i64 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+    let gen_body_clz_i64 bt (il : CilWriter) (f_make_tmp : ValType -> Variable) =
         // https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
         // do the smearing
 
         // x |= x >> 1; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 1))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 1)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 2; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 2))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 2)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 4; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 4))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 4)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 8; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 8))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 8)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 16; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 16))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 16)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 32; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 32))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 32)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         gen_body_popcnt_i64 bt il f_make_tmp
 
-        il.Append(il.Create(OpCodes.Neg))
-        il.Append(il.Create(OpCodes.Ldc_I8, 64L))
-        il.Append(il.Create(OpCodes.Add))
+        il.Append(Neg)
+        il.Append(Ldc_I8 64L)
+        il.Append(Add)
 
-    let gen_body_ctz_i64 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
-        let i = f_make_tmp (cecil_valtype bt I64)
-        il.Append(il.Create(OpCodes.Stloc, i))
+    let gen_body_ctz_i64 bt (il : CilWriter) (f_make_tmp : ValType -> Variable) =
+        let i = f_make_tmp I64
+        il.Append(Stloc i)
 
-        let count = f_make_tmp (cecil_valtype bt I32)
+        let count = f_make_tmp I32
 
         // init count to 64, for when i is 0
-        il.Append(il.Create(OpCodes.Ldc_I4, 64))
-        il.Append(il.Create(OpCodes.Stloc, count))
+        il.Append(Ldc_I4 64)
+        il.Append(Stloc count)
 
-        let lab_done = il.Create(OpCodes.Nop)
+        let lab_done = il.NewLabel()
 
         // if i is 0, skip the loop
-        il.Append(il.Create(OpCodes.Ldloc, i))
-        il.Append(il.Create(OpCodes.Brfalse, lab_done))
+        il.Append(Ldloc i)
+        il.Append(Brfalse lab_done)
 
         // result count to 0 so we can increment it in the loop
-        il.Append(il.Create(OpCodes.Ldc_I4, 0))
-        il.Append(il.Create(OpCodes.Stloc, count))
+        il.Append(Ldc_I4 0)
+        il.Append(Stloc count)
 
         // while ((i & 0x01L) == 0)
-        let lab_top_of_loop = il.Create(OpCodes.Nop)
-        il.Append(lab_top_of_loop)
-        il.Append(il.Create(OpCodes.Ldloc, i))
-        il.Append(il.Create(OpCodes.Ldc_I8, 0x01L))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Brtrue, lab_done))
+        let lab_top_of_loop = il.NewLabel()
+        il.Append(Label lab_top_of_loop)
+        il.Append(Ldloc i)
+        il.Append(Ldc_I8 0x01L)
+        il.Append(And)
+        il.Append(Brtrue lab_done)
 
         // i = i >> 1;
-        il.Append(il.Create(OpCodes.Ldloc, i))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x01))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Stloc, i))
+        il.Append(Ldloc i)
+        il.Append(Ldc_I4 0x01)
+        il.Append(Shr_Un)
+        il.Append(Stloc i)
 
         // count++;
-        il.Append(il.Create(OpCodes.Ldloc, count))
-        il.Append(il.Create(OpCodes.Ldc_I4, 1))
-        il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Stloc, count))
+        il.Append(Ldloc count)
+        il.Append(Ldc_I4 1)
+        il.Append(Add)
+        il.Append(Stloc count)
 
-        il.Append(il.Create(OpCodes.Br, lab_top_of_loop))
+        il.Append(Br lab_top_of_loop)
 
-        il.Append(lab_done)
-        il.Append(il.Create(OpCodes.Ldloc, count))
+        il.Append(Label lab_done)
+        il.Append(Ldloc count)
 
-    let gen_body_ctz_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
-        let i = f_make_tmp (cecil_valtype bt I32)
-        il.Append(il.Create(OpCodes.Stloc, i))
+    let gen_body_ctz_i32 bt (il : CilWriter) (f_make_tmp : ValType -> Variable) =
+        let i = f_make_tmp I32
+        il.Append(Stloc i)
 
-        let count = f_make_tmp (cecil_valtype bt I32)
+        let count = f_make_tmp I32
 
         // init count to 32, for when i is 0
-        il.Append(il.Create(OpCodes.Ldc_I4, 32))
-        il.Append(il.Create(OpCodes.Stloc, count))
+        il.Append(Ldc_I4 32)
+        il.Append(Stloc count)
 
-        let lab_done = il.Create(OpCodes.Nop)
+        let lab_done = il.NewLabel()
 
         // if i is 0, skip the loop
-        il.Append(il.Create(OpCodes.Ldloc, i))
-        il.Append(il.Create(OpCodes.Brfalse, lab_done))
+        il.Append(Ldloc i)
+        il.Append(Brfalse lab_done)
 
         // result count to 0 so we can increment it in the loop
-        il.Append(il.Create(OpCodes.Ldc_I4, 0))
-        il.Append(il.Create(OpCodes.Stloc, count))
+        il.Append(Ldc_I4 0)
+        il.Append(Stloc count)
 
         // while ((i & 0x01L) == 0)
-        let lab_top_of_loop = il.Create(OpCodes.Nop)
-        il.Append(lab_top_of_loop)
-        il.Append(il.Create(OpCodes.Ldloc, i))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x01))
-        il.Append(il.Create(OpCodes.And))
-        il.Append(il.Create(OpCodes.Brtrue, lab_done))
+        let lab_top_of_loop = il.NewLabel()
+        il.Append(Label lab_top_of_loop)
+        il.Append(Ldloc i)
+        il.Append(Ldc_I4 0x01)
+        il.Append(And)
+        il.Append(Brtrue lab_done)
 
         // i = i >> 1;
-        il.Append(il.Create(OpCodes.Ldloc, i))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0x01))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Stloc, i))
+        il.Append(Ldloc i)
+        il.Append(Ldc_I4 0x01)
+        il.Append(Shr_Un)
+        il.Append(Stloc i)
 
         // count++;
-        il.Append(il.Create(OpCodes.Ldloc, count))
-        il.Append(il.Create(OpCodes.Ldc_I4, 1))
-        il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Stloc, count))
+        il.Append(Ldloc count)
+        il.Append(Ldc_I4 1)
+        il.Append(Add)
+        il.Append(Stloc count)
 
-        il.Append(il.Create(OpCodes.Br, lab_top_of_loop))
+        il.Append(Br lab_top_of_loop)
 
-        il.Append(lab_done)
-        il.Append(il.Create(OpCodes.Ldloc, count))
+        il.Append(Label lab_done)
+        il.Append(Ldloc count)
 
-    let gen_body_clz_i32 bt (il : ILProcessor) (f_make_tmp : TypeReference -> VariableDefinition) =
+    let gen_body_clz_i32 bt (il : CilWriter) (f_make_tmp : ValType -> Variable) =
         // https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
         // do the smearing
 
         // x |= x >> 1; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 1))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 1)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 2; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 2))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 2)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 4; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 4))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 4)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 8; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 8))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 8)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         // x |= x >> 16; 
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Ldc_I4, 16))
-        il.Append(il.Create(OpCodes.Shr_Un))
-        il.Append(il.Create(OpCodes.Or))
+        il.Append(Dup)
+        il.Append(Ldc_I4 16)
+        il.Append(Shr_Un)
+        il.Append(Or)
 
         gen_body_popcnt_i32 bt il f_make_tmp
 
-        il.Append(il.Create(OpCodes.Neg))
-        il.Append(il.Create(OpCodes.Ldc_I4, 32))
-        il.Append(il.Create(OpCodes.Add))
+        il.Append(Neg)
+        il.Append(Ldc_I4 32)
+        il.Append(Add)
 
     let check_instr ctx (a_locals : ParamOrVar[]) blocks op =
         let cur_block = peek blocks
@@ -607,21 +590,21 @@ module wasm.cecil
             push cur_opstack arg
             None
 
-    let gen_unreachable ctx blocks (il : ILProcessor) op =
+    let gen_unreachable ctx blocks (il : CilWriter) op =
         match op with
         | Block t -> 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_Block { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
             push blocks blk
             None
         | Loop t -> 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_Loop { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
             push blocks blk
-            il.Append(lab)
+            il.Append(Label lab)
             None
         | If t -> 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_If { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = true; }
             push blocks blk
             None
@@ -630,11 +613,11 @@ module wasm.cecil
             let blk_typ =
                 match pop blocks with
                 | CB_If { label = lab; result = r; } -> 
-                    il.Append(lab)
+                    il.Append(Label lab)
                     r
                 | _ -> failwith "bad nest"
 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_Else { label = lab; opstack = new_stack_empty (); result = blk_typ; stack_polymorphic = true; }
             push blocks blk
             None
@@ -642,15 +625,15 @@ module wasm.cecil
             let b = pop blocks
             let bi = get_blockinfo b
             match b with
-            | CB_Body { label = lab } -> il.Append(lab) // TODO only gen this if it is needed ?
-            | CB_Block { label = lab } -> il.Append(lab)
+            | CB_Body { label = lab } -> il.Append(Label lab)
+            | CB_Block { label = lab } -> il.Append(Label lab)
             | CB_Loop _ -> () // loop label was at the top
-            | CB_If { label = lab } -> il.Append(lab)
-            | CB_Else { label = lab } -> il.Append(lab)
+            | CB_If { label = lab } -> il.Append(Label lab)
+            | CB_Else { label = lab } -> il.Append(Label lab)
             bi.result
         | _ -> None
 
-    let gen_instr ctx (a_locals : ParamOrVar[]) blocks result_type body (il : ILProcessor) f_make_tmp op =
+    let gen_instr ctx (a_locals : ParamOrVar[]) blocks result_type body (il : CilWriter) f_make_tmp op =
         let get_label_from_block blk =
             match blk with
             | CB_Body _ -> failwith "branch not allowed outside block"
@@ -670,42 +653,42 @@ module wasm.cecil
 
         let prep_addr (m : MemArg) =
             // the address operand should be on the stack
-            il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
-            il.Append(il.Create(OpCodes.Add))
+            il.Append(Ldsfld ctx.mem)
+            il.Append(Add)
             if m.offset <> 0u then
-                il.Append(il.Create(OpCodes.Ldc_I4, int m.offset))
-                il.Append(il.Create(OpCodes.Add))
+                il.Append(Ldc_I4 (int m.offset))
+                il.Append(Add)
 
         let load m op =
             prep_addr m
-            il.Append(il.Create(op))
+            il.Append(op)
 
-        let store m op (tmp : VariableDefinition) =
-            il.Append(il.Create(OpCodes.Stloc, tmp)) // pop v into tmp
+        let store m op (tmp : Variable) =
+            il.Append(Stloc tmp) // pop v into tmp
             prep_addr m
-            il.Append(il.Create(OpCodes.Ldloc, tmp)) // put v back
-            il.Append(il.Create(op))
+            il.Append(Ldloc tmp) // put v back
+            il.Append(op)
 
         let todo q =
             let msg = sprintf "TODO %A" q
             printfn "%s" msg
             let ref_typ_e = ctx.md.ImportReference(typeof<System.Exception>.GetConstructor([| typeof<string> |]))
-            il.Append(il.Create(OpCodes.Ldstr, msg))
-            il.Append(il.Create(OpCodes.Newobj, ref_typ_e))
-            il.Append(il.Create(OpCodes.Throw))
+            il.Append(Ldstr msg)
+            il.Append(Newobj ref_typ_e)
+            il.Append(Throw)
 
         match op with
         | Block t -> 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_Block { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
             push blocks blk
         | Loop t -> 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_Loop { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
             push blocks blk
-            il.Append(lab)
+            il.Append(Label lab)
         | If t -> 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_If { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
             push blocks blk
         | Else -> 
@@ -713,42 +696,42 @@ module wasm.cecil
             let blk_typ =
                 match pop blocks with
                 | CB_If { label = lab; result = r; } -> 
-                    il.Append(lab)
+                    il.Append(Label lab)
                     r
                 | _ -> failwith "bad nest"
 
-            let lab = il.Create(OpCodes.Nop)
+            let lab = il.NewLabel()
             let blk = CB_Else { label = lab; opstack = new_stack_empty (); result = blk_typ; stack_polymorphic = false; }
             push blocks blk
         | End -> 
             match pop blocks with
-            | CB_Body { label = lab } -> il.Append(lab) // TODO only gen this if it is needed ?
-            | CB_Block { label = lab } -> il.Append(lab)
+            | CB_Body { label = lab } -> il.Append(Label lab)
+            | CB_Block { label = lab } -> il.Append(Label lab)
             | CB_Loop _ -> () // loop label was at the top
-            | CB_If { label = lab } -> il.Append(lab)
-            | CB_Else { label = lab } -> il.Append(lab)
+            | CB_If { label = lab } -> il.Append(Label lab)
+            | CB_Else { label = lab } -> il.Append(Label lab)
         | Return ->
-            il.Append(il.Create(OpCodes.Br, body.label))
-        | Nop -> il.Append(il.Create(OpCodes.Nop))
-        | Br i ->
+            il.Append(Br body.label)
+        | Instruction.Nop -> il.Append(MyInstruction.Nop)
+        | Instruction.Br i ->
             let lab = find_branch_target i
-            il.Append(il.Create(OpCodes.Br, lab))
+            il.Append(Br lab)
         | BrIf i ->
             let lab = find_branch_target i
-            il.Append(il.Create(OpCodes.Brtrue, lab))
+            il.Append(Brtrue lab)
         | BrTable m ->
             let q = Array.map (fun i -> find_branch_target i) m.v
-            il.Append(il.Create(OpCodes.Switch, q))
+            il.Append(Switch q)
             let lab = find_branch_target m.other
-            il.Append(il.Create(OpCodes.Br, lab))
+            il.Append(Br lab)
 
-        | Call (FuncIdx fidx) ->
+        | Instruction.Call (FuncIdx fidx) ->
             let fn = ctx.a_methods.[int fidx]
             match fn with
             | MethodRefImported mf ->
-                il.Append(il.Create(OpCodes.Call, mf.method))
+                il.Append(Call mf.method)
             | MethodRefInternal mf ->
-                il.Append(il.Create(OpCodes.Call, mf.method))
+                il.Append(Call mf.method)
 
         | CallIndirect _ ->
             let cs =
@@ -757,282 +740,284 @@ module wasm.cecil
                 | SpecialCaseCallIndirect calli ->
                     let cs = 
                         match result_type with
-                        | Some t -> CallSite(cecil_valtype ctx.bt t)
-                        | None -> CallSite(ctx.bt.typ_void)
+                        | Some t -> CallSite(valtype_to_ceciltype ctx.bt t)
+                        | None -> CallSite(ctx.bt.md.TypeSystem.Void)
                     let (TypeIdx tidx) = calli.typeidx
                     let ftype = ctx.types.[int tidx]
                     for a in ftype.parms do
-                        cs.Parameters.Add(ParameterDefinition(cecil_valtype ctx.bt a))
+                        cs.Parameters.Add(ParameterDefinition(valtype_to_ceciltype ctx.bt a))
                     cs
                 | _ -> failwith "should not happen"
             match ctx.tbl_lookup with
-            | Some f -> il.Append(il.Create(OpCodes.Call, f))
+            | Some f -> il.Append(Call f)
             | None -> failwith "illegal to use CallIndirect with no table"
-            il.Append(il.Create(OpCodes.Calli, cs))
+            il.Append(Calli cs)
 
         | GlobalGet (GlobalIdx idx) ->
             let g = ctx.a_globals.[int idx]
             match g with
             | GlobalRefImported mf ->
-                il.Append(il.Create(OpCodes.Ldsfld, mf.field))
+                il.Append(Ldsfld mf.field)
             | GlobalRefInternal mf ->
-                il.Append(il.Create(OpCodes.Ldsfld, mf.field))
+                il.Append(Ldsfld mf.field)
 
         | GlobalSet (GlobalIdx idx) ->
             let g = ctx.a_globals.[int idx]
             match g with
             | GlobalRefImported mf ->
-                il.Append(il.Create(OpCodes.Stsfld, mf.field))
+                il.Append(Stsfld mf.field)
             | GlobalRefInternal mf ->
-                il.Append(il.Create(OpCodes.Stsfld, mf.field))
+                il.Append(Stsfld mf.field)
 
         | LocalTee (LocalIdx i) -> 
             // TODO want to use Stloc_0 and the like, when we can.
-            il.Append(il.Create(OpCodes.Dup))
+            il.Append(Dup)
             let loc = a_locals.[int i]
             match loc with
-            | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
-            | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
+            | ParamRef { def_param = n } -> il.Append(Starg n)
+            | LocalRef { def_var = n } -> il.Append(Stloc n)
 
         | LocalSet (LocalIdx i) -> 
             // TODO want to use Stloc_0 and the like, when we can.
             let loc = a_locals.[int i]
             match loc with
-            | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Starg, n))
-            | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Stloc, n))
+            | ParamRef { def_param = n } -> il.Append(Starg n)
+            | LocalRef { def_var = n } -> il.Append(Stloc n)
 
         | LocalGet (LocalIdx i) -> 
             // TODO want to use Ldarg_0 and the like, when we can.
             // any chance Cecil is already doing this behind the scenes?
             let loc = a_locals.[int i]
             match loc with
-            | ParamRef { def_param = n } -> il.Append(il.Create(OpCodes.Ldarg, n))
-            | LocalRef { def_var = n } -> il.Append(il.Create(OpCodes.Ldloc, n))
+            | ParamRef { def_param = n } -> il.Append(Ldarg n)
+            | LocalRef { def_var = n } -> il.Append(Ldloc n)
 
-        | I32Load m -> load m OpCodes.Ldind_I4
-        | I64Load m -> load m OpCodes.Ldind_I8
-        | F32Load m -> load m OpCodes.Ldind_R4
-        | F64Load m -> load m OpCodes.Ldind_R8
-        | I32Load8S m -> load m OpCodes.Ldind_I1
-        | I32Load8U m -> load m OpCodes.Ldind_U1
-        | I32Load16S m -> load m OpCodes.Ldind_I2
-        | I32Load16U m -> load m OpCodes.Ldind_U2
+        | I32Load m -> load m Ldind_I4
+        | I64Load m -> load m Ldind_I8
+        | F32Load m -> load m Ldind_R4
+        | F64Load m -> load m Ldind_R8
+        | I32Load8S m -> load m Ldind_I1
+        | I32Load8U m -> load m Ldind_U1
+        | I32Load16S m -> load m Ldind_I2
+        | I32Load16U m -> load m Ldind_U2
         | I64Load8S m -> 
-            load m OpCodes.Ldind_I1
-            il.Append(il.Create(OpCodes.Conv_I8))
+            load m Ldind_I1
+            il.Append(Conv_I8)
         | I64Load8U m -> 
-            load m OpCodes.Ldind_U1
-            il.Append(il.Create(OpCodes.Conv_I8))
+            load m Ldind_U1
+            il.Append(Conv_I8)
         | I64Load16S m -> 
-            load m OpCodes.Ldind_I2
-            il.Append(il.Create(OpCodes.Conv_I8))
+            load m Ldind_I2
+            il.Append(Conv_I8)
         | I64Load16U m -> 
-            load m OpCodes.Ldind_U2
-            il.Append(il.Create(OpCodes.Conv_I8))
+            load m Ldind_U2
+            il.Append(Conv_I8)
         | I64Load32S m -> 
-            load m OpCodes.Ldind_I4
-            il.Append(il.Create(OpCodes.Conv_I8))
+            load m Ldind_I4
+            il.Append(Conv_I8)
         | I64Load32U m -> 
-            load m OpCodes.Ldind_U4
-            il.Append(il.Create(OpCodes.Conv_I8)) // TODO is this right?
+            load m Ldind_U4
+            il.Append(Conv_I8) // TODO is this right?
 
-        | I32Store m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i32)
-        | I64Store m -> store m OpCodes.Stind_I8 (f_make_tmp ctx.bt.typ_i64)
-        | F32Store m -> store m OpCodes.Stind_R4 (f_make_tmp ctx.bt.typ_f32)
-        | F64Store m -> store m OpCodes.Stind_R8 (f_make_tmp ctx.bt.typ_f64)
-        | I32Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i32)
-        | I32Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i32)
-        | I64Store8 m -> store m OpCodes.Stind_I1 (f_make_tmp ctx.bt.typ_i64)
-        | I64Store16 m -> store m OpCodes.Stind_I2 (f_make_tmp ctx.bt.typ_i64)
-        | I64Store32 m -> store m OpCodes.Stind_I4 (f_make_tmp ctx.bt.typ_i64)
+        | I32Store m -> store m Stind_I4 (f_make_tmp I32)
+        | I64Store m -> store m Stind_I8 (f_make_tmp I64)
+        | F32Store m -> store m Stind_R4 (f_make_tmp F32)
+        | F64Store m -> store m Stind_R8 (f_make_tmp F64)
+        | I32Store8 m -> store m Stind_I1 (f_make_tmp I32)
+        | I32Store16 m -> store m Stind_I2 (f_make_tmp I32)
+        | I64Store8 m -> store m Stind_I1 (f_make_tmp I64)
+        | I64Store16 m -> store m Stind_I2 (f_make_tmp I64)
+        | I64Store32 m -> store m Stind_I4 (f_make_tmp I64)
 
         | I32Const i -> 
             match i with
-            | -1 -> il.Append(il.Create(OpCodes.Ldc_I4_M1))
-            | 0 -> il.Append(il.Create(OpCodes.Ldc_I4_0))
-            | 1 -> il.Append(il.Create(OpCodes.Ldc_I4_1))
-            | 2 -> il.Append(il.Create(OpCodes.Ldc_I4_2))
-            | 3 -> il.Append(il.Create(OpCodes.Ldc_I4_3))
-            | 4 -> il.Append(il.Create(OpCodes.Ldc_I4_4))
-            | 5 -> il.Append(il.Create(OpCodes.Ldc_I4_5))
-            | 6 -> il.Append(il.Create(OpCodes.Ldc_I4_6))
-            | 7 -> il.Append(il.Create(OpCodes.Ldc_I4_7))
-            | 8 -> il.Append(il.Create(OpCodes.Ldc_I4_8))
-            | _ -> il.Append(il.Create(OpCodes.Ldc_I4, i))
-        | I64Const i -> il.Append(il.Create(OpCodes.Ldc_I8, i))
-        | F32Const i -> il.Append(il.Create(OpCodes.Ldc_R4, i))
-        | F64Const i -> il.Append(il.Create(OpCodes.Ldc_R8, i))
+            | -1 -> il.Append(Ldc_I4_M1)
+            | 0 -> il.Append(Ldc_I4_0)
+            | 1 -> il.Append(Ldc_I4_1)
+            | 2 -> il.Append(Ldc_I4_2)
+            | 3 -> il.Append(Ldc_I4_3)
+            | 4 -> il.Append(Ldc_I4_4)
+            | 5 -> il.Append(Ldc_I4_5)
+            | 6 -> il.Append(Ldc_I4_6)
+            | 7 -> il.Append(Ldc_I4_7)
+            | 8 -> il.Append(Ldc_I4_8)
+            | _ -> il.Append(Ldc_I4 i)
+        | I64Const i -> il.Append(Ldc_I8 i)
+        | F32Const i -> il.Append(Ldc_R4 i)
+        | F64Const i -> il.Append(Ldc_R8 i)
 
-        | I32Add | I64Add | F32Add | F64Add -> il.Append(il.Create(OpCodes.Add))
-        | I32Mul | I64Mul | F32Mul | F64Mul -> il.Append(il.Create(OpCodes.Mul))
-        | I32Sub | I64Sub | F32Sub | F64Sub -> il.Append(il.Create(OpCodes.Sub))
-        | I32DivS | I64DivS | F32Div | F64Div -> il.Append(il.Create(OpCodes.Div))
-        | I32DivU | I64DivU -> il.Append(il.Create(OpCodes.Div_Un))
+        | I32Add | I64Add | F32Add | F64Add -> il.Append(Add)
+        | I32Mul | I64Mul | F32Mul | F64Mul -> il.Append(Mul)
+        | I32Sub | I64Sub | F32Sub | F64Sub -> il.Append(Sub)
+        | I32DivS | I64DivS | F32Div | F64Div -> il.Append(Div)
+        | I32DivU | I64DivU -> il.Append(Div_Un)
 
         | F64Abs ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Sqrt ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Ceil ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Floor ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Trunc ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Nearest ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Min ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<double>; typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F64Max ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<double>; typeof<double> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
 
         | F32Abs ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Abs", [| typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Sqrt ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Sqrt", [| typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Ceil ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Ceiling", [| typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Floor ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Floor", [| typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Trunc ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Truncate", [| typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Nearest ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Round", [| typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Min ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Min", [| typeof<float32>; typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
         | F32Max ->
             let ext = ctx.md.ImportReference(typeof<System.Math>.GetMethod("Max", [| typeof<float32>; typeof<float32> |] ))
-            il.Append(il.Create(OpCodes.Call, ext))
+            il.Append(Call ext)
 
         | I32Eqz ->
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
             
         | I64Eqz ->
-            il.Append(il.Create(OpCodes.Ldc_I8, 0L))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Ldc_I8 0L)
+            il.Append(Ceq)
             
-        | I32LtS | I64LtS | F32Lt | F64Lt -> il.Append(il.Create(OpCodes.Clt))
-        | I32LtU | I64LtU -> il.Append(il.Create(OpCodes.Clt_Un))
+        | I32LtS | I64LtS | F32Lt | F64Lt -> il.Append(Clt)
+        | I32LtU | I64LtU -> il.Append(Clt_Un)
 
-        | I32GtS | I64GtS | F32Gt | F64Gt -> il.Append(il.Create(OpCodes.Cgt))
-        | I32GtU | I64GtU -> il.Append(il.Create(OpCodes.Cgt_Un))
+        | I32GtS | I64GtS | F32Gt | F64Gt -> il.Append(Cgt)
+        | I32GtU | I64GtU -> il.Append(Cgt_Un)
 
-        | F32Neg -> il.Append(il.Create(OpCodes.Neg))
-        | F64Neg -> il.Append(il.Create(OpCodes.Neg))
+        | F32Neg -> il.Append(Neg)
+        | F64Neg -> il.Append(Neg)
 
-        | I32Eq | I64Eq | F32Eq | F64Eq -> il.Append(il.Create(OpCodes.Ceq))
+        | I32Eq | I64Eq | F32Eq | F64Eq -> il.Append(Ceq)
 
-        | I32And | I64And -> il.Append(il.Create(OpCodes.And))
-        | I32Or | I64Or -> il.Append(il.Create(OpCodes.Or))
-        | I32Xor | I64Xor -> il.Append(il.Create(OpCodes.Xor))
+        | I32And | I64And -> il.Append(And)
+        | I32Or | I64Or -> il.Append(Or)
+        | I32Xor | I64Xor -> il.Append(Xor)
 
-        | I32Shl | I64Shl -> il.Append(il.Create(OpCodes.Shl))
-        | I32ShrS | I64ShrS -> il.Append(il.Create(OpCodes.Shr))
-        | I32ShrU | I64ShrU -> il.Append(il.Create(OpCodes.Shr_Un))
-        | I32RemS | I64RemS -> il.Append(il.Create(OpCodes.Rem))
-        | I32RemU | I64RemU -> il.Append(il.Create(OpCodes.Rem_Un))
+        | I32Shl | I64Shl -> il.Append(Shl)
+        | I32ShrS | I64ShrS -> il.Append(Shr)
+        | I32ShrU | I64ShrU -> il.Append(Shr_Un)
+        | I32RemS | I64RemS -> il.Append(Rem)
+        | I32RemU | I64RemU -> il.Append(Rem_Un)
 
-        | F32ConvertI32S | F32ConvertI64S | F32DemoteF64 -> il.Append(il.Create(OpCodes.Conv_R4))
-        | F64ConvertI32S | F64ConvertI64S | F64PromoteF32 -> il.Append(il.Create(OpCodes.Conv_R8))
+        | F32ConvertI32S | F32ConvertI64S | F32DemoteF64 -> il.Append(Conv_R4)
+        | F64ConvertI32S | F64ConvertI64S | F64PromoteF32 -> il.Append(Conv_R8)
 
         | F32ConvertI32U | F32ConvertI64U ->
-            il.Append(il.Create(OpCodes.Conv_R_Un))
-            il.Append(il.Create(OpCodes.Conv_R4))
+            il.Append(Conv_R_Un)
+            il.Append(Conv_R4)
 
         | F64ConvertI32U | F64ConvertI64U ->
-            il.Append(il.Create(OpCodes.Conv_R_Un))
-            il.Append(il.Create(OpCodes.Conv_R8))
+            il.Append(Conv_R_Un)
+            il.Append(Conv_R8)
 
-        | I32WrapI64 -> il.Append(il.Create(OpCodes.Conv_I4)) // TODO is this correct?
-        | I64ExtendI32S -> il.Append(il.Create(OpCodes.Conv_I8))
-        | I64ExtendI32U -> il.Append(il.Create(OpCodes.Conv_I8)) // TODO is this correct?
+        | I32WrapI64 -> il.Append(Conv_I4) // TODO is this correct?
+        | I64ExtendI32S -> il.Append(Conv_I8)
+        | I64ExtendI32U -> il.Append(Conv_I8) // TODO is this correct?
 
-        | I32TruncF32S | I32TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I4))
-        | I64TruncF32S | I64TruncF64S -> il.Append(il.Create(OpCodes.Conv_Ovf_I8))
-        | I32TruncF32U | I32TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I4_Un))
-        | I64TruncF32U | I64TruncF64U -> il.Append(il.Create(OpCodes.Conv_Ovf_I8_Un))
+        | I32TruncF32S | I32TruncF64S -> il.Append(Conv_Ovf_I4)
+        | I64TruncF32S | I64TruncF64S -> il.Append(Conv_Ovf_I8)
+        | I32TruncF32U | I32TruncF64U -> il.Append(Conv_Ovf_I4_Un)
+        | I64TruncF32U | I64TruncF64U -> il.Append(Conv_Ovf_I8_Un)
 
         | I32Ne | I64Ne | F32Ne | F64Ne -> 
-            il.Append(il.Create(OpCodes.Ceq))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Ceq)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
         | I32LeS | I64LeS ->
-            il.Append(il.Create(OpCodes.Cgt))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Cgt)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
         | I32GeS | I64GeS ->
-            il.Append(il.Create(OpCodes.Clt))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Clt)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
         | I32LeU | I64LeU ->
-            il.Append(il.Create(OpCodes.Cgt_Un))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Cgt_Un)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
         | I32GeU | I64GeU ->
-            il.Append(il.Create(OpCodes.Clt_Un))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Clt_Un)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
         | F32Le | F64Le ->
-            il.Append(il.Create(OpCodes.Cgt_Un))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Cgt_Un)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
         | F32Ge | F64Ge ->
-            il.Append(il.Create(OpCodes.Clt_Un))
-            il.Append(il.Create(OpCodes.Ldc_I4_0))
-            il.Append(il.Create(OpCodes.Ceq))
+            il.Append(Clt_Un)
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
 
-        | Drop -> il.Append(il.Create(OpCodes.Pop))
+        | Drop -> il.Append(Pop)
 
         | Unreachable ->
             let ref_typ_e = ctx.md.ImportReference(typeof<System.Exception>.GetConstructor([| |]))
-            il.Append(il.Create(OpCodes.Newobj, ref_typ_e))
-            il.Append(il.Create(OpCodes.Throw))
+            il.Append(Newobj ref_typ_e)
+            il.Append(Throw)
             
         | Select -> 
             match result_type with
             | Some t ->
-                let var_c = f_make_tmp ctx.bt.typ_i32
-                il.Append(il.Create(OpCodes.Stloc, var_c))
-                let var_v2 = f_make_tmp (cecil_valtype ctx.bt t)
-                il.Append(il.Create(OpCodes.Stloc, var_v2))
-                let var_v1 = f_make_tmp (cecil_valtype ctx.bt t)
-                il.Append(il.Create(OpCodes.Stloc, var_v1))
+                let var_c = f_make_tmp I32
+                il.Append(Stloc var_c)
+                let var_v2 = f_make_tmp t
+                il.Append(Stloc var_v2)
+                let var_v1 = f_make_tmp t
+                il.Append(Stloc var_v1)
 
-                let push_v1 = il.Create(OpCodes.Ldloc, var_v1)
-                let push_v2 = il.Create(OpCodes.Ldloc, var_v2)
-                let lab_done = il.Create(OpCodes.Nop)
+                let lab_push_v1 = il.NewLabel()
+                let lab_push_v2 = il.NewLabel()
+                let lab_done = il.NewLabel()
 
-                il.Append(il.Create(OpCodes.Ldloc, var_c)) // put c back
-                il.Append(il.Create(OpCodes.Brtrue, push_v1))
-                il.Append(push_v2);
-                il.Append(il.Create(OpCodes.Br, lab_done))
-                il.Append(push_v1);
-                il.Append(lab_done);
+                il.Append(Ldloc var_c) // put c back
+                il.Append(Brtrue lab_push_v1)
+                il.Append(Label lab_push_v2);
+                il.Append(Ldloc var_v2);
+                il.Append(Br lab_done)
+                il.Append(Label lab_push_v1);
+                il.Append(Ldloc var_v1);
+                il.Append(Label lab_done);
             | None -> failwith "should not happen"
-        | MemorySize _ -> il.Append(il.Create(OpCodes.Ldsfld, ctx.mem_size))
-        | MemoryGrow _ -> il.Append(il.Create(OpCodes.Call, ctx.mem_grow))
+        | MemorySize _ -> il.Append(Ldsfld ctx.mem_size)
+        | MemoryGrow _ -> il.Append(Call ctx.mem_grow)
         | I32Clz ->
             gen_body_clz_i32 ctx.bt il f_make_tmp
         | I32Ctz ->
@@ -1041,45 +1026,45 @@ module wasm.cecil
             gen_body_popcnt_i32 ctx.bt il f_make_tmp
         | I32Rotl ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
-            // return (value << count) | (value >> (32 - count))
+            // return (value << count) | (value >> (32 - count)
 
-            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_count))
-            let var_v = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_v))
+            let var_count = f_make_tmp I32
+            il.Append(Stloc var_count)
+            let var_v = f_make_tmp I32
+            il.Append(Stloc var_v)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Shl))
+            il.Append(Ldloc var_v)
+            il.Append(Ldloc var_count)
+            il.Append(Shl)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldc_I4, 32))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Sub))
-            il.Append(il.Create(OpCodes.Shr_Un))
+            il.Append(Ldloc var_v)
+            il.Append(Ldc_I4 32)
+            il.Append(Ldloc var_count)
+            il.Append(Sub)
+            il.Append(Shr_Un)
 
-            il.Append(il.Create(OpCodes.Or))
+            il.Append(Or)
 
         | I32Rotr ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
             // return (value >> count) | (value << (32 - count))
 
-            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_count))
-            let var_v = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_v))
+            let var_count = f_make_tmp I32
+            il.Append(Stloc var_count)
+            let var_v = f_make_tmp I32
+            il.Append(Stloc var_v)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Shr_Un))
+            il.Append(Ldloc var_v)
+            il.Append(Ldloc var_count)
+            il.Append(Shr_Un)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldc_I4, 32))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Sub))
-            il.Append(il.Create(OpCodes.Shl))
+            il.Append(Ldloc var_v)
+            il.Append(Ldc_I4 32)
+            il.Append(Ldloc var_count)
+            il.Append(Sub)
+            il.Append(Shl)
 
-            il.Append(il.Create(OpCodes.Or))
+            il.Append(Or)
 
         | I64Clz ->
             gen_body_clz_i64 ctx.bt il f_make_tmp
@@ -1091,142 +1076,142 @@ module wasm.cecil
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
             // return (value << count) | (value >> (64 - count))
 
-            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_count))
-            let var_v = f_make_tmp (cecil_valtype ctx.bt I64)
-            il.Append(il.Create(OpCodes.Stloc, var_v))
+            let var_count = f_make_tmp I32
+            il.Append(Stloc var_count)
+            let var_v = f_make_tmp I64
+            il.Append(Stloc var_v)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Shl))
+            il.Append(Ldloc var_v)
+            il.Append(Ldloc var_count)
+            il.Append(Shl)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldc_I4, 64))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Sub))
-            il.Append(il.Create(OpCodes.Shr_Un))
+            il.Append(Ldloc var_v)
+            il.Append(Ldc_I4 64)
+            il.Append(Ldloc var_count)
+            il.Append(Sub)
+            il.Append(Shr_Un)
 
-            il.Append(il.Create(OpCodes.Or))
+            il.Append(Or)
 
         | I64Rotr ->
             // https://stackoverflow.com/questions/812022/c-sharp-bitwise-rotate-left-and-rotate-right
-            // return (value >> count) | (value << (64 - count))
+            // return (value >> count) | (value << (64 - count)
 
-            let var_count = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, var_count))
-            let var_v = f_make_tmp (cecil_valtype ctx.bt I64)
-            il.Append(il.Create(OpCodes.Stloc, var_v))
+            let var_count = f_make_tmp I32
+            il.Append(Stloc var_count)
+            let var_v = f_make_tmp I64
+            il.Append(Stloc var_v)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Shr_Un))
+            il.Append(Ldloc var_v)
+            il.Append(Ldloc var_count)
+            il.Append(Shr_Un)
 
-            il.Append(il.Create(OpCodes.Ldloc, var_v))
-            il.Append(il.Create(OpCodes.Ldc_I4, 64))
-            il.Append(il.Create(OpCodes.Ldloc, var_count))
-            il.Append(il.Create(OpCodes.Sub))
-            il.Append(il.Create(OpCodes.Shl))
+            il.Append(Ldloc var_v)
+            il.Append(Ldc_I4 64)
+            il.Append(Ldloc var_count)
+            il.Append(Sub)
+            il.Append(Shl)
 
-            il.Append(il.Create(OpCodes.Or))
+            il.Append(Or)
 
         | F32Copysign ->
-            let v2 = f_make_tmp (cecil_valtype ctx.bt F32)
-            il.Append(il.Create(OpCodes.Stloc, v2))
-            let v1 = f_make_tmp (cecil_valtype ctx.bt F32)
-            il.Append(il.Create(OpCodes.Stloc, v1))
+            let v2 = f_make_tmp F32
+            il.Append(Stloc v2)
+            let v1 = f_make_tmp F32
+            il.Append(Stloc v1)
 
-            il.Append(il.Create(OpCodes.Ldloca, v1))
-            il.Append(il.Create(OpCodes.Ldind_I4))
-            il.Append(il.Create(OpCodes.Ldc_I4, 0x80000000))
-            il.Append(il.Create(OpCodes.And))
+            il.Append(Ldloca v1)
+            il.Append(Ldind_I4)
+            il.Append(Ldc_I4 0x80000000)
+            il.Append(And)
             
-            il.Append(il.Create(OpCodes.Ldloca, v2))
-            il.Append(il.Create(OpCodes.Ldind_I4))
-            il.Append(il.Create(OpCodes.Ldc_I4, 0x80000000))
-            il.Append(il.Create(OpCodes.And))
+            il.Append(Ldloca v2)
+            il.Append(Ldind_I4)
+            il.Append(Ldc_I4 0x80000000)
+            il.Append(And)
 
-            il.Append(il.Create(OpCodes.Xor))
+            il.Append(Xor)
 
-            let lab_use_v1 = il.Create(OpCodes.Nop)
-            let lab_done = il.Create(OpCodes.Nop)
-            il.Append(il.Create(OpCodes.Brfalse, lab_use_v1))
+            let lab_use_v1 = il.NewLabel()
+            let lab_done = il.NewLabel()
+            il.Append(Brfalse lab_use_v1)
 
-            il.Append(il.Create(OpCodes.Ldloca, v1))
-            il.Append(il.Create(OpCodes.Ldind_I4))
-            il.Append(il.Create(OpCodes.Ldc_I4, 0x80000000))
-            il.Append(il.Create(OpCodes.Xor))
+            il.Append(Ldloca v1)
+            il.Append(Ldind_I4)
+            il.Append(Ldc_I4 0x80000000)
+            il.Append(Xor)
 
-            let v3 = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, v3))
+            let v3 = f_make_tmp I32
+            il.Append(Stloc v3)
 
-            il.Append(il.Create(OpCodes.Ldloca, v3))
-            il.Append(il.Create(OpCodes.Ldind_R4))
-            il.Append(il.Create(OpCodes.Br, lab_done))
+            il.Append(Ldloca v3)
+            il.Append(Ldind_R4)
+            il.Append(Br lab_done)
 
-            il.Append(lab_use_v1)
-            il.Append(il.Create(OpCodes.Ldloc, v1))
-            il.Append(lab_done);
+            il.Append(Label lab_use_v1)
+            il.Append(Ldloc v1)
+            il.Append(Label lab_done);
 
             
         | F64Copysign ->
-            let v2 = f_make_tmp (cecil_valtype ctx.bt F64)
-            il.Append(il.Create(OpCodes.Stloc, v2))
-            let v1 = f_make_tmp (cecil_valtype ctx.bt F64)
-            il.Append(il.Create(OpCodes.Stloc, v1))
+            let v2 = f_make_tmp F64
+            il.Append(Stloc v2)
+            let v1 = f_make_tmp F64
+            il.Append(Stloc v1)
 
-            il.Append(il.Create(OpCodes.Ldloca, v1))
-            il.Append(il.Create(OpCodes.Ldind_I8))
-            il.Append(il.Create(OpCodes.Ldc_I8, 0x8000000000000000L))
-            il.Append(il.Create(OpCodes.And))
+            il.Append(Ldloca v1)
+            il.Append(Ldind_I8)
+            il.Append(Ldc_I8 0x8000000000000000L)
+            il.Append(And)
             
-            il.Append(il.Create(OpCodes.Ldloca, v2))
-            il.Append(il.Create(OpCodes.Ldind_I8))
-            il.Append(il.Create(OpCodes.Ldc_I8, 0x8000000000000000L))
-            il.Append(il.Create(OpCodes.And))
+            il.Append(Ldloca v2)
+            il.Append(Ldind_I8)
+            il.Append(Ldc_I8 0x8000000000000000L)
+            il.Append(And)
 
-            il.Append(il.Create(OpCodes.Xor))
+            il.Append(Xor)
 
-            let lab_use_v1 = il.Create(OpCodes.Nop)
-            let lab_done = il.Create(OpCodes.Nop)
-            il.Append(il.Create(OpCodes.Brfalse, lab_use_v1))
+            let lab_use_v1 = il.NewLabel()
+            let lab_done = il.NewLabel()
+            il.Append(Brfalse lab_use_v1)
 
-            il.Append(il.Create(OpCodes.Ldloca, v1))
-            il.Append(il.Create(OpCodes.Ldind_I8))
-            il.Append(il.Create(OpCodes.Ldc_I8, 0x8000000000000000L))
-            il.Append(il.Create(OpCodes.Xor))
+            il.Append(Ldloca v1)
+            il.Append(Ldind_I8)
+            il.Append(Ldc_I8 0x8000000000000000L)
+            il.Append(Xor)
 
-            let v3 = f_make_tmp (cecil_valtype ctx.bt I64)
-            il.Append(il.Create(OpCodes.Stloc, v3))
+            let v3 = f_make_tmp I64
+            il.Append(Stloc v3)
 
-            il.Append(il.Create(OpCodes.Ldloca, v3))
-            il.Append(il.Create(OpCodes.Ldind_R8))
-            il.Append(il.Create(OpCodes.Br, lab_done))
+            il.Append(Ldloca v3)
+            il.Append(Ldind_R8)
+            il.Append(Br lab_done)
 
-            il.Append(lab_use_v1)
-            il.Append(il.Create(OpCodes.Ldloc, v1))
-            il.Append(lab_done);
+            il.Append(Label lab_use_v1)
+            il.Append(Ldloc v1)
+            il.Append(Label lab_done);
 
         | I32ReinterpretF32 ->
-            let v = f_make_tmp (cecil_valtype ctx.bt F32)
-            il.Append(il.Create(OpCodes.Stloc, v))
-            il.Append(il.Create(OpCodes.Ldloca, v))
-            il.Append(il.Create(OpCodes.Ldind_I4))
+            let v = f_make_tmp F32
+            il.Append(Stloc v)
+            il.Append(Ldloca v)
+            il.Append(Ldind_I4)
         | I64ReinterpretF64 ->
-            let v = f_make_tmp (cecil_valtype ctx.bt F64)
-            il.Append(il.Create(OpCodes.Stloc, v))
-            il.Append(il.Create(OpCodes.Ldloca, v))
-            il.Append(il.Create(OpCodes.Ldind_I8))
+            let v = f_make_tmp F64
+            il.Append(Stloc v)
+            il.Append(Ldloca v)
+            il.Append(Ldind_I8)
             
         | F32ReinterpretI32 ->
-            let v = f_make_tmp (cecil_valtype ctx.bt I32)
-            il.Append(il.Create(OpCodes.Stloc, v))
-            il.Append(il.Create(OpCodes.Ldloca, v))
-            il.Append(il.Create(OpCodes.Ldind_R4))
+            let v = f_make_tmp I32
+            il.Append(Stloc v)
+            il.Append(Ldloca v)
+            il.Append(Ldind_R4)
         | F64ReinterpretI64 ->
-            let v = f_make_tmp (cecil_valtype ctx.bt I64)
-            il.Append(il.Create(OpCodes.Stloc, v))
-            il.Append(il.Create(OpCodes.Ldloca, v))
-            il.Append(il.Create(OpCodes.Ldind_R8))
+            let v = f_make_tmp I64
+            il.Append(Stloc v)
+            il.Append(Ldloca v)
+            il.Append(Ldind_R8)
 
     let post_gen blocks result_type =
         match result_type with
@@ -1239,10 +1224,10 @@ module wasm.cecil
             | None -> ()
         | None -> ()
 
-    let cecil_expr result (il: ILProcessor) ctx (f_make_tmp : TypeReference -> VariableDefinition) (a_locals : ParamOrVar[]) e =
+    let cecil_expr result (il: CilWriter) ctx (f_make_tmp : ValType -> Variable) (a_locals : ParamOrVar[]) e =
         let body = 
             let opstack = new_stack_empty ()
-            let lab_end = il.Create(OpCodes.Nop)
+            let lab_end = il.NewLabel()
             { opstack = opstack; label = lab_end; result = result; stack_polymorphic = false; }
 
         let blocks = body |> CB_Body |> new_stack_one
@@ -1303,7 +1288,7 @@ module wasm.cecil
             | Some s -> s
             | None -> sprintf "global_%d" idx
 
-        let typ = cecil_valtype bt gi.item.globaltype.typ
+        let typ = valtype_to_ceciltype bt gi.item.globaltype.typ
 
         let access = if gi.exported then FieldAttributes.Public else FieldAttributes.Private
 
@@ -1324,8 +1309,8 @@ module wasm.cecil
 
         let return_type =
             match function_result_type fi.typ with
-            | Some t -> cecil_valtype bt t
-            | None -> bt.typ_void
+            | Some t -> valtype_to_ceciltype bt t
+            | None -> bt.md.TypeSystem.Void;
 
         let access = if fi.exported then MethodAttributes.Public else MethodAttributes.Private
 
@@ -1340,21 +1325,22 @@ module wasm.cecil
 
     let gen_function_code ctx (mi : MethodRefInternal) =
         //printfn "gen_function_code: %s" mi.method.Name
+        let il = CilWriter()
+
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
             // TODO look up names in mi.func.locals
             let get_name () =
                 sprintf "p%d" (a.Count)
             for x in mi.func.typ.parms do
-                let typ = cecil_valtype ctx.bt x
+                let typ = valtype_to_ceciltype ctx.bt x
                 let name = get_name()
                 let def = new ParameterDefinition(name, ParameterAttributes.None, typ)
                 a.Add(ParamRef { def_param = def; typ = x; })
             for loc in mi.func.code.locals do
                 // TODO assert count > 0 ?
                 for x = 1 to (int loc.count) do
-                    let typ = cecil_valtype ctx.bt loc.localtype
-                    let def = new VariableDefinition(typ)
+                    let def = il.NewVariable(loc.localtype)
                     a.Add(LocalRef { def_var = def; typ = loc.localtype })
             Array.ofSeq a
             
@@ -1362,66 +1348,63 @@ module wasm.cecil
         for pair in a_locals do
             match pair with
             | ParamRef { def_param = def } -> mi.method.Parameters.Add(def)
-            | LocalRef { def_var = def } -> mi.method.Body.Variables.Add(def)
+            | LocalRef { def_var = def } -> ()
 
-        let f_make_tmp = make_tmp mi.method
-
-        let il = mi.method.Body.GetILProcessor()
+        let f_make_tmp = make_tmp il
 
         match ctx.profile with
         | Some h ->
-            il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-            il.Append(il.Create(OpCodes.Call, h.profile_enter))
+            il.Append(Ldstr mi.method.Name)
+            il.Append(Call h.profile_enter)
         | None -> ()
 
         match ctx.trace with
         | Some h ->
-            let v_parms = new VariableDefinition(ctx.md.ImportReference(typeof<System.Object[]>))
-            mi.method.Body.Variables.Add(v_parms)
+            let v_parms = il.NewVariable(typeof<System.Object[]>)
             let parms =
                 a_locals
                 |> Array.choose (fun x -> match x with | ParamRef x -> Some (x) | LocalRef _ -> None)
-            il.Append(il.Create(OpCodes.Ldc_I4, parms.Length))
-            il.Append(il.Create(OpCodes.Newarr, ctx.bt.typ_object))
-            il.Append(il.Create(OpCodes.Stloc, v_parms))
+            il.Append(Ldc_I4 parms.Length)
+            il.Append(Newarr typeof<System.Object>)
+            il.Append(Stloc v_parms)
             let f_parm (i : int32) p =
-                il.Append(il.Create(OpCodes.Ldloc, v_parms))
-                il.Append(il.Create(OpCodes.Ldc_I4, i))
+                il.Append(Ldloc v_parms)
+                il.Append(Ldc_I4 i)
                 let { def_param = def; typ = t } = p
-                let typ = cecil_valtype ctx.bt t
                 // TODO it would be nice to include names here?
-                il.Append(il.Create(OpCodes.Ldarg, def))
-                il.Append(il.Create(OpCodes.Box, typ))
-                il.Append(il.Create(OpCodes.Stelem_Ref))
+                il.Append(Ldarg def)
+                il.Append(Box t)
+                il.Append(Stelem_Ref)
             Array.iteri f_parm parms
-            il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-            il.Append(il.Create(OpCodes.Ldloc, v_parms))
-            il.Append(il.Create(OpCodes.Call, h.trace_enter))
+            il.Append(Ldstr mi.method.Name)
+            il.Append(Ldloc v_parms)
+            il.Append(Call h.trace_enter)
         | None -> ()
 
         let result_typ = function_result_type mi.func.typ
         cecil_expr result_typ il ctx f_make_tmp a_locals mi.func.code.expr
         match ctx.profile with
         | Some h ->
-            il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-            il.Append(il.Create(OpCodes.Call, h.profile_exit))
+            il.Append(Ldstr mi.method.Name)
+            il.Append(Call h.profile_exit)
         | None -> ()
 
         match ctx.trace with
         | Some h ->
             match result_typ with
             | Some t ->
-                let typ =cecil_valtype ctx.bt t
-                il.Append(il.Create(OpCodes.Dup))
-                il.Append(il.Create(OpCodes.Box, typ))
-                il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-                il.Append(il.Create(OpCodes.Call, h.trace_exit_value))
+                il.Append(Dup)
+                il.Append(Box t)
+                il.Append(Ldstr mi.method.Name)
+                il.Append(Call h.trace_exit_value)
             | None ->
-                il.Append(il.Create(OpCodes.Ldstr, mi.method.Name))
-                il.Append(il.Create(OpCodes.Call, h.trace_exit_void))
+                il.Append(Ldstr mi.method.Name)
+                il.Append(Call h.trace_exit_void)
         | None -> ()
 
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Ret)
+
+        il.Finish(mi.method, ctx.bt)
 
     let create_methods ndx bt (md : ModuleDefinition) env_assembly =
         let prep_func i fi =
@@ -1462,37 +1445,39 @@ module wasm.cecil
 
         a_globals
 
-    let gen_tbl_lookup ndx bt (tbl : FieldDefinition) (main_mod : ModuleDefinition) =
+    let gen_tbl_lookup ndx (bt : GenTypes) (tbl : FieldDefinition) (main_mod : ModuleDefinition) =
         let method = 
             new MethodDefinition(
                 "__tbl_lookup",
                 MethodAttributes.Public ||| MethodAttributes.Static,
-                bt.typ_intptr
+                bt.md.TypeSystem.IntPtr
                 )
-        let parm = new ParameterDefinition(bt.typ_i32)
+        let parm = new ParameterDefinition(valtype_to_ceciltype bt I32)
         method.Parameters.Add(parm)
 
         // TODO this needs to do type check, range check
 
-        let il = method.Body.GetILProcessor()
+        let il = CilWriter()
 
-        il.Append(il.Create(OpCodes.Ldsfld, tbl))
-        il.Append(il.Create(OpCodes.Ldarg, parm))
-        il.Append(il.Create(OpCodes.Ldc_I4, 8))
-        il.Append(il.Create(OpCodes.Mul))
-        il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Ldind_I))
+        il.Append(Ldsfld tbl)
+        il.Append(Ldarg parm)
+        il.Append(Ldc_I4 8)
+        il.Append(Mul)
+        il.Append(Add)
+        il.Append(Ldind_I)
 
-        let lab = il.Create(OpCodes.Nop)
-        il.Append(il.Create(OpCodes.Dup))
-        il.Append(il.Create(OpCodes.Brtrue, lab))
+        let lab = il.NewLabel()
+        il.Append(Dup)
+        il.Append(Brtrue lab)
 
         let ref_typ_e = main_mod.ImportReference(typeof<System.Exception>.GetConstructor([| |]))
-        il.Append(il.Create(OpCodes.Newobj, ref_typ_e))
-        il.Append(il.Create(OpCodes.Throw))
+        il.Append(Newobj ref_typ_e)
+        il.Append(Throw)
 
-        il.Append(lab)
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Label lab)
+        il.Append(Ret)
+
+        il.Finish(method, bt)
 
         method
 
@@ -1501,21 +1486,19 @@ module wasm.cecil
             new MethodDefinition(
                 "__data_setup",
                 MethodAttributes.Public ||| MethodAttributes.Static,
-                ctx.bt.typ_void
+                ctx.bt.md.TypeSystem.Void
                 )
-        let il = method.Body.GetILProcessor()
+        let il = CilWriter()
 
         // need to grab a reference to this assembly 
         // (the one that contains our resources)
         // and store it in a local so we can use it
         // each time through the loop.
 
-        let ref_typ_assembly = ctx.md.ImportReference(typeof<System.Reflection.Assembly>)
-        let loc_assembly = new VariableDefinition(ref_typ_assembly)
-        method.Body.Variables.Add(loc_assembly)
+        let loc_assembly = il.NewVariable(typeof<System.Reflection.Assembly>)
         let ref_gea = ctx.md.ImportReference(typeof<System.Reflection.Assembly>.GetMethod("GetExecutingAssembly"))
-        il.Append(il.Create(OpCodes.Call, ref_gea))
-        il.Append(il.Create(OpCodes.Stloc, loc_assembly))
+        il.Append(Call ref_gea)
+        il.Append(Stloc loc_assembly)
 
         // also need to import Marshal.Copy
 
@@ -1525,26 +1508,28 @@ module wasm.cecil
             // the 4 args to Marshal.Copy...
 
             // the byte array containing the resource
-            il.Append(il.Create(OpCodes.Ldloc, loc_assembly))
-            il.Append(il.Create(OpCodes.Ldstr, d.name))
-            il.Append(il.Create(OpCodes.Call, ref_getresource))
+            il.Append(Ldloc loc_assembly)
+            il.Append(Ldstr d.name)
+            il.Append(Call ref_getresource)
 
             // 0, the offset
-            il.Append(il.Create(OpCodes.Ldc_I4, 0))
+            il.Append(Ldc_I4 0)
 
             // the destination pointer
-            il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
-            let f_make_tmp = make_tmp method
+            il.Append(Ldsfld ctx.mem)
+            let f_make_tmp = make_tmp il
             cecil_expr (Some I32) il ctx f_make_tmp Array.empty d.item.offset
-            il.Append(il.Create(OpCodes.Add))
+            il.Append(Add)
 
             // and the length
-            il.Append(il.Create(OpCodes.Ldc_I4, d.item.init.Length))
+            il.Append(Ldc_I4 d.item.init.Length)
 
             // now copy
-            il.Append(il.Create(OpCodes.Call, ref_mcopy))
+            il.Append(Call ref_mcopy)
 
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Ret)
+
+        il.Finish(method, ctx.bt)
 
         method
 
@@ -1553,9 +1538,9 @@ module wasm.cecil
             new MethodDefinition(
                 "__tbl_setup",
                 MethodAttributes.Public ||| MethodAttributes.Static,
-                ctx.bt.typ_void
+                ctx.bt.md.TypeSystem.Void
                 )
-        let il = method.Body.GetILProcessor()
+        let il = CilWriter()
 
         let count_tbl_entries = 
             match lim with
@@ -1563,38 +1548,37 @@ module wasm.cecil
             | MinMax (min,max) -> max
         let size_in_bytes = (int count_tbl_entries) * 8 // TODO nativeint size 4 vs 8 
 
-        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
+        il.Append(Ldc_I4 size_in_bytes)
         // TODO where is this freed?
         // TODO the docs say the param to AllocHGlobal is an IntPtr
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
-        il.Append(il.Create(OpCodes.Call, ext))
-        il.Append(il.Create(OpCodes.Stsfld, tbl))
+        il.Append(Call ext)
+        il.Append(Stsfld tbl)
 
         // memset 0
-        il.Append(il.Create(OpCodes.Ldsfld, tbl))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0))
-        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
-        il.Append(il.Create(OpCodes.Initblk))
+        il.Append(Ldsfld tbl)
+        il.Append(Ldc_I4_0)
+        il.Append(Ldc_I4 size_in_bytes)
+        il.Append(Initblk)
 
-        let f_make_tmp = make_tmp method
+        let f_make_tmp = make_tmp il
 
-        let tmp = VariableDefinition(ctx.bt.typ_i32)
-        method.Body.Variables.Add(tmp)
+        let tmp = il.NewVariable(I32)
 
         for elem in elems do
             cecil_expr (Some I32) il ctx f_make_tmp Array.empty elem.offset
 
-            il.Append(il.Create(OpCodes.Stloc, tmp))
+            il.Append(Stloc tmp)
             for i = 0 to (elem.init.Length - 1) do
 
                 // prep the addr
-                il.Append(il.Create(OpCodes.Ldsfld, tbl))
-                il.Append(il.Create(OpCodes.Ldloc, tmp))
-                il.Append(il.Create(OpCodes.Ldc_I4, i))
-                il.Append(il.Create(OpCodes.Add))
-                il.Append(il.Create(OpCodes.Ldc_I4, 8))
-                il.Append(il.Create(OpCodes.Mul))
-                il.Append(il.Create(OpCodes.Add))
+                il.Append(Ldsfld tbl)
+                il.Append(Ldloc tmp)
+                il.Append(Ldc_I4 i)
+                il.Append(Add)
+                il.Append(Ldc_I4_8)
+                il.Append(Mul)
+                il.Append(Add)
 
                 // now the func ptr
                 let (FuncIdx fidx) = elem.init.[i]
@@ -1603,12 +1587,14 @@ module wasm.cecil
                     match m with
                     | MethodRefImported m -> m.method
                     | MethodRefInternal m -> m.method :> MethodReference
-                il.Append(il.Create(OpCodes.Ldftn, m))
+                il.Append(Ldftn m)
 
                 // and store it
-                il.Append(il.Create(OpCodes.Stind_I))
+                il.Append(Stind_I)
 
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Ret)
+
+        il.Finish(method, ctx.bt)
 
         method
 
@@ -1617,47 +1603,49 @@ module wasm.cecil
             new MethodDefinition(
                 ".cctor",
                 MethodAttributes.Private ||| MethodAttributes.Static ||| MethodAttributes.SpecialName ||| MethodAttributes.RTSpecialName,
-                ctx.bt.typ_void
+                ctx.bt.md.TypeSystem.Void
                 )
-        let il = method.Body.GetILProcessor()
+        let il = CilWriter()
 
         let size_in_bytes = mem_size_in_pages * mem_page_size
 
-        il.Append(il.Create(OpCodes.Ldc_I4, mem_size_in_pages))
-        il.Append(il.Create(OpCodes.Stsfld, ctx.mem_size))
+        il.Append(Ldc_I4 mem_size_in_pages)
+        il.Append(Stsfld ctx.mem_size)
 
-        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
+        il.Append(Ldc_I4 size_in_bytes)
         // TODO where is this freed?
         // TODO the docs say the param to AllocHGlobal is an IntPtr
         let ext = ctx.mem.Module.ImportReference(typeof<System.Runtime.InteropServices.Marshal>.GetMethod("AllocHGlobal", [| typeof<int32> |] ))
-        il.Append(il.Create(OpCodes.Call, ext))
-        il.Append(il.Create(OpCodes.Stsfld, ctx.mem))
+        il.Append(Call ext)
+        il.Append(Stsfld ctx.mem)
 
         // memset 0
-        il.Append(il.Create(OpCodes.Ldsfld, ctx.mem))
-        il.Append(il.Create(OpCodes.Ldc_I4, 0))
-        il.Append(il.Create(OpCodes.Ldc_I4, size_in_bytes))
-        il.Append(il.Create(OpCodes.Initblk))
+        il.Append(Ldsfld ctx.mem)
+        il.Append(Ldc_I4_0)
+        il.Append(Ldc_I4 size_in_bytes)
+        il.Append(Initblk)
 
         match tbl_setup with
-        | Some m -> il.Append(il.Create(OpCodes.Call, m))
+        | Some m -> il.Append(Call m)
         | None -> ()
 
         match data_setup with
-        | Some m -> il.Append(il.Create(OpCodes.Call, m))
+        | Some m -> il.Append(Call m)
         | None -> ()
 
-        let f_make_tmp = make_tmp method
+        let f_make_tmp = make_tmp il
 
         // TODO mv globals out into a different func?
         for g in ctx.a_globals do
             match g with
             | GlobalRefInternal gi -> 
                 cecil_expr (Some gi.glob.item.globaltype.typ) il ctx f_make_tmp Array.empty gi.glob.item.init
-                il.Append(il.Create(OpCodes.Stsfld, gi.field))
+                il.Append(Stsfld gi.field)
             | GlobalRefImported _ -> ()
 
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Ret)
+
+        il.Finish(method, ctx.bt)
 
         method
 
@@ -1726,41 +1714,38 @@ module wasm.cecil
                 main_mod.ImportReference(typeof<byte[]>)
                 )
 
+        let il = CilWriter()
+
         let parm_a = new ParameterDefinition(main_mod.ImportReference(typeof<System.Reflection.Assembly>))
         method.Parameters.Add(parm_a)
 
         let parm_name = new ParameterDefinition(main_mod.ImportReference(typeof<string>))
         method.Parameters.Add(parm_name)
 
-        let v_strm = new VariableDefinition(main_mod.ImportReference(typeof<System.IO.Stream>))
-        method.Body.Variables.Add(v_strm)
+        let v_strm = il.NewVariable(typeof<System.IO.Stream>)
 
-        let v_ms = new VariableDefinition(main_mod.ImportReference(typeof<System.IO.MemoryStream>))
-        method.Body.Variables.Add(v_ms)
+        let v_ms = il.NewVariable(typeof<System.IO.MemoryStream>)
 
-        let v_result = new VariableDefinition(main_mod.ImportReference(typeof<byte[]>))
-        method.Body.Variables.Add(v_result)
+        let v_result = il.NewVariable(typeof<byte[]>)
 
-        let il = method.Body.GetILProcessor()
+        il.Append(Ldarg parm_a)
+        il.Append(Ldarg parm_name)
+        il.Append(Callvirt (main_mod.ImportReference(typeof<System.Reflection.Assembly>.GetMethod("GetManifestResourceStream", [| typeof<string> |]))))
+        il.Append(Stloc v_strm)
 
-        il.Append(il.Create(OpCodes.Ldarg, parm_a))
-        il.Append(il.Create(OpCodes.Ldarg, parm_name))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.Reflection.Assembly>.GetMethod("GetManifestResourceStream", [| typeof<string> |]))))
-        il.Append(il.Create(OpCodes.Stloc, v_strm))
+        il.Append(Newobj (main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetConstructor([| |]))))
+        il.Append(Stloc v_ms)
 
-        il.Append(il.Create(OpCodes.Newobj, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetConstructor([| |]))))
-        il.Append(il.Create(OpCodes.Stloc, v_ms))
+        il.Append(Ldloc v_strm)
+        il.Append(Ldloc v_ms)
+        il.Append(Callvirt (main_mod.ImportReference(typeof<System.IO.Stream>.GetMethod("CopyTo", [| typeof<System.IO.Stream> |]))))
 
-        il.Append(il.Create(OpCodes.Ldloc, v_strm))
-        il.Append(il.Create(OpCodes.Ldloc, v_ms))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.Stream>.GetMethod("CopyTo", [| typeof<System.IO.Stream> |]))))
+        il.Append(Ldloc v_ms)
+        il.Append(Callvirt (main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetMethod("ToArray", [| |]))))
+        il.Append(Stloc v_result)
 
-        il.Append(il.Create(OpCodes.Ldloc, v_ms))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IO.MemoryStream>.GetMethod("ToArray", [| |]))))
-        il.Append(il.Create(OpCodes.Stloc, v_result))
-
-        il.Append(il.Create(OpCodes.Ldloc, v_strm))
-        il.Append(il.Create(OpCodes.Callvirt, main_mod.ImportReference(typeof<System.IDisposable>.GetMethod("Dispose", [| |]))))
+        il.Append(Ldloc v_strm)
+        il.Append(Callvirt (main_mod.ImportReference(typeof<System.IDisposable>.GetMethod("Dispose", [| |]))))
 
 (* TODO
         let handler = ExceptionHandler(ExceptionHandlerType.Finally)
@@ -1772,9 +1757,11 @@ module wasm.cecil
         method.Body.ExceptionHandlers.Add(handler)
 *)
 
-        il.Append(il.Create(OpCodes.Ldloc, v_result))
+        il.Append(Ldloc v_result)
 
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Ret)
+
+        il.Finish(method, ctx.bt)
 
         method
 
@@ -1783,46 +1770,42 @@ module wasm.cecil
             new MethodDefinition(
                 "__grow_mem",
                 MethodAttributes.Private ||| MethodAttributes.Static,
-                bt.typ_i32
+                valtype_to_ceciltype bt I32
                 )
-        let parm = new ParameterDefinition(bt.typ_i32)
+        let parm = new ParameterDefinition(valtype_to_ceciltype bt I32)
         method.Parameters.Add(parm)
 
-        let v_old_size = new VariableDefinition(bt.typ_i32)
-        method.Body.Variables.Add(v_old_size)
+        let il = CilWriter()
 
-        let v_new_size = new VariableDefinition(bt.typ_i32)
-        method.Body.Variables.Add(v_new_size)
+        let v_old_size = il.NewVariable(I32)
 
-        let v_old_mem = new VariableDefinition(bt.typ_intptr)
-        method.Body.Variables.Add(v_old_mem)
+        let v_new_size = il.NewVariable(I32)
 
-        let v_new_mem = new VariableDefinition(bt.typ_intptr)
-        method.Body.Variables.Add(v_new_mem)
+        let v_old_mem = il.NewVariable(typeof<System.IntPtr>)
 
-        let il = method.Body.GetILProcessor()
+        let v_new_mem = il.NewVariable(typeof<System.IntPtr>)
 
         match profile with
         | Some h ->
-            il.Append(il.Create(OpCodes.Ldstr, method.Name))
-            il.Append(il.Create(OpCodes.Call, h.profile_enter))
+            il.Append(Ldstr method.Name)
+            il.Append(Call h.profile_enter)
         | None -> ()
 
-        il.Append(il.Create(OpCodes.Ldsfld, mem))
-        il.Append(il.Create(OpCodes.Stloc, v_old_mem))
+        il.Append(Ldsfld mem)
+        il.Append(Stloc v_old_mem)
 
-        il.Append(il.Create(OpCodes.Ldsfld, mem_size))
-        il.Append(il.Create(OpCodes.Stloc, v_old_size))
+        il.Append(Ldsfld mem_size)
+        il.Append(Stloc v_old_size)
 
-        il.Append(il.Create(OpCodes.Ldloc, v_old_size))
-        il.Append(il.Create(OpCodes.Ldarg, parm))
-        il.Append(il.Create(OpCodes.Add))
-        il.Append(il.Create(OpCodes.Stloc, v_new_size))
+        il.Append(Ldloc v_old_size)
+        il.Append(Ldarg parm)
+        il.Append(Add)
+        il.Append(Stloc v_new_size)
 
-        il.Append(il.Create(OpCodes.Ldloc, v_old_mem))
-        il.Append(il.Create(OpCodes.Ldloc, v_new_size))
-        il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
-        il.Append(il.Create(OpCodes.Mul))
+        il.Append(Ldloc v_old_mem)
+        il.Append(Ldloc v_new_size)
+        il.Append(Ldc_I4 mem_page_size)
+        il.Append(Mul)
 
         let method_realloc = typeof<System.Runtime.InteropServices.Marshal>.GetMethod("ReAllocHGlobal", [| typeof<nativeint>; typeof<nativeint> |] )
         if method_realloc = null then
@@ -1832,51 +1815,53 @@ module wasm.cecil
 
         // TODO where is this freed?
         let ext = mem.Module.ImportReference(method_realloc)
-        il.Append(il.Create(OpCodes.Call, ext))
-        il.Append(il.Create(OpCodes.Stloc, v_new_mem))
+        il.Append(Call ext)
+        il.Append(Stloc v_new_mem)
 
         match trace with
         | Some h ->
-            il.Append(il.Create(OpCodes.Ldloc, v_old_size))
-            il.Append(il.Create(OpCodes.Ldloc, v_old_mem))
-            il.Append(il.Create(OpCodes.Ldarg, parm))
-            il.Append(il.Create(OpCodes.Ldloc, v_new_size))
-            il.Append(il.Create(OpCodes.Ldloc, v_new_mem))
-            il.Append(il.Create(OpCodes.Call, h.trace_grow_mem))
+            il.Append(Ldloc v_old_size)
+            il.Append(Ldloc v_old_mem)
+            il.Append(Ldarg parm)
+            il.Append(Ldloc v_new_size)
+            il.Append(Ldloc v_new_mem)
+            il.Append(Call h.trace_grow_mem)
         | None -> ()
 
-        il.Append(il.Create(OpCodes.Ldloc, v_new_size))
-        il.Append(il.Create(OpCodes.Stsfld, mem_size))
-        il.Append(il.Create(OpCodes.Ldloc, v_new_mem))
-        il.Append(il.Create(OpCodes.Stsfld, mem))
+        il.Append(Ldloc v_new_size)
+        il.Append(Stsfld mem_size)
+        il.Append(Ldloc v_new_mem)
+        il.Append(Stsfld mem)
 
         // memset 0
 
-        il.Append(il.Create(OpCodes.Ldsfld, mem))
-        il.Append(il.Create(OpCodes.Ldloc, v_old_size))
-        il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
-        il.Append(il.Create(OpCodes.Mul))
-        il.Append(il.Create(OpCodes.Add))
+        il.Append(Ldsfld mem)
+        il.Append(Ldloc v_old_size)
+        il.Append(Ldc_I4 mem_page_size)
+        il.Append(Mul)
+        il.Append(Add)
 
-        il.Append(il.Create(OpCodes.Ldc_I4, 0))
+        il.Append(Ldc_I4_0)
 
-        il.Append(il.Create(OpCodes.Ldarg, parm))
-        il.Append(il.Create(OpCodes.Ldc_I4, mem_page_size))
-        il.Append(il.Create(OpCodes.Mul))
+        il.Append(Ldarg parm)
+        il.Append(Ldc_I4 mem_page_size)
+        il.Append(Mul)
 
-        il.Append(il.Create(OpCodes.Initblk))
+        il.Append(Initblk)
 
         // return value
 
-        il.Append(il.Create(OpCodes.Ldloc, v_old_size))
+        il.Append(Ldloc v_old_size)
 
         match profile with
         | Some h ->
-            il.Append(il.Create(OpCodes.Ldstr, method.Name))
-            il.Append(il.Create(OpCodes.Call, h.profile_exit))
+            il.Append(Ldstr method.Name)
+            il.Append(Call h.profile_exit)
         | None -> ()
 
-        il.Append(il.Create(OpCodes.Ret))
+        il.Append(Ret)
+
+        il.Finish(method, bt)
 
         method
 
@@ -1902,15 +1887,10 @@ module wasm.cecil
 
         let main_module = assembly.MainModule
 
-        let bt = 
+        let typs =
             {
-                typ_i32 = main_module.TypeSystem.Int32
-                typ_i64 = main_module.TypeSystem.Int64
-                typ_f32 = main_module.TypeSystem.Single
-                typ_f64 = main_module.TypeSystem.Double
-                typ_void = main_module.TypeSystem.Void
-                typ_intptr = main_module.TypeSystem.IntPtr
-                typ_object = main_module.TypeSystem.Object
+                ns = ns
+                md = main_module
             }
 
         let container = 
@@ -1971,14 +1951,14 @@ module wasm.cecil
                         f :> FieldReference
                 (mem, mem_size)
 
-        let a_globals = create_globals ndx bt main_module settings.env
+        let a_globals = create_globals ndx typs main_module settings.env
 
         for m in a_globals do
             match m with
             | GlobalRefInternal mi -> container.Fields.Add(mi.field)
             | GlobalRefImported _ -> ()
 
-        let a_methods = create_methods ndx bt main_module settings.env
+        let a_methods = create_methods ndx typs main_module settings.env
 
         for m in a_methods do
             match m with
@@ -2011,7 +1991,7 @@ module wasm.cecil
                 | (None, Some _, Some _) -> true
                 | _ -> false
             if has_table then
-                let m = gen_tbl_lookup ndx bt tbl main_module
+                let m = gen_tbl_lookup ndx typs tbl main_module
                 container.Methods.Add(m)
                 Some m
             else None
@@ -2042,14 +2022,14 @@ module wasm.cecil
                     }
 
         let mem_grow =
-            gen_grow_mem mem mem_size bt trace_hooks profile_hooks
+            gen_grow_mem mem mem_size typs trace_hooks profile_hooks
         container.Methods.Add(mem_grow)
 
         let ctx =
             {
                 types = types
                 md = container.Module
-                bt = bt
+                bt = typs
                 a_globals = a_globals
                 a_methods = a_methods
                 mem = mem
