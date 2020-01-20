@@ -518,6 +518,8 @@ module wasm.cecil
         | SpecialCaseBlock t ->
             None
         | SpecialCaseIf t ->
+            let arg1 = pop cur_opstack
+            type_check arg1 I32
             None
         | SpecialCaseElse ->
             None
@@ -536,7 +538,7 @@ module wasm.cecil
                 type_check arg t
             | None -> ()
             match try_peek cur_opstack with
-            | Some _ -> raise (ExtraBlockResult "TODO")
+            | Some x -> raise (ExtraBlockResult (sprintf "%A" x))
             | None -> ()
             bi.result
         | SpecialCaseDrop ->
@@ -1337,6 +1339,7 @@ module wasm.cecil
         method
 
     let gen_function_code ctx (mi : MethodRefInternal) =
+        //printfn "gen_function_code: %s" mi.method.Name
         let a_locals =
             let a = System.Collections.Generic.List<ParamOrVar>()
             // TODO look up names in mi.func.locals
