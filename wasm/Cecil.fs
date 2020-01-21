@@ -677,6 +677,13 @@ module wasm.cecil
             il.Append(Newobj ref_typ_e)
             il.Append(Throw)
 
+(*
+        // hack-ish way of inserting a comment into the IL
+        let msg = sprintf "%A" op
+        il.Append(Ldstr msg)
+        il.Append(Pop)
+*)
+
         match op with
         | Block t -> 
             let lab = il.NewLabel()
