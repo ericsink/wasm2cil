@@ -41,6 +41,7 @@ let main argv =
                             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
                             profile = if option_profile.ParsedValue then ProfileSetting.Yes assembly else ProfileSetting.No
                             trace = if option_trace.ParsedValue then TraceSetting.Yes assembly else TraceSetting.No
+                            //trace = TraceSetting.Yes assembly
                             env = Some assembly
                             }
                         gen_assembly settings m id ns classname ver ms
@@ -75,6 +76,7 @@ let main argv =
                             memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
                             profile = if option_profile.ParsedValue then ProfileSetting.Yes assembly else ProfileSetting.No
                             trace = if option_trace.ParsedValue then TraceSetting.Yes assembly else TraceSetting.No
+                            //trace = TraceSetting.Yes assembly
                             env = Some assembly
                             }
                         gen_assembly settings m id ns classname ver ms

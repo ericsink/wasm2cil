@@ -690,6 +690,9 @@ module wasm.cecil
         | If t -> 
             let lab = il.NewLabel()
             let blk = CB_If { label = lab; opstack = new_stack_empty (); result = t; stack_polymorphic = false; }
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
+            il.Append(Brtrue lab)
             push blocks blk
         | Else -> 
             // first, end the if block
@@ -701,6 +704,7 @@ module wasm.cecil
                 | _ -> failwith "bad nest"
 
             let lab = il.NewLabel()
+            il.Append(Br lab)
             let blk = CB_Else { label = lab; opstack = new_stack_empty (); result = blk_typ; stack_polymorphic = false; }
             push blocks blk
         | End -> 

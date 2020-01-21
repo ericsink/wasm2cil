@@ -553,8 +553,10 @@ module wasm.cil
                     pop ()
                 | Switch x ->
                     pop ()
+                    cannot <- true
                 | Nop
                 | Ret ->
+                    // TODO can we verify the stack here?
                     ()
                 | Call x ->
                     // TODO distinguish vararg?
