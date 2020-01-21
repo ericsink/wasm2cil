@@ -173,14 +173,16 @@ module wasm.cecil
         | CB_If b -> b
         | CB_Else b -> b
 
+    let get_block_kind_name blk =
+        match blk with
+        | CB_Body b -> "body"
+        | CB_Block b -> "block"
+        | CB_Loop b -> "loop"
+        | CB_If b -> "if"
+        | CB_Else b -> "else"
+
     let get_block_string blk =
-        let k =
-            match blk with
-            | CB_Body b -> "body"
-            | CB_Block b -> "block"
-            | CB_Loop b -> "loop"
-            | CB_If b -> "if"
-            | CB_Else b -> "else"
+        let k = get_block_kind_name blk
         let bi = get_blockinfo blk
         let t = 
             match bi.result with
@@ -677,12 +679,78 @@ module wasm.cecil
             il.Append(Newobj ref_typ_e)
             il.Append(Throw)
 
-(*
+#if not
         // hack-ish way of inserting a comment into the IL
+        let comment msg =
+            il.Append(Ldstr msg)
+            il.Append(Pop)
+#endif
+
+#if not
+        // comment every wasm instruction
         let msg = sprintf "%A" op
-        il.Append(Ldstr msg)
-        il.Append(Pop)
-*)
+        comment msg
+#endif
+
+        let do_branch n =
+            let (LabelIdx n) = n
+            let n = int n
+
+            if n > 0 then
+                let frames = Array.ofList (blocks.top.[..n])
+
+                // the last item in frames is the target
+                // any items before that are getting skipped over
+
+                let blk_target = frames.[frames.Length - 1]
+                let bi_target = get_blockinfo blk_target
+
+                let need_drop =
+                    let first_useless_frame =
+                        let blk_cur = frames.[0]
+                        let bi_cur = get_blockinfo blk_cur
+
+                        match bi_target.result with
+                        | Some _ ->
+                            let top_stack_len = List.length bi_cur.opstack.top
+                            if top_stack_len = 0 then
+                                // TODO throw
+                                printfn "ERROR: no value for target block"
+                            1
+                        | None ->
+                            0
+
+                    let mutable count_drop = 0
+                    for i = first_useless_frame to frames.Length - 1 do
+                        let f = frames.[i]
+                        let bi = get_blockinfo f
+                        count_drop <- count_drop + List.length bi.opstack.top
+                    count_drop
+
+                if need_drop > 0 then
+                    match bi_target.result with
+                    | Some t ->
+                        //sprintf "%A needs to RESCUE and then drop %d values:" op need_drop |> comment
+                        let tmp = il.NewVariable(t)
+                        il.Append(Stloc tmp)
+                        for i = 1 to need_drop do
+                            il.Append(Pop)
+                        il.Append(Ldloc tmp)
+                    | None ->
+                        //sprintf "%A needs to drop %d values:" op need_drop |> comment
+                        for i = 1 to need_drop do
+                            il.Append(Pop)
+#if not
+                    for f in frames do
+                        let bi = get_blockinfo f
+                        printfn "    %s result = %A  stack = %A" (get_block_kind_name f) bi.result bi.opstack
+#endif
+
+                il.Append(Br bi_target.label)
+            else
+                let blk = blocks.top.[0]
+                let bi = get_blockinfo blk
+                il.Append(Br bi.label)
 
         match op with
         | Block t -> 
@@ -722,15 +790,20 @@ module wasm.cecil
             | CB_If { label = lab } -> il.Append(Label lab)
             | CB_Else { label = lab } -> il.Append(Label lab)
         | Return ->
+            // TODO this probably needs to use the stack cleanup logic in do_branch
             il.Append(Br body.label)
         | Instruction.Nop -> il.Append(MyInstruction.Nop)
         | Instruction.Br i ->
-            let lab = find_branch_target i
-            il.Append(Br lab)
+            do_branch i
         | BrIf i ->
-            let lab = find_branch_target i
-            il.Append(Brtrue lab)
+            let lab_else = il.NewLabel()
+            il.Append(Ldc_I4_0)
+            il.Append(Ceq)
+            il.Append(Brtrue lab_else)
+            do_branch i
+            il.Append(Label lab_else)
         | BrTable m ->
+            // TODO this needs to use the stack cleanup logic in do_branch
             let q = Array.map (fun i -> find_branch_target i) m.v
             il.Append(Switch q)
             let lab = find_branch_target m.other
