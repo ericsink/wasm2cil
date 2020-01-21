@@ -831,7 +831,7 @@ module wasm.cecil
         | I32Store16 m -> store m Stind_I2 (f_make_tmp I32)
         | I64Store8 m -> store m Stind_I1 (f_make_tmp I64)
         | I64Store16 m -> store m Stind_I2 (f_make_tmp I64)
-        | I64Store32 m -> store m Stind_I4 (f_make_tmp I64)
+        | I64Store32 m -> store m Stind_I4 (f_make_tmp I64) // TODO convert I8 to I4 first?  ilspy complaining
 
         | I32Const i -> 
             match i with
