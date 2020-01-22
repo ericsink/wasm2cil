@@ -1036,7 +1036,7 @@ module wasm.cecil
 
         | I32WrapI64 -> il.Append(Conv_I4) // TODO is this correct?
         | I64ExtendI32S -> il.Append(Conv_I8)
-        | I64ExtendI32U -> il.Append(Conv_I8) // TODO is this correct?
+        | I64ExtendI32U -> il.Append(Conv_U8) // TODO is this correct?
 
         | I32TruncF32S | I32TruncF64S -> il.Append(Conv_Ovf_I4)
         | I64TruncF32S | I64TruncF64S -> il.Append(Conv_Ovf_I8)
@@ -1246,6 +1246,24 @@ module wasm.cecil
 
             
         | F64Copysign ->
+            (*
+				from https://github.com/RyanLamansky/dotnet-webassembly
+
+                il.Emit(OpCodes.Ldarga_S, 0);
+                il.Emit(OpCodes.Ldind_I8);
+                il.Emit(OpCodes.Ldc_I8, 0x7fffffffffffffff);
+                il.Emit(OpCodes.And);
+                il.Emit(OpCodes.Ldarga_S, 1);
+                il.Emit(OpCodes.Ldind_I8);
+                il.Emit(OpCodes.Ldc_I8, unchecked((long)0x8000000000000000u));
+                il.Emit(OpCodes.And);
+                il.Emit(OpCodes.Or);
+                il.Emit(OpCodes.Stloc_0);
+                il.Emit(OpCodes.Ldloca_S, value);
+                il.Emit(OpCodes.Ldind_R8);
+                il.Emit(OpCodes.Ret);
+            *)
+
             let v2 = f_make_tmp F64
             il.Append(Stloc v2)
             let v1 = f_make_tmp F64
