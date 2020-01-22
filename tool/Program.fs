@@ -113,6 +113,47 @@ let main argv =
                 )
             )
         ) |> ignore
+    app.Command("rundll",
+        (fun (cmd : CommandLineApplication) ->
+            cmd.HelpOption() |> ignore
+
+            // TODO want accepts existing file validator
+            let dll = cmd.Argument<string>("dll", "The DLL already compiled").IsRequired()
+
+            cmd.AllowArgumentSeparator <- true
+            cmd.OnExecute(
+                (fun () ->
+                    let ba = System.IO.File.ReadAllBytes(dll.Value)
+                    let a = System.Reflection.Assembly.Load(ba)
+                    let fullname = sprintf "%s.%s" "test" "foo"
+                    let t = a.GetType(fullname)
+                    if t = null then
+                        failwith "type not found"
+                    let mi = t.GetMethod("_start", [| |])
+                    if mi = null then
+                        failwith "entry point not found"
+
+                    let newargs =
+                        let z = [| "TODO" |]
+                        z.Concat(cmd.RemainingArguments).ToArray()
+                    wasi_unstable.set_args(newargs);
+
+                    let mutable rc = 0
+                    try
+                        let ret = mi.Invoke(null, null)
+                        if ret <> null then
+                                rc <- unbox<int> ret
+                    with
+                    | :? System.Reflection.TargetInvocationException as e ->
+                        let e = e.InnerException
+                        match e with
+                        | :?  ProcExitException as e -> rc <- e.ReturnCode
+                        | _ -> raise e
+
+                    )
+                )
+            )
+        ) |> ignore
     app.OnExecute(
         (fun () ->
             app.ShowHelp()
