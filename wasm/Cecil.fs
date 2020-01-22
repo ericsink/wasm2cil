@@ -707,18 +707,26 @@ module wasm.cecil
 
                 let need_drop =
                     let first_useless_frame =
-                        let blk_cur = frames.[0]
-                        let bi_cur = get_blockinfo blk_cur
-
-                        match bi_target.result with
-                        | Some _ ->
-                            let top_stack_len = List.length bi_cur.opstack.top
-                            if top_stack_len = 0 then
-                                // TODO throw
-                                printfn "ERROR: no value for target block"
-                            1
-                        | None ->
+                        match blk_target with
+                        | CB_Loop _ ->
+                            // branch to a Loop goes to the top, not the
+                            // bottom, so we don't need the value.
                             0
+                        | _ ->
+                            match bi_target.result with
+                            | Some _ ->
+                                let blk_cur = frames.[0]
+                                let bi_cur = get_blockinfo blk_cur
+                                let top_stack_len = List.length bi_cur.opstack.top
+                                if top_stack_len = 0 then
+                                    // TODO throw
+                                    printfn "ERROR: no value for target block"
+                                    for f in frames do
+                                        let bi = get_blockinfo f
+                                        printfn "    %s result = %A  stack = %A" (get_block_kind_name f) bi.result bi.opstack
+                                1
+                            | None ->
+                                0
 
                     let mutable count_drop = 0
                     for i = first_useless_frame to frames.Length - 1 do

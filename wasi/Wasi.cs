@@ -419,6 +419,11 @@ public static partial class wasi_unstable
     {
         throw new NotImplementedException();
     }
+    public static int sched_yield()
+    {
+        // TODO
+        return 0;
+    }
     public static int fd_write(int fd, int addr_iovecs, int iovecs_len, int addr_nwritten)
     {
         //System.Console.WriteLine("fd_write: {0} {1} {2} {3}", fd, addr_iovecs, iovecs_len, addr_nwritten);
