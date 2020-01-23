@@ -203,10 +203,6 @@ instead of Cecil ?
 
 how to deal with non-mut globals?
 
-consider an F# wrapper around cecil, avoid all those
-il.Create() overloads, so problems can be caught at
-compile time instead of run time.
-
 still some problems in roundtripping binary format,
 might be important, not sure.  update:  did this get
 fixed with the leb128 decode signed fix?
