@@ -7,9 +7,6 @@ lots of chgs were made to the raytracer code
 to make it compatible with wasi.  no threads.
 write to stdout instead of a file.  etc.
 
-fix raytracer build to work with non-wasi again.
-conditional compilation for the wasi stuff.
-
 added a hack to use wasi_unstable regardless of
 what the wasm requests.  seems to kinda work.
 
