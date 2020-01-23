@@ -32,6 +32,7 @@ module wasm.cecil
         trace : TraceSetting
         env : System.Reflection.Assembly option
         memory : MemorySetting
+        references : ReferencedAssembly[]
         }
 
     type ParamRef = {
@@ -1522,7 +1523,7 @@ module wasm.cecil
             | ImportedFunc s ->
                 match env_assembly with
                 | Some assy ->
-                    let method = import_function md s assy
+                    let method = import_function_old md s assy
                     MethodRefImported { MethodRefImported.func = s; method = method }
                 | None -> failwith "no imports"
             | InternalFunc q ->
@@ -2023,8 +2024,8 @@ module wasm.cecil
 
                 match settings.env with
                 | Some assembly ->
-                    let mem_size = import_field main_module name "__mem_size" assembly
-                    let mem = import_field main_module name "__mem" assembly
+                    let mem_size = import_field_old main_module name "__mem_size" assembly
+                    let mem = import_field_old main_module name "__mem" assembly
                     (mem, mem_size)
                 | None ->
                     failwith "no reference assembly"
