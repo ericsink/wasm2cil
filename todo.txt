@@ -1,14 +1,12 @@
 
-the assembly references code here should be
-replaced with the corresponding code from the
-llvm_stuff tree
-
 lots of chgs were made to the raytracer code
 to make it compatible with wasi.  no threads.
 write to stdout instead of a file.  etc.
 
 added a hack to use wasi_unstable regardless of
 what the wasm requests.  seems to kinda work.
+fix this for the new multiple references code
+from llvm_stuff.
 
 --
 
@@ -32,7 +30,7 @@ in the assembly that the compiler happens to be running
 in.  is this the NetStandard.Library nuget package?
 
 are we taxing the JIT by having funcs with so many
-locals?
+locals?  probably not?
 
 enclosing class is always named foo ?  not at the
 compiler level, only as a default in temporary
