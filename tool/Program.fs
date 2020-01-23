@@ -42,8 +42,7 @@ let main argv =
                             profile = if option_profile.ParsedValue then ProfileSetting.Yes assembly else ProfileSetting.No
                             trace = if option_trace.ParsedValue then TraceSetting.Yes assembly else TraceSetting.No
                             //trace = TraceSetting.Yes assembly
-                            env = Some assembly
-                            references = Array.empty
+                            references = [| assembly |]
                             }
                         gen_assembly settings m id ns classname ver ms
                         ms.ToArray()
@@ -78,8 +77,7 @@ let main argv =
                             profile = if option_profile.ParsedValue then ProfileSetting.Yes assembly else ProfileSetting.No
                             trace = if option_trace.ParsedValue then TraceSetting.Yes assembly else TraceSetting.No
                             //trace = TraceSetting.Yes assembly
-                            env = Some assembly
-                            references = Array.empty
+                            references = [| assembly |]
                             }
                         gen_assembly settings m id ns classname ver ms
                         ms.ToArray()

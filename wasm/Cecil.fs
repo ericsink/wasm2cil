@@ -30,9 +30,8 @@ module wasm.cecil
     type CompilerSettings = {
         profile : ProfileSetting
         trace : TraceSetting
-        env : System.Reflection.Assembly option
         memory : MemorySetting
-        references : ReferencedAssembly[]
+        references : System.Reflection.Assembly[]
         }
 
     type ParamRef = {
@@ -1517,15 +1516,14 @@ module wasm.cecil
 
         il.Finish(mi.method, ctx.bt)
 
-    let create_methods ndx bt (md : ModuleDefinition) env_assembly =
+    let create_methods ndx bt (md : ModuleDefinition) refs =
         let prep_func i fi =
             match fi with
             | ImportedFunc s ->
-                match env_assembly with
-                | Some assy ->
-                    let method = import_function_old md s assy
+                match refs_import_function md refs s with
+                | Some method ->
                     MethodRefImported { MethodRefImported.func = s; method = method }
-                | None -> failwith "no imports"
+                | None -> failwith "import method not found"
             | InternalFunc q ->
                 let method = create_method q i bt
                 MethodRefInternal { func = q; method = method; }
@@ -1539,13 +1537,12 @@ module wasm.cecil
             | MethodRefInternal mi -> gen_function_code ctx mi
             | MethodRefImported _ -> ()
 
-    let create_globals ndx bt (md : ModuleDefinition) env_assembly =
+    let create_globals ndx bt (md : ModuleDefinition) refs =
         let prep i gi =
             match gi with
             | ImportedGlobal s ->
-                match env_assembly with
-                | Some assy ->
-                    let field = import_global md s assy
+                match refs_import_field md refs s.m s.name with
+                | Some field ->
                     GlobalRefImported { GlobalRefImported.glob = s; field = field; }
                 | None -> failwith "no imports"
             | InternalGlobal q ->
@@ -2018,17 +2015,18 @@ module wasm.cecil
 
         let (mem, mem_size) =
             match settings.memory with
-            | AlwaysImportPairFrom name ->
+            | AlwaysImportPairFrom mod_name ->
                 // when targeting wasi, we ignore what the module says about
                 // memory and import the one from our wasi implementation.
 
-                match settings.env with
-                | Some assembly ->
-                    let mem_size = import_field_old main_module name "__mem_size" assembly
-                    let mem = import_field_old main_module name "__mem" assembly
-                    (mem, mem_size)
-                | None ->
-                    failwith "no reference assembly"
+                let mem_size = refs_import_field main_module settings.references mod_name "__mem_size"
+                let mem = refs_import_field main_module settings.references mod_name "__mem"
+                match (mem, mem_size) with
+                | (Some a, Some b) ->
+                    (a, b)
+                | _ ->
+                    failwith "import mem failed"
+                    
             | Default->
                 // in this case, we accept an optional assembly for looking
                 // up imports, and we respect whatever the module says about
@@ -2048,9 +2046,13 @@ module wasm.cecil
                 let mem =
                     match ndx.MemoryImport with
                     | Some mi ->
-                        match settings.env with
-                        | Some assembly -> import_memory main_module mi assembly
-                        | None -> failwith "no imports"
+                        //let mem_size = refs_import_field main_module settings.references mi.m "__mem_size"
+                        let mem = refs_import_field main_module settings.references mi.m mi.name
+                        match mem with
+                        | Some m ->
+                            m
+                        | _ ->
+                            failwith "import mem failed"
                     | None ->
                         let f =
                             new FieldDefinition(
@@ -2062,14 +2064,14 @@ module wasm.cecil
                         f :> FieldReference
                 (mem, mem_size)
 
-        let a_globals = create_globals ndx typs main_module settings.env
+        let a_globals = create_globals ndx typs main_module settings.references
 
         for m in a_globals do
             match m with
             | GlobalRefInternal mi -> container.Fields.Add(mi.field)
             | GlobalRefImported _ -> ()
 
-        let a_methods = create_methods ndx typs main_module settings.env
+        let a_methods = create_methods ndx typs main_module settings.references
 
         for m in a_methods do
             match m with
