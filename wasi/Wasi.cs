@@ -308,19 +308,28 @@ public static partial class wasi_unstable
         switch ((uint) clock_id)
         {
             case __WASI_CLOCK_REALTIME:
-                TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
-                var ms = (long) (t.TotalMilliseconds);
-                var ns = ms * 1000 * 1000;
-                Marshal.WriteInt64(__mem + addr_result, ns);
-                return __WASI_ESUCCESS;
+                {
+                    TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
+                    var ms = (long) (t.TotalMilliseconds);
+                    var ns = ms * 1000 * 1000;
+                    Marshal.WriteInt64(__mem + addr_result, ns);
+                    return __WASI_ESUCCESS;
+                }
             case __WASI_CLOCK_MONOTONIC:
-                throw new NotImplementedException();
+                {
+                    // TODO copied from REALTime case.  is this correct?
+                    TimeSpan t = DateTime.UtcNow - new DateTime(1970, 1, 1);
+                    var ms = (long) (t.TotalMilliseconds);
+                    var ns = ms * 1000 * 1000;
+                    Marshal.WriteInt64(__mem + addr_result, ns);
+                    return __WASI_ESUCCESS;
+                }
             case __WASI_CLOCK_PROCESS_CPUTIME_ID:
-                throw new NotImplementedException();
+                throw new NotImplementedException("process cputime");
             case __WASI_CLOCK_THREAD_CPUTIME_ID:
-                throw new NotImplementedException();
+                throw new NotImplementedException("thread cputime");
             default: 
-                throw new NotImplementedException();
+                throw new NotImplementedException("TODO");
         }
     }
     public static int fd_close(int fd)
