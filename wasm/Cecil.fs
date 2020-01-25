@@ -1523,7 +1523,7 @@ module wasm.cecil
                 match refs_import_function md refs s with
                 | Some method ->
                     MethodRefImported { MethodRefImported.func = s; method = method }
-                | None -> failwith "import method not found"
+                | None -> failwithf "import method %s not found" s.name
             | InternalFunc q ->
                 let method = create_method q i bt
                 MethodRefInternal { func = q; method = method; }
