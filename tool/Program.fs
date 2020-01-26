@@ -30,7 +30,8 @@ let main argv =
                 (fun () ->
                     let br = BinaryWasmStream(System.IO.File.ReadAllBytes(src.Value))
                     let m = read_module br
-                    let assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+                    let mem_assembly = System.Reflection.Assembly.GetAssembly(typeof<sg_wasm>)
+                    let wasi_assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
                     let ba = 
                         use ms = new System.IO.MemoryStream()
                         let id = "test"
@@ -38,11 +39,15 @@ let main argv =
                         let classname = "foo"
                         let ver = new System.Version(1, 0, 0, 0)
                         let settings = {
-                            memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
-                            profile = if option_profile.ParsedValue then ProfileSetting.Yes assembly else ProfileSetting.No
-                            trace = if option_trace.ParsedValue then TraceSetting.Yes assembly else TraceSetting.No
-                            //trace = TraceSetting.Yes assembly
-                            references = [| assembly |]
+                            memory = MemorySetting.AlwaysImportPairFrom "sg_wasm"
+                            profile = if option_profile.ParsedValue then ProfileSetting.Yes wasi_assembly else ProfileSetting.No
+                            trace = if option_trace.ParsedValue then TraceSetting.Yes wasi_assembly else TraceSetting.No
+                            //trace = TraceSetting.Yes wasi_assembly
+                            references = 
+                                [| 
+                                    wasi_assembly 
+                                    mem_assembly
+                                |]
                             }
                         gen_assembly settings m id ns classname ver ms
                         ms.ToArray()
@@ -65,7 +70,8 @@ let main argv =
                 (fun () ->
                     let br = BinaryWasmStream(System.IO.File.ReadAllBytes(src.Value))
                     let m = read_module br
-                    let assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+                    let wasi_assembly = System.Reflection.Assembly.GetAssembly(typeof<wasi_unstable>)
+                    let mem_assembly = System.Reflection.Assembly.GetAssembly(typeof<sg_wasm>)
                     let ba = 
                         use ms = new System.IO.MemoryStream()
                         let id = "test"
@@ -73,11 +79,15 @@ let main argv =
                         let classname = "foo"
                         let ver = new System.Version(1, 0, 0, 0)
                         let settings = {
-                            memory = MemorySetting.AlwaysImportPairFrom "wasi_unstable"
-                            profile = if option_profile.ParsedValue then ProfileSetting.Yes assembly else ProfileSetting.No
-                            trace = if option_trace.ParsedValue then TraceSetting.Yes assembly else TraceSetting.No
-                            //trace = TraceSetting.Yes assembly
-                            references = [| assembly |]
+                            memory = MemorySetting.AlwaysImportPairFrom "sg_wasm"
+                            profile = if option_profile.ParsedValue then ProfileSetting.Yes wasi_assembly else ProfileSetting.No
+                            trace = if option_trace.ParsedValue then TraceSetting.Yes wasi_assembly else TraceSetting.No
+                            //trace = TraceSetting.Yes wasi_assembly
+                            references = 
+                                [| 
+                                    wasi_assembly 
+                                    mem_assembly
+                                |]
                             }
                         gen_assembly settings m id ns classname ver ms
                         ms.ToArray()

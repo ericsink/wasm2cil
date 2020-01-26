@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\wasm\wasm.fsproj" />
     <ProjectReference Include="..\wasi\wasi.csproj" />
+    <ProjectReference Include="..\mem\mem.csproj" />
   </ItemGroup>
 
   <ItemGroup>

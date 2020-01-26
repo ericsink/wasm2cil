@@ -2016,8 +2016,8 @@ module wasm.cecil
         let (mem, mem_size) =
             match settings.memory with
             | AlwaysImportPairFrom mod_name ->
-                // when targeting wasi, we ignore what the module says about
-                // memory and import the one from our wasi implementation.
+                // sometimes we want to ignore what the module says about
+                // memory and specify where to import one
 
                 let mem_size = refs_import_field main_module settings.references mod_name "__mem_size"
                 let mem = refs_import_field main_module settings.references mod_name "__mem"

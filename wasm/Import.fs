@@ -36,13 +36,16 @@ module wasm.import
 
     let import_field (md : ModuleDefinition) (type_name : string) (field_name : string) (a : System.Reflection.Assembly) =
         let typ = a.GetType(type_name)
-        let f = typ.GetField(field_name)
-        // TODO complain if the field is not intptr ?
-        if f = null then
+        if typ = null then
             None
         else
-            let mref = md.ImportReference(f)
-            Some mref
+            let f = typ.GetField(field_name)
+            // TODO complain if the field is not intptr ?
+            if f = null then
+                None
+            else
+                let mref = md.ImportReference(f)
+                Some mref
 
     let refs_import_function (md : ModuleDefinition) (references : System.Reflection.Assembly[]) (s : ImportedFunc) =
         Array.tryPick 
