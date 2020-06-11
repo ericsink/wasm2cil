@@ -18,7 +18,7 @@ module wasm.import
 
     let import_function (md : ModuleDefinition) (s : ImportedFunc) (a : System.Reflection.Assembly) =
         let typ = a.GetType(s.m)
-        //let typ = a.GetType("wasi_unstable") // TODO temporary hack
+        let typ = a.GetType("wasi_unstable") // TODO temporary hack
         if typ = null then
             None
         else
