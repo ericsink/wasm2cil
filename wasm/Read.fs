@@ -293,6 +293,8 @@ module wasm.read
 
     let read_module br =
         let magic = read_u32 br
+        if magic <> 0x6d736100u then
+            failwith "Not a WASM module"
         let ver = read_u32 br
 
         let a =
